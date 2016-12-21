@@ -627,6 +627,7 @@ static int xio_on_req_recv(struct xio_connection *connection,
 		} else {
 			ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d\n",
 				  connection->req_exp_sn, hdr.sn);
+			connection->req_exp_sn = hdr.sn + 1;
 		}
 	}
 	connection->ka.io_rcv = 1;
@@ -759,6 +760,7 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 		} else {
 			ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d\n",
 				  connection->rsp_exp_sn, hdr.sn);
+			connection->rsp_exp_sn = hdr.sn + 1;
 		}
 	}
 	/*
