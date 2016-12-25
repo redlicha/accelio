@@ -1147,8 +1147,8 @@ static int xio_tcp_prep_req_in_data(struct xio_tcp_transport *tcp_hndl,
 
 	data_len = tbl_length(sgtbl_ops, sgtbl);
 	hdr_len	 = vmsg->header.iov_len;
-	if (hdr_len && hdr_len >= tcp_hndl->peer_max_header) {
-		ERROR_LOG("hdr_len=%zd is bigger than peer_max_reader=%d\n",
+	if (hdr_len && hdr_len > tcp_hndl->peer_max_header) {
+		ERROR_LOG("hdr_len=%zd is bigger than peer_max_header=%d\n",
 				hdr_len, tcp_hndl->peer_max_header);
 		return -1;
 	} else if (!hdr_len) {
@@ -1547,8 +1547,9 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	xio_hdr_len += tcp_task->req_in_num_sge * sizeof(struct xio_sge);
 	enforce_write_rsp = task->imsg_flags & XIO_HEADER_FLAG_PEER_WRITE_RSP;
 
-	if (ulp_hdr_len && ulp_hdr_len >= tcp_hndl->peer_max_header) {
-		ERROR_LOG("hdr_len=%llu is bigger than peer_max_reader=%d\n",
+	if (ulp_hdr_len && ulp_hdr_len > tcp_hndl->peer_max_header && 
+	    IS_APPLICATION_MSG(task->tlv_type)) {
+		ERROR_LOG("hdr_len=%llu is bigger than peer_max_header=%d\n",
 				ulp_hdr_len, tcp_hndl->peer_max_header);
 		goto cleanup;
 	}
