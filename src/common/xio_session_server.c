@@ -172,6 +172,10 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
+		if (session->setup_error) {
+			retval = session->setup_error;
+			goto cleanup2;
+		}
 		if (retval)
 			goto cleanup2;
 	} else {
@@ -214,6 +218,15 @@ cleanup1:
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
 	}
+	/* move the queued task */
+	list_move_tail(&task->tasks_list_entry,
+			&connection->post_io_tasks_list);
+
+	/* the rx task is returned back to pool */
+	xio_tasks_pool_put(task);
+
+	xio_connection_force_disconnect(connection, error_event.reason);
+
 	return 0;
 }
 
@@ -422,6 +435,7 @@ int xio_accept(struct xio_session *session,
 					   user_context_len);
 	if (!msg) {
 		ERROR_LOG("setup request creation failed\n");
+		session->setup_error = xio_errno();
 		return -1;
 	}
 
@@ -457,7 +471,10 @@ int xio_accept(struct xio_session *session,
 	retval = xio_connection_send(task->connection, msg);
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message. errno:%d\n", -retval);
-		xio_set_error(-retval);
+		if (msg)
+			kfree(msg);
+		session->setup_error = XIO_E_SESSION_ABORTED;
+		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
 	}
 
@@ -479,6 +496,7 @@ int xio_redirect(struct xio_session *session,
 	if (portals_array_len == 0 || !portals_array) {
 		xio_set_error(EINVAL);
 		ERROR_LOG("portals array for redirect is mandatory\n");
+		session->setup_error = EINVAL;
 		return -1;
 	}
 
@@ -490,6 +508,7 @@ int xio_redirect(struct xio_session *session,
 					   0);
 	if (unlikely(!msg)) {
 		ERROR_LOG("setup request creation failed\n");
+		session->setup_error = xio_errno();
 		return -1;
 	}
 	if (portals_array_len != 0) {
@@ -507,7 +526,10 @@ int xio_redirect(struct xio_session *session,
 	retval = xio_connection_send(task->connection, msg);
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message errno:%d\n", -retval);
-		xio_set_error(-retval);
+		if (msg)
+			kfree(msg);
+		session->setup_error = XIO_E_SESSION_ABORTED;
+		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
 	}
 
@@ -531,6 +553,7 @@ int xio_reject(struct xio_session *session,
 					   user_context_len);
 	if (!msg) {
 		ERROR_LOG("setup request creation failed\n");
+		session->setup_error = EINVAL;
 		return -1;
 	}
 	/* server side state is changed to REJECTED */
@@ -549,7 +572,10 @@ int xio_reject(struct xio_session *session,
 	retval = xio_connection_send(task->connection, msg);
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message. errno:%d\n", -retval);
-		xio_set_error(-retval);
+		if (msg)
+			kfree(msg);
+		session->setup_error = XIO_E_SESSION_ABORTED;
+		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
 	}
 

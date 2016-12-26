@@ -73,7 +73,7 @@ struct xio_session {
 	uint16_t			rcv_queue_depth_msgs;
 	uint16_t			peer_snd_queue_depth_msgs;
 	uint16_t			peer_rcv_queue_depth_msgs;
-	uint16_t			pad[2];
+	uint32_t			setup_error;
 	uint64_t			snd_queue_depth_bytes;
 	uint64_t			rcv_queue_depth_bytes;
 	uint64_t			peer_snd_queue_depth_bytes;
