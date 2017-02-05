@@ -2084,7 +2084,7 @@ static int xio_rdma_prep_rsp_out_data(
 			    XIO_HEADER_FLAG_PEER_WRITE_RSP));
 
 	/* force check on application messages only */
-	if (ulp_hdr_len && ulp_hdr_len > rdma_hndl->peer_max_header && 
+	if (ulp_hdr_len > rdma_hndl->peer_max_header &&
 	    IS_APPLICATION_MSG(task->tlv_type)) {
 		ERROR_LOG("hdr_len=%d is bigger than peer_max_header=%d\n",
 				ulp_hdr_len, rdma_hndl->peer_max_header);
@@ -2447,7 +2447,7 @@ static int xio_rdma_prep_req_in_data(
 
 	data_len = tbl_length(sgtbl_ops, sgtbl);
 	hdr_len  = vmsg->header.iov_len;
-	if (hdr_len && hdr_len > rdma_hndl->peer_max_header) {
+	if (hdr_len > rdma_hndl->peer_max_header) {
 		ERROR_LOG("hdr_len=%d is bigger than peer_max_header=%d\n",
 				hdr_len, rdma_hndl->peer_max_header);
 		return -1;
@@ -3920,6 +3920,7 @@ static int xio_sched_rdma_wr_req(struct xio_rdma_transport *rdma_hndl,
 			       sge_addr(sgtbl_ops, sg),
 			       sge_length(sgtbl_ops, sg));
 		}
+		rdma_task->write_num_reg_mem = tbl_nents(sgtbl_ops, sgtbl);
 	} else {
 		for_each_sge(sgtbl, sgtbl_ops, sg, i) {
 			lsg_list[i].addr	= uint64_from_ptr(
