@@ -71,6 +71,8 @@ struct xio_ka {
 	int				req_sent;
 	int				timedout;
 	int				io_rcv;
+	int				pad[3];
+	struct xio_options_keepalive	options;
 };
 
 struct xio_connection {

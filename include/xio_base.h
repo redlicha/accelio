@@ -301,6 +301,26 @@ struct xio_rdma_msg {
 	int pad;
 };
 
+/**
+ *  @struct xio_options_keepalive
+ *  @brief user provided values for connection's keepalive
+ * Use xio_set_opt(NULL, XIO_OPTLEVEL_ACCELIO, XIO_OPTNAME_CONFIG_KEEPALIVE,
+ *		   &ka, sizeof(ka)))
+ */
+struct xio_options_keepalive {
+	/**< the number of unacknowledged probes to send before considering  */
+	/**< the connection dead and notifying the application layer	     */
+	int	probes;
+
+	/**<  the heartbeat interval in seconds between two initial	     */
+	/**<  keepalive probes.						     */
+	int	time;
+
+	/**< the interval in seconds between subsequential keepalive probes, */
+	/**< regardless of what the connection has exchanged in the meantime */
+	int	intvl;
+};
+
 /*---------------------------------------------------------------------------*/
 /* XIO context API							     */
 /*---------------------------------------------------------------------------*/
@@ -800,6 +820,11 @@ struct xio_connection_params {
 
 	/**< Private data pointer to pass to each connection callback         */
 	void			*conn_user_context;
+
+	int32_t			pad1;
+
+	/**< connection's keep alive options */
+	struct xio_options_keepalive ka_options;
 };
 
 /**
@@ -1063,6 +1088,11 @@ struct xio_bind_params {
 
 	/**< private data pointer to pass to each callback */
 	void			*private_data;
+
+	int32_t			pad;
+
+	/**< server's connections keep alive options */
+	struct xio_options_keepalive ka_options;
 };
 
 /**
@@ -1449,26 +1479,6 @@ struct xio_mem_allocator {
 	 *  @return pointer to block or NULL if allocate fails
 	 */
 	void   (*numa_free)(void *ptr, void *user_context);
-};
-
-/**
- *  @struct xio_options_keepalive
- *  @brief user provided values for connection's keepalive
- * Use xio_set_opt(NULL, XIO_OPTLEVEL_ACCELIO, XIO_OPTNAME_CONFIG_KEEPALIVE,
- *		   &ka, sizeof(ka)))
- */
-struct xio_options_keepalive {
-	/**< the number of unacknowledged probes to send before considering  */
-	/**< the connection dead and notifying the application layer	     */
-	int	probes;
-
-	/**<  the heartbeat interval in seconds between two initial	     */
-	/**<  keepalive probes.						     */
-	int	time;
-
-	/**< the interval in seconds between subsequential keepalive probes, */
-	/**< regardless of what the connection has exchanged in the meantime */
-	int	intvl;
 };
 
 #define XIO_MAX_SLABS_NR  6

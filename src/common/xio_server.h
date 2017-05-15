@@ -55,6 +55,8 @@ struct xio_server {
 	struct kref			kref;
 	void				*cb_private_data;
 	struct xio_observable		nexus_observable;
+	int32_t				pad;
+	struct xio_options_keepalive	ka_options;
 };
 
 /*---------------------------------------------------------------------------*/

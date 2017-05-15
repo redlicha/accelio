@@ -1068,6 +1068,15 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 	else 
                 connection->disconnect_timeout = XIO_DEF_CONNECTION_TIMEOUT;
 
+	if (cparams->ka_options.probes && cparams->ka_options.time &&
+	    cparams->ka_options.intvl) {
+		memcpy(&connection->ka.options, &cparams->ka_options,
+		       sizeof(connection->ka.options));
+	} else {
+		memcpy(&connection->ka.options, &g_options.ka,
+		       sizeof(connection->ka.options));
+	}
+
 	mutex_unlock(&session->lock);
 
 	DEBUG_LOG("xio_connect: session:%p, connection:%p, " \

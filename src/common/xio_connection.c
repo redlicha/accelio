@@ -3189,7 +3189,7 @@ int xio_on_connection_ka_rsp_recv(struct xio_connection *connection,
 
 	retval = xio_ctx_add_delayed_work(
 				connection->ctx,
-				1000 * g_options.ka.time, connection,
+				1000 * connection->ka.options.time, connection,
 				xio_connection_keepalive_time,
 				&connection->ka.timer);
 	if (retval != 0) {
@@ -3227,7 +3227,7 @@ int xio_on_connection_ka_req_recv(struct xio_connection *connection,
 					 &connection->ka.timer);
 		retval = xio_ctx_add_delayed_work(
 				connection->ctx,
-				1000 * g_options.ka.time, connection,
+				1000 * connection->ka.options.time, connection,
 				xio_connection_keepalive_start,
 				&connection->ka.timer);
 		if (retval != 0) {
@@ -3272,7 +3272,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 
 		retval = xio_ctx_add_delayed_work(
 					connection->ctx,
-					1000 * g_options.ka.time, connection,
+					1000 * connection->ka.options.time, connection,
 					xio_connection_keepalive_time,
 					&connection->ka.timer);
 		if (retval != 0)
@@ -3282,7 +3282,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 
 	connection->ka.timedout = 1;
 
-	if (++connection->ka.probes == g_options.ka.probes) {
+	if (++connection->ka.probes == connection->ka.options.probes) {
 		ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
 			  connection, connection->ka.probes);
 		connection->ka.probes = 0;
@@ -3298,7 +3298,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 		  connection, connection->ka.probes);
 	retval = xio_ctx_add_delayed_work(
 				connection->ctx,
-				1000 * g_options.ka.intvl, connection,
+				1000 * connection->ka.options.intvl, connection,
 				xio_connection_keepalive_intvl,
 				&connection->ka.timer);
 	if (retval != 0) {
@@ -3326,7 +3326,7 @@ static void xio_connection_keepalive_time(void *_connection)
 
 		retval = xio_ctx_add_delayed_work(
 					connection->ctx,
-					1000 * g_options.ka.time, connection,
+					1000 * connection->ka.options.time, connection,
 					xio_connection_keepalive_time,
 					&connection->ka.timer);
 		if (retval != 0)
@@ -3336,7 +3336,7 @@ static void xio_connection_keepalive_time(void *_connection)
 
 	retval = xio_ctx_add_delayed_work(
 				connection->ctx,
-				1000 * g_options.ka.intvl, connection,
+				1000 * connection->ka.options.intvl, connection,
 				xio_connection_keepalive_intvl,
 				&connection->ka.timer);
 	if (retval != 0) {
@@ -3364,7 +3364,7 @@ void xio_connection_keepalive_start(void *_connection)
 	connection->ka.io_rcv = 0;
 	retval = xio_ctx_add_delayed_work(
 				connection->ctx,
-				1000 * g_options.ka.time, connection,
+				1000 * connection->ka.options.time, connection,
 				xio_connection_keepalive_time,
 				&connection->ka.timer);
 	if (retval != 0) {

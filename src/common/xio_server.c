@@ -171,6 +171,9 @@ static int xio_on_new_message(struct xio_server *server,
 		}
 		connection = connection1;
 
+		memcpy(&connection->ka.options, &server->ka_options,
+		       sizeof(connection->ka.options));
+
 		xio_idr_add_uobj(usr_idr, session, "xio_session");
 		xio_idr_add_uobj(usr_idr, connection, "xio_connection");
 		xio_connection_set_state(connection,
@@ -226,6 +229,8 @@ static int xio_on_new_message(struct xio_server *server,
 		}
 		connection = connection1;
 
+		memcpy(&connection->ka.options, &server->ka_options,
+		       sizeof(connection->ka.options));
 		/* copy the server attributes to the connection */
 		xio_connection_set_ops(connection, &server->ops);
 
@@ -348,6 +353,13 @@ struct xio_server *xio_bind_ex(struct xio_bind_params *bind_prms,
 
 	server->session_flags = bind_prms->flags;
 	memcpy(&server->ops, bind_prms->ops, sizeof(*bind_prms->ops));
+	if (bind_prms->ka_options.probes && bind_prms->ka_options.time &&
+	    bind_prms->ka_options.intvl) {
+		memcpy(&server->ka_options, &bind_prms->ka_options,
+		       sizeof(server->ka_options));
+	} else {
+		memcpy(&server->ka_options, &g_options.ka, sizeof(server->ka_options));
+	}
 
 	XIO_OBSERVER_INIT(&server->observer, server, xio_on_nexus_event);
 
