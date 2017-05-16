@@ -3425,7 +3425,7 @@ int xio_retain_request(struct xio_msg *req)
 	 * we wish to save the header so it won't be overwritten by response
 	 */
 	task->sender_task = xio_nexus_get_primary_task(task->nexus);
-	if (unlikely(!task)) {
+	if (unlikely(!task->sender_task)) {
 		ERROR_LOG("tasks pool is empty\n");
 		xio_set_error(ENOMEM);
 		return -1;
