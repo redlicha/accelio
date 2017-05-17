@@ -1524,10 +1524,8 @@ void xio_connection_queue_io_task(struct xio_connection *connection,
 void xio_release_response_task(struct xio_task *task)
 {
 	/* the tx task is returned back to pool */
-	if (task->sender_task) {
+	if (task->sender_task) 
 		xio_tasks_pool_put(task->sender_task);
-		task->sender_task = NULL;
-	}
 
 	/* the rx task is returned back to pool */
 	xio_tasks_pool_put(task);
@@ -3438,6 +3436,7 @@ int xio_retain_request(struct xio_msg *req)
 	}
 
 	task->on_hold = 1;
+	kref_get(&task->sender_task->kref);
 	kref_get(&task->kref);
 
 	return 0;
