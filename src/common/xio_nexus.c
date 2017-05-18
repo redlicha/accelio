@@ -2255,7 +2255,7 @@ static int xio_nexus_flush_tx_queue(struct xio_nexus *nexus)
 				 tasks_list_entry) {
 		TRACE_LOG("flushing task %p type 0x%x\n",
 			  ptask, ptask->tlv_type);
-		if (ptask->sender_task) {
+		if (ptask->sender_task && !ptask->on_hold) {
 			xio_tasks_pool_put(ptask->sender_task);
 			ptask->sender_task = NULL;
 		}

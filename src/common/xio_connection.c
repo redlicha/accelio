@@ -634,7 +634,7 @@ int xio_connection_flush_tasks(struct xio_connection *connection)
 				  "type 0x%x ltid:%d\n",
 				  ptask,
 				  ptask->tlv_type, ptask->ltid);
-			if (ptask->sender_task) {
+			if (ptask->sender_task && !ptask->on_hold) {
 				/* the tx task is returend back to pool */
 				xio_tasks_pool_put(ptask->sender_task);
 				ptask->sender_task = NULL;
@@ -1524,8 +1524,10 @@ void xio_connection_queue_io_task(struct xio_connection *connection,
 void xio_release_response_task(struct xio_task *task)
 {
 	/* the tx task is returned back to pool */
-	if (task->sender_task) 
+	if (task->sender_task && !task->on_hold)  {
 		xio_tasks_pool_put(task->sender_task);
+		task->sender_task = NULL;
+	}
 
 	/* the rx task is returned back to pool */
 	xio_tasks_pool_put(task);
@@ -3436,7 +3438,6 @@ int xio_retain_request(struct xio_msg *req)
 	}
 
 	task->on_hold = 1;
-	kref_get(&task->sender_task->kref);
 	kref_get(&task->kref);
 
 	return 0;
