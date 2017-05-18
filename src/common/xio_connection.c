@@ -2378,9 +2378,20 @@ int xio_connection_destroy(struct xio_connection *connection)
 #endif
 	found = xio_idr_lookup_uobj(usr_idr, connection);
 	if (found) {
-		if (!list_empty(&connection->io_tasks_list))
-			ERROR_LOG("tasks still pending. connection:%p\n",
-				  connection);
+		if (!list_empty(&connection->io_tasks_list)) {
+			int pending = 0;
+			struct xio_task	*ptask, *pnext_task;
+
+			list_for_each_entry_safe(ptask, pnext_task,
+						 &connection->io_tasks_list,
+						 tasks_list_entry) {
+				if (!ptask->on_hold)
+					pending++;
+			}
+			if (pending)
+				ERROR_LOG("%d tasks still pending. connection:%p\n",
+					  pending, connection);
+		}
 		xio_idr_remove_uobj(usr_idr, connection);
 	} else {
 		ERROR_LOG("connection not found:%p\n", connection);
@@ -3456,8 +3467,10 @@ int xio_dismiss_request(struct xio_msg *req)
 	if (unlikely(!task->on_hold))
 		return 0;
 
-	if (unlikely(!task->sender_task))
+	if (unlikely(!task->sender_task)) {
+		xio_set_error(EINVAL);
 		return -1;
+	}
 
 	/* swap again to original state */
 	err = xio_task_swap_mbuf(task, task->sender_task);

@@ -116,7 +116,7 @@ int xio_transport_flush_task_list(struct list_head *list)
 		TRACE_LOG("flushing task %p type 0x%x\n",
 			  ptask, ptask->tlv_type);
 		*/
-		if (ptask->sender_task) {
+		if (ptask->sender_task && !ptask->on_hold) {
 			xio_tasks_pool_put(ptask->sender_task);
 			ptask->sender_task = NULL;
 		}

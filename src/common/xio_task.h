@@ -315,6 +315,10 @@ pool_exhausted:
 /*---------------------------------------------------------------------------*/
 static inline void xio_tasks_pool_put(struct xio_task *task)
 {
+       if (unlikely(task->on_hold &&
+		    atomic_read(&task->kref.refcount) == 1))
+	       return;
+
 	kref_put(&task->kref, xio_task_release);
 }
 
