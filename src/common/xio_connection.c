@@ -1751,8 +1751,10 @@ static void xio_fin_req_timeout(void *data)
 	/* flush all messages back to user */
 	xio_connection_notify_msgs_flush(connection);
 
-	if (connection->nexus)
+	if (connection->nexus) {
 		xio_nexus_close(connection->nexus, &connection->session->observer);
+		connection->nexus = NULL;
+	}
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
@@ -2314,8 +2316,10 @@ static void xio_connection_post_destroy(struct kref *kref)
 	xio_connection_flush_tasks(connection);
 
 	/* for race condition between connection teardown and transport closed */
-	if (connection->nexus && connection->state != XIO_CONNECTION_STATE_DISCONNECTED)
+	if (connection->nexus) {
 		xio_nexus_close(connection->nexus, &session->observer);
+		connection->nexus = NULL;
+	}
 
 	/* leading connection */
 	spin_lock(&session->connections_list_lock);
@@ -2524,6 +2528,7 @@ int xio_connection_disconnected(struct xio_connection *connection)
 			xio_connection_flush_tasks(connection);
 			xio_nexus_close(connection->nexus,
 					&connection->session->observer);
+			connection->nexus = NULL;
 		}
 	}
 
@@ -3396,9 +3401,11 @@ int xio_connection_force_disconnect(struct xio_connection *connection,
 	xio_session_notify_connection_error(connection->session, connection,
 					    reason);
 
-	if (connection->state != XIO_CONNECTION_STATE_DISCONNECTED)
+	if (connection->nexus) {
 		xio_nexus_close(connection->nexus,
 				&connection->session->observer);
+		connection->nexus = NULL;
+	}
 
         /* flush all messages from in flight message queue to in queue */
 	xio_connection_flush_msgs(connection);
