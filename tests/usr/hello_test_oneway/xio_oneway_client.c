@@ -66,6 +66,7 @@
 
 struct xio_test_config {
 	char			server_addr[32];
+	char			out_addr[32];
 	uint16_t		server_port;
 	char			transport[16];
 	uint16_t		cpu;
@@ -105,6 +106,7 @@ struct ow_test_params {
 /*---------------------------------------------------------------------------*/
 static struct xio_test_config  test_config = {
 	.server_addr = XIO_DEF_ADDRESS,
+	.out_addr = {0},
 	.server_port = XIO_DEF_PORT,
 	.transport = XIO_DEF_TRANSPORT,
 	.cpu = XIO_DEF_CPU,
@@ -447,6 +449,7 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			{ .name = "cpu",	.has_arg = 1, .val = 'c'},
 			{ .name = "port",	.has_arg = 1, .val = 'p'},
 			{ .name = "transport",	.has_arg = 1, .val = 'r'},
+			{ .name = "out-interface", .has_arg = 1, .val = 'o'},
 			{ .name = "header-len",	.has_arg = 1, .val = 'n'},
 			{ .name = "data-len",	.has_arg = 1, .val = 'w'},
 			{ .name = "index",	.has_arg = 1, .val = 'i'},
@@ -456,7 +459,7 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			{0, 0, 0, 0},
 		};
 
-		static char *short_options = "c:p:r:n:w:i:f:vh";
+		static char *short_options = "c:p:r:o:n:w:i:f:vh";
 		optopt = 0;
 		opterr = 0;
 
@@ -476,6 +479,9 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			break;
 		case 'r':
 			strcpy(test_config->transport, optarg);
+			break;
+		case 'o':
+			strcpy(test_config->out_addr, optarg);
 			break;
 		case 'n':
 			test_config->hdr_len =
@@ -613,6 +619,7 @@ int main(int argc, char *argv[])
 	cparams.session			= session;
 	cparams.ctx			= ow_params.ctx;
 	cparams.conn_idx		= test_config.conn_idx;
+	cparams.out_addr		= test_config.out_addr[0] != 0 ?  test_config.out_addr : NULL;
 	cparams.conn_user_context	= &ow_params;
 
 	ow_params.conn = xio_connect(&cparams);

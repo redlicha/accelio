@@ -70,6 +70,7 @@
 
 struct xio_test_config {
 	char			server_addr[32];
+	char			out_addr[32];
 	uint16_t		server_port;
 	char			transport[16];
 	uint16_t		cpu;
@@ -120,6 +121,7 @@ struct session_data {
 /*---------------------------------------------------------------------------*/
 static struct xio_test_config  test_config = {
 	.server_addr = XIO_DEF_ADDRESS,
+	.out_addr = {0},
 	.server_port = XIO_DEF_PORT,
 	.transport = XIO_DEF_TRANSPORT,
 	.cpu = XIO_DEF_CPU,
@@ -232,6 +234,7 @@ static void *worker_thread(void *data)
 	cparams.session			= tdata->session;
 	cparams.ctx			= tdata->ctx;
 	cparams.conn_idx		= tdata->cid;
+	cparams.out_addr		= test_config.out_addr[0] != 0 ?  test_config.out_addr : NULL;
 	cparams.conn_user_context	= tdata;
 
 	/* connect the session  */
@@ -484,6 +487,9 @@ static void usage(const char *argv0, int status)
 	printf("\t\tUse rdma/tcp as transport <type> (default %s)\n",
 	       XIO_DEF_TRANSPORT);
 
+	printf("\t-o, --out-interface=<ip addr> ");
+	printf("\t\tBind socket to <ip addr> (default NULL)\n");
+
 	printf("\t-n, --header-len=<number> ");
 	printf("\tSet the header length of the message to <number> bytes " \
 			"(default %d)\n", XIO_DEF_HEADER_SIZE);
@@ -521,6 +527,7 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			{ .name = "cpu",	.has_arg = 1, .val = 'c'},
 			{ .name = "port",	.has_arg = 1, .val = 'p'},
 			{ .name = "transport",	.has_arg = 1, .val = 'r'},
+			{ .name = "out-interface", .has_arg = 1, .val = 'o'},
 			{ .name = "header-len",	.has_arg = 1, .val = 'n'},
 			{ .name = "data-len",	.has_arg = 1, .val = 'w'},
 			{ .name = "index",	.has_arg = 1, .val = 'i'},
@@ -531,7 +538,7 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			{0, 0, 0, 0},
 		};
 
-		static char *short_options = "c:p:r:n:w:i:t:f:vh";
+		static char *short_options = "c:p:r:o:n:w:i:t:f:vh";
 
 		c = getopt_long(argc, argv, short_options,
 				long_options, NULL);
@@ -549,6 +556,9 @@ int parse_cmdline(struct xio_test_config *test_config, int argc, char **argv)
 			break;
 		case 'r':
 			strcpy(test_config->transport, optarg);
+			break;
+		case 'o':
+			strcpy(test_config->out_addr, optarg);
 			break;
 		case 'n':
 			test_config->hdr_len =
@@ -608,6 +618,9 @@ static void print_test_config(
 	printf(" Server Address		: %s\n", test_config_p->server_addr);
 	printf(" Server Port		: %u\n", test_config_p->server_port);
 	printf(" Transport		: %s\n", test_config_p->transport);
+	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ? 
+						 test_config_p->out_addr : 
+						 "None");
 	printf(" Header Length		: %u\n", test_config_p->hdr_len);
 	printf(" Data Length		: %u\n", test_config_p->data_len);
 	printf(" Connection Index	: %u\n", test_config_p->conn_idx);
