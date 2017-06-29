@@ -1670,6 +1670,17 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 				  xio_get_last_socket_error());
 			goto exit;
 		}
+		if (tcp_hndl->sock.cfd != tcp_hndl->sock.dfd) {
+			retval = bind(tcp_hndl->sock.dfd,
+				      (struct sockaddr *)&if_sa.sa_stor,
+				      sa_len);
+			if (retval) {
+				xio_set_error(xio_get_last_socket_error());
+				ERROR_LOG("tcp bind failed. (errno=%d %m)\n",
+					  xio_get_last_socket_error());
+				goto exit;
+			}
+		}
 	}
 
 	/* connect */
