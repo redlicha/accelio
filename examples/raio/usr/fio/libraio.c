@@ -107,7 +107,7 @@ static int fio_libraio_prep(struct thread_data *td, struct io_u *io_u)
 
 static struct io_u *fio_libraio_event(struct thread_data *td, int event)
 {
-	struct libraio_data *ld = td->io_ops->data;
+	struct libraio_data *ld = td->io_ops_data;
 	struct raio_event *ev;
 	struct io_u *io_u;
 
@@ -129,8 +129,8 @@ static struct io_u *fio_libraio_event(struct thread_data *td, int event)
 static int fio_libraio_getevents(struct thread_data *td, unsigned int min,
 				 unsigned int max, const struct timespec *t)
 {
-	struct libraio_data *ld = td->io_ops->data;
-	unsigned actual_min = td->o.iodepth_batch_complete == 0 ? 0 : min;
+	struct libraio_data *ld = td->io_ops_data;
+	unsigned actual_min = td->o.iodepth_batch_complete_min == 0 ? 0 : min;
 	int r, events = 0;
 
 	do {
@@ -152,7 +152,7 @@ static int fio_libraio_getevents(struct thread_data *td, unsigned int min,
 
 static int fio_libraio_queue(struct thread_data *td, struct io_u *io_u)
 {
-	struct libraio_data *ld = td->io_ops->data;
+	struct libraio_data *ld = td->io_ops_data;
 	struct libraio_engine_data *engine_data = io_u->engine_data;
 
 	fio_ro_check(td, io_u);
@@ -170,7 +170,7 @@ static int fio_libraio_queue(struct thread_data *td, struct io_u *io_u)
 static void fio_libraio_queued(struct thread_data *td, struct io_u **io_us,
 			       unsigned int nr)
 {
-	struct timeval now;
+	struct timespec now;
 	unsigned int i;
 
 	if (!fio_fill_issue_time(td))
@@ -188,7 +188,7 @@ static void fio_libraio_queued(struct thread_data *td, struct io_u **io_us,
 
 static int fio_libraio_commit(struct thread_data *td)
 {
-	struct libraio_data	*ld = td->io_ops->data;
+	struct libraio_data	*ld = td->io_ops_data;
 	struct raio_iocb	**iocbs;
 	struct io_u		**io_us;
 	int			ret;
@@ -221,7 +221,7 @@ static int fio_libraio_commit(struct thread_data *td)
 
 static int fio_libraio_cancel(struct thread_data *td, struct io_u *io_u)
 {
-	struct libraio_data *ld = td->io_ops->data;
+	struct libraio_data *ld = td->io_ops_data;
 	struct libraio_engine_data *engine_data = io_u->engine_data;
 
 	return raio_cancel(ld->raio_ctx, &engine_data->iocb, ld->raio_events);
@@ -290,7 +290,7 @@ static int raio_open_flags(struct thread_data *td, struct fio_file *f, int *_fla
 
 	*_flags = -1;
 
-	if (td_trim(td) && f->filetype != FIO_TYPE_BD) {
+	if (td_trim(td) && f->filetype != FIO_TYPE_BLOCK) {
 		log_err("libraio: trim only applies to block device\n");
 		return 1;
 	}
@@ -357,7 +357,7 @@ static int fio_libraio_open(struct thread_data *td, struct fio_file *f)
 	char			path[256];
 	char			host[256];
 	uint32_t		port;
-	struct libraio_data	*ld = td->io_ops->data;
+	struct libraio_data	*ld = td->io_ops_data;
 
 	dprint(FD_FILE, "fd open %s\n", f->file_name);
 
@@ -436,7 +436,7 @@ stop:
 static int fio_libraio_open_file(struct thread_data *td, struct fio_file *f)
 {
 	int			ret;
-	struct libraio_data	*ld = td->io_ops->data;
+	struct libraio_data	*ld = td->io_ops_data;
 
 	if (ld->fd != -1) {
 		f->fd = ld->fd;
@@ -475,7 +475,7 @@ static int fio_libraio_close(struct thread_data *td, struct fio_file *f)
 static int fio_libraio_close_file(struct thread_data *td, struct fio_file *f)
 {
 	int			ret;
-	struct libraio_data	*ld = td->io_ops->data;
+	struct libraio_data	*ld = td->io_ops_data;
 
 	/* don't close the file until cleanup */
 	if (ld->force_close == 0) {
@@ -512,7 +512,7 @@ static int fio_libraio_get_file_size(struct thread_data *td, struct fio_file *f)
 		return 0;
 	}
 
-	td->io_ops->data = &dummy_ld;
+	td->io_ops_data = &dummy_ld;
 
 	ret = fio_libraio_open(td, f);
 	if (ret != 0) {
@@ -570,7 +570,7 @@ static int fio_libraio_init(struct thread_data *td)
 	ld->iocbs_nr = 0;
 	ld->fd = -1;
 
-	td->io_ops->data = ld;
+	td->io_ops_data = ld;
 
 	f.file_name = td->o.filename;
 	ret = fio_libraio_open_file(td, &f);
@@ -597,7 +597,7 @@ static int fio_libraio_init(struct thread_data *td)
 
 static void fio_libraio_cleanup(struct thread_data *td)
 {
-	struct libraio_data		*ld = td->io_ops->data;
+	struct libraio_data		*ld = td->io_ops_data;
 	struct libraio_engine_data	*engine_data;
 	struct io_u			*io_u;
 	int				i;
@@ -619,7 +619,7 @@ static void fio_libraio_cleanup(struct thread_data *td)
 		free(ld->io_us);
 		free(ld->engine_datas);
 		free(ld);
-		td->io_ops->data = NULL;
+		td->io_ops_data = NULL;
 	}
 }
 
