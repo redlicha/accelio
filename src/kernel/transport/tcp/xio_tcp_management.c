@@ -354,6 +354,11 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 		if (passive_close) {
 			xio_transport_notify_observer(
 					&tcp_hndl->base,
+					XIO_TRANSPORT_EVENT_DISCONNECTING,
+					NULL);
+
+			xio_transport_notify_observer(
+					&tcp_hndl->base,
 					XIO_TRANSPORT_EVENT_DISCONNECTED,
 					NULL);
 		}

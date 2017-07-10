@@ -2081,6 +2081,11 @@ static void on_cm_disconnected(struct rdma_cm_event *ev,
 
 	TRACE_LOG("on_cm_disconnected. rdma_hndl:%p, state:%d\n",
 		  rdma_hndl, rdma_hndl->state);
+
+	xio_transport_notify_observer(
+			&rdma_hndl->base,
+			XIO_TRANSPORT_EVENT_DISCONNECTING,
+			NULL);
 	switch (rdma_hndl->state) {
 	case XIO_TRANSPORT_STATE_CONNECTED:
 		TRACE_LOG("call to rdma_disconnect. rdma_hndl:%p\n",

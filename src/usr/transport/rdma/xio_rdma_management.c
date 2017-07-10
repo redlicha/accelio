@@ -2372,6 +2372,10 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 		return;
 	rdma_hndl->disconnect_nr = 1;
 
+	xio_transport_notify_observer(&rdma_hndl->base,
+				      XIO_TRANSPORT_EVENT_DISCONNECTING,
+				      NULL);
+
 	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
 				 &rdma_hndl->disconnect_timeout_work);
 

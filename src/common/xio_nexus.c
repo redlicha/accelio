@@ -1455,6 +1455,17 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_nexus_on_transport_disconnecting				             */
+/*---------------------------------------------------------------------------*/
+static void xio_nexus_on_transport_disconnecting(struct xio_nexus *nexus,
+						union xio_transport_event_data
+						*event_data)
+{
+	/* remove the nexus from table */
+	xio_nexus_cache_remove(nexus->cid);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_nexus_on_transport_disconnected				             */
 /*---------------------------------------------------------------------------*/
 static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
@@ -1689,6 +1700,11 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		DEBUG_LOG("nexus: [notification] - transport established. " \
 			 "nexus:%p, transport:%p\n", observer, sender);
 		xio_nexus_on_transport_established(nexus, ev_data);
+		break;
+	case XIO_TRANSPORT_EVENT_DISCONNECTING:
+		DEBUG_LOG("nexus: [notification] - transport disconnecting. "  \
+			 "nexus:%p, transport:%p\n", observer, sender);
+		xio_nexus_on_transport_disconnecting(nexus, ev_data);
 		break;
 	case XIO_TRANSPORT_EVENT_DISCONNECTED:
 		DEBUG_LOG("nexus: [notification] - transport disconnected. "  \
