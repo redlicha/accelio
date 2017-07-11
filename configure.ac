@@ -366,7 +366,7 @@ To run the tests of this package, the following variable(s) need to be defined :
 FIO_ROOT  : The root directory of the fio package
 	    installation:  git clone git://git.kernel.dk/fio.git. run make for
 	    build
-	    tested version: fio-2.1.1
+	    tested version: fio-2.21
 
 
 The variables can be defined as environment variables (eg. with bash "export") or

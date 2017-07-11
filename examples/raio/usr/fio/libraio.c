@@ -170,7 +170,7 @@ static int fio_libraio_queue(struct thread_data *td, struct io_u *io_u)
 static void fio_libraio_queued(struct thread_data *td, struct io_u **io_us,
 			       unsigned int nr)
 {
-	struct timespec now;
+	struct timeval now;
 	unsigned int i;
 
 	if (!fio_fill_issue_time(td))
