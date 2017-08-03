@@ -1740,7 +1740,7 @@ static void xio_fin_req_timeout(void *data)
 	 * ignore request timeout */
 	if (connection->state == XIO_CONNECTION_STATE_LAST_ACK) {
 		connection->state = XIO_CONNECTION_STATE_CLOSED;
-		goto exit;
+		connection->close_reason = XIO_E_SESSION_DISCONNECTED;
 	} else if (connection->state == XIO_CONNECTION_STATE_FIN_WAIT_1) {
                 kref_put(&connection->kref, xio_connection_post_destroy);
         }
@@ -1766,7 +1766,7 @@ static void xio_fin_req_timeout(void *data)
 				&connection->teardown_work);
 	 else
 		xio_connection_destroy(connection);
-exit:
+
 	kref_put(&connection->kref, xio_connection_post_destroy);
 }
 
