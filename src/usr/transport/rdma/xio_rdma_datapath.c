@@ -2146,7 +2146,11 @@ static int xio_rdma_prep_rsp_out_data(
 			rdma_task->out_ib_op = XIO_IB_RDMA_WRITE;
 
 			/* prepare rdma write */
-			xio_sched_rdma_wr_req(rdma_hndl, task);
+			retval = xio_sched_rdma_wr_req(rdma_hndl, task);
+			if (unlikely(retval)) {
+				ERROR_LOG("Failed to write header\n");
+				goto cleanup1;
+			}
 
 			/* and the header is sent via SEND */
 			/* write xio header to the buffer */
@@ -2154,6 +2158,10 @@ static int xio_rdma_prep_rsp_out_data(
 					rdma_hndl, task,
 					ulp_hdr_len, 0, ulp_imm_len,
 					XIO_E_SUCCESS);
+			if (unlikely(retval)) {
+				ERROR_LOG("xio_rdma_prep_rsp_header failed\n");
+				goto cleanup1;
+			}
 		} else {
 #if 0
 			DEBUG_LOG("partial completion of request due " \
@@ -2249,6 +2257,7 @@ cleanup1:
 
 	rdma_task->write_num_reg_mem = 0;
 
+	ERROR_LOG("xio_rdma_send_msg failed\n");
 	return -1;
 #endif
 

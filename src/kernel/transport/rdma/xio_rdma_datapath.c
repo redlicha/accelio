@@ -2831,14 +2831,21 @@ static int xio_rdma_prep_rsp_out_data(
 			/* the data is sent via RDMA_WRITE */
 
 			/* prepare rdma write */
-			xio_sched_rdma_wr_req(rdma_hndl, task);
-
+			retval = xio_sched_rdma_wr_req(rdma_hndl, task);
+			if (unlikely(retval)) {
+				ERROR_LOG("Failed to write header\n");
+				goto cleanup1;
+			}
 			/* and the header is sent via SEND */
 			/* write xio header to the buffer */
 			retval = xio_rdma_prep_rsp_header(
 					rdma_hndl, task,
 					ulp_hdr_len, 0, ulp_imm_len,
 					XIO_E_SUCCESS);
+			if (unlikely(retval)) {
+				ERROR_LOG("xio_rdma_prep_rsp_header failed\n");
+				goto cleanup1;
+			}
 		} else {
 			/* EYAL - the case were requester send request but
 			 * does not provide buffer for response. responder
@@ -2857,7 +2864,10 @@ static int xio_rdma_prep_rsp_out_data(
 					rdma_hndl, task,
 					ulp_hdr_len, 0, 0,
 					XIO_E_RSP_BUF_SIZE_MISMATCH);
-
+			if (unlikely(retval)) {
+				ERROR_LOG("xio_rdma_prep_rsp_header failed\n");
+				goto cleanup1;
+			}
 			tbl_set_nents(sgtbl_ops, sgtbl, 0);
 #else
 			/* the data is outgoing via SEND but the peer will do
@@ -2876,7 +2886,6 @@ static int xio_rdma_prep_rsp_out_data(
 				&rdma_task->write_mem_desc.nents) < 0) {
 				ERROR_LOG("xio_vmsg_to_sgt failed\n");
 				goto cleanup1;
-			}
 			rdma_task->req_out_num_sge =
 					rdma_task->write_mem_desc.nents;
 			rdma_task->sqe_used	 = 0;
@@ -2904,6 +2913,7 @@ static int xio_rdma_prep_rsp_out_data(
 cleanup1:
 	xio_mempool_free(&rdma_task->write_mem_desc);
 	rdma_task->req_out_num_sge = 0;
+	ERROR_LOG("xio_rdma_send_msg failed\n");
 	return -1;
 #endif
 
