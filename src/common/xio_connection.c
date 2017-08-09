@@ -1920,9 +1920,10 @@ static void xio_pre_disconnect(void *conn)
 	kref_get(&connection->kref);  /* for time wait */
 
 	/* on keep alive timeout, assume fin is also timeout and bypass  */
-	if (!connection->ka.timedout) {
+	if (!connection->ka.timedout && !connection->ka.req_sent) {
 		connection->state = XIO_CONNECTION_STATE_FIN_WAIT_1;
 
+		DEBUG_LOG("xio_pre_disconnect: sending fin request");
 		xio_send_fin_req(connection);
 
 		if (!connection->disable_notify) {
@@ -1931,6 +1932,12 @@ static void xio_pre_disconnect(void *conn)
 					connection->session, connection);
 		}
 	} else {
+		DEBUG_LOG("xio_pre_disconnect: expediting disconnection. ka.timedout:%d, ka.req_sent:%d", 
+			  connection->ka.timedout, connection->ka.req_sent);
+		xio_ctx_del_delayed_work(connection->ctx,
+					 &connection->ka.timer);
+		xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_timeout_work);
 		if (!connection->disable_notify) {
 			connection->close_reason = XIO_E_TIMEOUT;
 			xio_session_notify_connection_closed(
@@ -3280,6 +3287,9 @@ void xio_connection_keepalive_intvl(void *_connection)
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
+		
+	if (connection->disconnecting && (!g_options.reconnect))
+		return;
 
 	if (connection->ka.io_rcv) {
 		connection->ka.probes = 0;
@@ -3335,6 +3345,9 @@ static void xio_connection_keepalive_time(void *_connection)
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
 
+	if (connection->disconnecting && (!g_options.reconnect))
+		return;
+
 	if (connection->ka.io_rcv) {
 		connection->ka.probes = 0;
 		connection->ka.timedout = 0;
@@ -3373,6 +3386,9 @@ void xio_connection_keepalive_start(void *_connection)
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
+
+	if (connection->disconnecting && (!g_options.reconnect))
+		return;
 
 	if (!g_options.enable_keepalive)
 		return;
