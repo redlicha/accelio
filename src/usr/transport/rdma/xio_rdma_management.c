@@ -2841,7 +2841,7 @@ static void xio_rdma_close(struct xio_transport_base *transport)
 	int	retval = 0;
 
 	/* now it is zero */
-	DEBUG_LOG("xio_rmda_close: [close] handle:%p, qp:%p state:%s\n",
+	DEBUG_LOG("xio_rdma_close: [close] handle:%p, qp:%p state:%s\n",
 		  rdma_hndl, rdma_hndl->qp,
 		  xio_transport_state_str(rdma_hndl->state));
 

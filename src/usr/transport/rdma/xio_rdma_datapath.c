@@ -346,7 +346,8 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 		else if (IS_RESPONSE(task->tlv_type))
 			rdma_hndl->rsps_in_flight_nr++;
 		else
-			ERROR_LOG("Unexpected tlv_type %u\n", task->tlv_type);
+			ERROR_LOG("Unexpected tlv_type %u, rdma_hndl:%p\n",
+				  task->tlv_type, rdma_hndl);
 
 		prev_wr->send_wr.next = &curr_wr->send_wr;
 		prev_wr = last_wr;
@@ -1181,7 +1182,8 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 		else if (task->tlv_type == XIO_MSG_TYPE_RDMA)
 			xio_direct_rdma_rd_comp_handler(rdma_hndl, task);
 		else
-			ERROR_LOG("Unexpected tlv_type %u\n", task->tlv_type);
+			ERROR_LOG("Unexpected tlv_type %u, rdma_hndl:%p\n",
+				  task->tlv_type, rdma_hndl);
 		break;
 	default:
 		ERROR_LOG("unknown opcode :%s [%x]\n",
@@ -1634,8 +1636,8 @@ static int xio_rdma_read_req_header(struct xio_rdma_transport *rdma_hndl,
 
 	if (unlikely(req_hdr->req_hdr_len != sizeof(struct xio_rdma_req_hdr))) {
 		ERROR_LOG(
-		"header length's read failed. arrived:%d  expected:%zd\n",
-		req_hdr->req_hdr_len, sizeof(struct xio_rdma_req_hdr));
+		"header length's read failed. arrived:%d  expected:%zd, rdma_hndl:%p\n",
+		req_hdr->req_hdr_len, sizeof(struct xio_rdma_req_hdr), rdma_hndl);
 		return -1;
 	}
 	UNPACK_SVAL(tmp_req_hdr, req_hdr, sn);
@@ -1801,8 +1803,8 @@ static int xio_rdma_read_rsp_header(struct xio_rdma_transport *rdma_hndl,
 
 	if (unlikely(rsp_hdr->rsp_hdr_len != sizeof(struct xio_rdma_rsp_hdr))) {
 		ERROR_LOG(
-		"header length's read failed. arrived:%d expected:%zd\n",
-		  rsp_hdr->rsp_hdr_len, sizeof(struct xio_rdma_rsp_hdr));
+		"header length's read failed. arrived:%d expected:%zd, rdma_hndl:%p\n",
+		  rsp_hdr->rsp_hdr_len, sizeof(struct xio_rdma_rsp_hdr), rdma_hndl);
 		return -1;
 	}
 
@@ -3023,8 +3025,8 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->ack_sn = rsp_hdr.sn;
 		rdma_hndl->peer_credits += rsp_hdr.credits;
 	} else {
-		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d\n",
-			  rdma_hndl->exp_sn, rsp_hdr.sn);
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
+			  rdma_hndl->exp_sn, rsp_hdr.sn, rdma_hndl);
 	}
 	/* read the sn */
 	rdma_task->sn = rsp_hdr.sn;
@@ -4031,10 +4033,11 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->peer_credits += req_hdr.credits;
 	} else {
 		ERROR_LOG("ERROR: sn expected:%d, " \
-			  "sn arrived:%d out_ib_op:%u %u %u\n",
+			  "sn arrived:%d out_ib_op:%u in_num_sge:%u " \
+			  "out_num_sge:%u, rdma_hndl:%p\n",
 			  rdma_hndl->exp_sn, req_hdr.sn,
 			  req_hdr.out_ib_op, req_hdr.in_num_sge,
-			  req_hdr.out_num_sge);
+			  req_hdr.out_num_sge, rdma_hndl);
 	}
 	/* save originator identifier */
 	task->imsg_flags	= req_hdr.flags;
@@ -4098,7 +4101,7 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		ERROR_LOG("scheduling rdma read failed\n");
 		break;
 	default:
-		ERROR_LOG("unexpected out_ib_op\n");
+		ERROR_LOG("unexpected out_ib_op, rdma_hndl:%p\n", rdma_hndl);
 		xio_set_error(XIO_E_MSG_INVALID);
 		task->status = XIO_E_MSG_INVALID;
 		break;
@@ -4712,8 +4715,8 @@ static int xio_rdma_on_recv_nop(struct xio_rdma_transport *rdma_hndl,
 	if (rdma_hndl->exp_sn == nop.sn)
 		rdma_hndl->peer_credits += nop.credits;
 	else
-		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d\n",
-			  rdma_hndl->exp_sn, nop.sn);
+		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d, rdma_hndl:%p\n",
+			  rdma_hndl->exp_sn, nop.sn, rdma_hndl);
 
 	/* the rx task is returned back to pool */
 	xio_tasks_pool_put(task);
@@ -5000,8 +5003,8 @@ static int xio_rdma_on_recv_cancel_rsp(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->ack_sn = rsp_hdr.sn;
 		rdma_hndl->peer_credits += rsp_hdr.credits;
 	} else {
-		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d\n",
-			  rdma_hndl->exp_sn, rsp_hdr.sn);
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
+			  rdma_hndl->exp_sn, rsp_hdr.sn, rdma_hndl);
 	}
 	/* read the sn */
 	rdma_task->sn = rsp_hdr.sn;
@@ -5065,8 +5068,8 @@ static int xio_rdma_on_recv_cancel_req(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->ack_sn = req_hdr.sn;
 		rdma_hndl->peer_credits += req_hdr.credits;
 	} else {
-		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d\n",
-			  rdma_hndl->exp_sn, req_hdr.sn);
+		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d, rdma_hndl:%p\n",
+			  rdma_hndl->exp_sn, req_hdr.sn, rdma_hndl);
 	}
 
 	/* read the sn */
