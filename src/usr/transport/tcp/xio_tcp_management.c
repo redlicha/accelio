@@ -2496,30 +2496,52 @@ static int xio_tcp_is_valid_in_req(struct xio_msg *msg)
 	if ((nents > (unsigned long)tcp_options.max_in_iovsz) ||
 	    (nents > max_nents) ||
 	    (max_nents > (unsigned long)tcp_options.max_in_iovsz)) {
+		ERROR_LOG("%s failed. nents:%d, max_nents:%d, max_in_iovsz:%d\n",
+			  __func__, nents, max_nents, tcp_options.max_in_iovsz);
 		return 0;
 	}
 
-	if (vmsg->sgl_type == XIO_SGL_TYPE_IOV && nents > XIO_IOVLEN)
+	if (vmsg->sgl_type == XIO_SGL_TYPE_IOV && nents > XIO_IOVLEN) {
+		ERROR_LOG("%s failed. nents:%d\n", __func__, nents);
 		return 0;
+	}
 
 	if (vmsg->header.iov_base &&
-	    (vmsg->header.iov_len == 0))
+	    (vmsg->header.iov_len == 0)) {
+		ERROR_LOG("%s failed. iov_base:%p, iov_len:%zd\n",
+			  __func__, vmsg->header.iov_base, vmsg->header.iov_len);
 		return 0;
+	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge)) {
-			if (sge_mr(sgtbl_ops, sge))
+			if (sge_mr(sgtbl_ops, sge)) {
+				ERROR_LOG("%s failed. i:%d, sge_addr:%d, " \
+					  "sge_length:%zd, mr_found:%d\n",
+					  __func__, i, sge_addr(sgtbl_ops, sge),
+					  sge_mr(sgtbl_ops, sge),
+					  mr_found);
 				return 0;
+			}
 		} else {
-			if (sge_length(sgtbl_ops, sge)  == 0)
+			if (sge_length(sgtbl_ops, sge)  == 0) {
+				ERROR_LOG("%s failed. i:%d, sge_addr:%d, " \
+					  "sge_length:%zd, mr_found:%d\n",
+					  __func__, i, sge_addr(sgtbl_ops, sge),
+					  sge_length(sgtbl_ops, sge),
+					  mr_found);
 				return 0;
+			}
 		}
 	}
 	if (tcp_options.enable_mr_check &&
-	    (mr_found != nents) && mr_found)
+	    (mr_found != nents) && mr_found) {
+		ERROR_LOG("%s failed. nents:%d, mr_found:%d\n",
+			  __func__, nents, mr_found);
 		return 0;
+	}
 
 	return 1;
 }
@@ -2545,32 +2567,50 @@ static int xio_tcp_is_valid_out_msg(struct xio_msg *msg)
 
 	if ((nents > (unsigned long)tcp_options.max_out_iovsz) ||
 	    (nents > max_nents) ||
-	    (max_nents > (unsigned long)tcp_options.max_out_iovsz))
+	    (max_nents > (unsigned long)tcp_options.max_out_iovsz)) {
+		ERROR_LOG("%s failed. nents:%d, max_nents:%d, max_out_iovsz:%d\n",
+			  __func__, nents, max_nents, tcp_options.max_out_iovsz);
 		return 0;
+	}
 
-	if (vmsg->sgl_type == XIO_SGL_TYPE_IOV && nents > XIO_IOVLEN)
+	if (vmsg->sgl_type == XIO_SGL_TYPE_IOV && nents > XIO_IOVLEN) {
+		ERROR_LOG("%s failed. nents:%d\n", __func__, nents);
 		return 0;
+	}
 
 	if ((vmsg->header.iov_base  &&
 	     (vmsg->header.iov_len == 0)) ||
 	    (!vmsg->header.iov_base  &&
-	     (vmsg->header.iov_len != 0)))
-			return 0;
-
-	if (vmsg->header.iov_len > (size_t)g_options.max_inline_xio_hdr)
+	     (vmsg->header.iov_len != 0))) {
+		ERROR_LOG("%s failed. iov_base:%p, iov_len:%zd\n",
+			  __func__, vmsg->header.iov_base, vmsg->header.iov_len);
 		return 0;
+	}
+
+	if (vmsg->header.iov_len > (size_t)g_options.max_inline_xio_hdr) {
+		ERROR_LOG("%s failed. iov_len:%zd max_inline_xio_hdr:%d\n",
+			  __func__, vmsg->header.iov_len, g_options.max_inline_xio_hdr);
+		return 0;
+	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge) ||
-		    (sge_length(sgtbl_ops, sge) == 0))
+		    (sge_length(sgtbl_ops, sge) == 0)) {
+			ERROR_LOG("%s failed. i:%d, sge_addr:%d, sge_length:%zd, mr_found:%d\n",
+				   __func__, i, sge_addr(sgtbl_ops, sge), sge_length(sgtbl_ops, sge),
+				   mr_found);
 			return 0;
+		}
 	}
 
 	if (tcp_options.enable_mr_check &&
-	    (mr_found != nents) && mr_found)
+	    (mr_found != nents) && mr_found) {
+		ERROR_LOG("%s failed. nents:%d, mr_found:%d\n",
+			  __func__, nents, mr_found);
 		return 0;
+	}
 
 	return 1;
 }

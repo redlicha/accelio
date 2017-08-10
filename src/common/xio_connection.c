@@ -1050,14 +1050,23 @@ int xio_send_request(struct xio_connection *connection,
 		valid = xio_session_is_valid_in_req(connection->session, pmsg);
 		if (unlikely(!valid)) {
 			xio_set_error(EINVAL);
-			ERROR_LOG("invalid in message\n");
+			ERROR_LOG("send request failed. invalid in message\n");
 			retval = -1;
 			goto send;
 		}
 		valid = xio_session_is_valid_out_msg(connection->session, pmsg);
 		if (unlikely(!valid)) {
 			xio_set_error(EINVAL);
-			ERROR_LOG("invalid out message\n");
+			ERROR_LOG("send request failed. invalid out message\n");
+			retval = -1;
+			goto send;
+		}
+#else
+		if (pmsg->out.header.iov_len > (size_t)g_options.max_inline_xio_hdr) {
+			ERROR_LOG("%s failed. iov_len:%zd max_inline_xio_hdr:%d\n",
+				  __func__, pmsg->out.header.iov_len, g_options.max_inline_xio_hdr);
+			xio_set_error(EINVAL);
+			ERROR_LOG("send request failed. invalid out message\n");
 			retval = -1;
 			goto send;
 		}
@@ -1203,7 +1212,16 @@ int xio_send_response(struct xio_msg *msg)
 		valid = xio_session_is_valid_out_msg(connection->session, pmsg);
 		if (!valid) {
 			xio_set_error(EINVAL);
-			ERROR_LOG("invalid out message\n");
+			ERROR_LOG("send response failed. invalid out message\n");
+			retval = -1;
+			goto send;
+		}
+#else
+		if (pmsg->out.header.iov_len > (size_t)g_options.max_inline_xio_hdr) {
+			ERROR_LOG("%s failed. iov_len:%zd max_inline_xio_hdr:%d\n",
+				  __func__, pmsg->out.header.iov_len, g_options.max_inline_xio_hdr);
+			xio_set_error(EINVAL);
+			ERROR_LOG("send response failed. invalid out message\n");
 			retval = -1;
 			goto send;
 		}
@@ -1346,7 +1364,16 @@ static int xio_send_typed_msg(struct xio_connection *connection,
 		valid = xio_session_is_valid_out_msg(connection->session, pmsg);
 		if (unlikely(!valid)) {
 			xio_set_error(EINVAL);
-			ERROR_LOG("invalid out message\n");
+			ERROR_LOG("send failed. invalid out message\n");
+			retval = -1;
+			goto send;
+		}
+#else
+		if (pmsg->out.header.iov_len > (size_t)g_options.max_inline_xio_hdr) {
+			ERROR_LOG("%s failed. iov_len:%zd max_inline_xio_hdr:%d\n",
+				  __func__, pmsg->out.header.iov_len, g_options.max_inline_xio_hdr);
+			xio_set_error(EINVAL);
+			ERROR_LOG("send failed. invalid out message\n");
 			retval = -1;
 			goto send;
 		}
