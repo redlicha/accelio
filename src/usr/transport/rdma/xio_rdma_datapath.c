@@ -3213,8 +3213,9 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		if (retval == 0)
 			return 0;
 		ERROR_LOG("scheduling rdma read failed\n");
+		task->status = xio_errno();
+		goto partial_msg;
 		break;
-
 	default:
 		ERROR_LOG("%s unexpected op 0x%x\n", __func__,
 			  rsp_hdr.out_ib_op);
@@ -4099,11 +4100,14 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		if (retval == 0)
 			return 0;
 		ERROR_LOG("scheduling rdma read failed\n");
+		task->status = xio_errno();
+		goto partial_msg;
 		break;
 	default:
 		ERROR_LOG("unexpected out_ib_op, rdma_hndl:%p\n", rdma_hndl);
 		xio_set_error(XIO_E_MSG_INVALID);
 		task->status = XIO_E_MSG_INVALID;
+		goto partial_msg;
 		break;
 	};
 
@@ -4130,6 +4134,17 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
 				      &event_data);
 
+	return 0;
+
+partial_msg:
+	/* fill notification event */
+	event_data.msg.op	= XIO_WC_OP_RECV;
+	event_data.msg.task	= task;
+
+	/* notify the upper layer of received message */
+	xio_transport_notify_observer(&rdma_hndl->base,
+				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
+				      &event_data);
 	return 0;
 
 cleanup:
