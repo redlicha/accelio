@@ -3113,7 +3113,7 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 
 				if (idata_len > odata_len) {
 					task->status = XIO_E_MSG_SIZE;
-					goto partial_msg;
+					goto msg_comp;
 				} else {
 					task->status = XIO_E_SUCCESS;
 				}
@@ -3143,7 +3143,8 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 			ERROR_LOG("local in data_iovec is too small %d < %d\n",
 				  rdma_sender_task->read_num_reg_mem,
 				  rdma_task->rsp_out_num_sge);
-			goto partial_msg;
+			task->status = XIO_E_MSG_SIZE;
+			goto msg_comp;
 		}
 
 		tbl_set_nents(isgtbl_ops, isgtbl,
@@ -3214,14 +3215,15 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 			return 0;
 		ERROR_LOG("scheduling rdma read failed\n");
 		task->status = xio_errno();
-		goto partial_msg;
 		break;
 	default:
 		ERROR_LOG("%s unexpected op 0x%x\n", __func__,
 			  rsp_hdr.out_ib_op);
+		task->status = EINVAL;
 		break;
 	}
 
+msg_comp:
 	/* must delay the send due to pending rdma read responses
 	 * if not user will get out of order messages - need fence
 	 */
@@ -3238,7 +3240,6 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		return 0;
 	}
 
-partial_msg:
 	/* fill notification event */
 	event_data.msg.op	= XIO_WC_OP_RECV;
 	event_data.msg.task	= task;
@@ -4101,13 +4102,11 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 			return 0;
 		ERROR_LOG("scheduling rdma read failed\n");
 		task->status = xio_errno();
-		goto partial_msg;
 		break;
 	default:
 		ERROR_LOG("unexpected out_ib_op, rdma_hndl:%p\n", rdma_hndl);
 		xio_set_error(XIO_E_MSG_INVALID);
 		task->status = XIO_E_MSG_INVALID;
-		goto partial_msg;
 		break;
 	};
 
@@ -4134,17 +4133,6 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
 				      &event_data);
 
-	return 0;
-
-partial_msg:
-	/* fill notification event */
-	event_data.msg.op	= XIO_WC_OP_RECV;
-	event_data.msg.task	= task;
-
-	/* notify the upper layer of received message */
-	xio_transport_notify_observer(&rdma_hndl->base,
-				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
-				      &event_data);
 	return 0;
 
 cleanup:
