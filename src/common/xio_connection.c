@@ -2342,7 +2342,7 @@ static void xio_connection_post_destroy(struct kref *kref)
 	close_reason = connection->close_reason;
 
 	DEBUG_LOG("xio_connection_post_destroy. session:%p, connection:%p " \
-		  "conn:%p nr:%d\n",
+		  "nexus:%p nr:%d\n",
 		  session, connection, connection->nexus,
 		  session->connections_nr);
 
@@ -2389,6 +2389,14 @@ static void xio_connection_post_destroy(struct kref *kref)
 		ERROR_LOG("failed to close connection");
 		return;
 	}
+	DEBUG_LOG("xio_connection_post_destroy init session teardown. " \
+		  "session:%p, connection:%p nr:%d, disable_teardown:%d" \
+		  "destroy_session:%d\n", 
+		  session, connection,
+		  session->connections_nr,
+		  session->disable_teardown,
+		  destroy_session);
+
 	if (session->disable_teardown)
 		return;
 

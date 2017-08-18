@@ -2089,7 +2089,9 @@ static void xio_session_pre_teardown(void *_session)
 
 	spin_unlock(&session->connections_list_lock);
 
-		/* last chance to teardown */
+	DEBUG_LOG("xio_session_pre_teardown. session:%p, destroy_session:%d\n",
+		  session, destroy_session);
+	/* last chance to teardown */
 	if (destroy_session) {
 		/* remove the session from cache */
 		xio_sessions_cache_remove(session->session_id);
