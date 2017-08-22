@@ -264,6 +264,7 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 				xio_get_last_socket_error());
 			}
 			list_del(&pconn->conns_list_entry);
+			close(pconn->fd);
 			ufree(pconn);
 		}
 
