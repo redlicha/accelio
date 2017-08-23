@@ -2301,11 +2301,14 @@ int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl,
 	struct ibv_send_wr	*bad_wr;
 	int			retval;
 
-	retval = rdma_disconnect(rdma_hndl->cm_id);
-	if (unlikely(retval)) {
-		ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
-			  rdma_hndl);
-		return -1;
+	if (!rdma_hndl->rdma_disconnect_called) {
+		retval = rdma_disconnect(rdma_hndl->cm_id);
+		rdma_hndl->rdma_disconnect_called = 1;
+		if (unlikely(retval)) {
+			ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
+					rdma_hndl);
+			return -1;
+		}
 	}
 	if (!send_beacon)
 		return 0;
