@@ -2429,11 +2429,21 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 }
 
 /*---------------------------------------------------------------------------*/
-/* on_cm_disconnected							     */
+/* xio_disconnect_timeout_handler					     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_disconnect_handler(void *rdma_hndl)
+static inline void xio_disconnect_timeout_handler(void *rdma_handle)
 {
+	struct xio_rdma_transport *rdma_hndl = 
+				(struct xio_rdma_transport *)rdma_handle;
+
+	WARN_LOG("rdma_disconnect timedout. rdma_hndl:%p\n", rdma_hndl);
+	
 	on_cm_disconnected(NULL, (struct xio_rdma_transport *)rdma_hndl);
+
+	xio_ctx_del_delayed_work(
+			rdma_hndl->base.ctx,
+			&rdma_hndl->timewait_timeout_work);
+	xio_set_timewait_timer(rdma_hndl);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2454,7 +2464,7 @@ void xio_set_disconnect_timer(struct xio_rdma_transport *rdma_hndl)
 	retval = xio_ctx_add_delayed_work(
 				rdma_hndl->base.ctx,
 				timeout, rdma_hndl,
-				xio_disconnect_handler,
+				xio_disconnect_timeout_handler,
 				&rdma_hndl->disconnect_timeout_work);
 	if (retval != 0) {
 		ERROR_LOG("xio_ctx_timer_add_delayed_work failed.\n");
