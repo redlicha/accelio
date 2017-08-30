@@ -1080,9 +1080,11 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 	mutex_unlock(&session->lock);
 
 	DEBUG_LOG("xio_connect: session:%p, connection:%p, " \
-		  "ctx:%p, nexus:%p\n",
+		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s\n",
 		  session, connection, ctx,
-		  ((connection) ? connection->nexus : NULL));
+		  ((connection) ? connection->nexus : NULL),
+		  session->uri,
+		  cparams->out_addr ? cparams->out_addr : "default");
 
 	return connection;
 
