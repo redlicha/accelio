@@ -1490,6 +1490,30 @@ int xio_connection_xmit_msgs(struct xio_connection *connection)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_connection_detach_of_tasks					     */
+/*---------------------------------------------------------------------------*/
+int xio_connection_detach_of_tasks(struct xio_connection *connection)
+{
+	struct xio_tasks_pool *pool;
+
+	if (!connection || !connection->ctx)
+		return 0;
+
+	if (connection->nexus) {
+		int proto = xio_nexus_get_proto(connection->nexus);
+		pool = connection->ctx->primary_tasks_pool[proto];
+		xio_tasks_pool_detach_connection(pool, connection); 
+	} else {
+		pool = connection->ctx->primary_tasks_pool[XIO_PROTO_RDMA];
+		xio_tasks_pool_detach_connection(pool, connection); 
+
+		pool = connection->ctx->primary_tasks_pool[XIO_PROTO_TCP];
+		xio_tasks_pool_detach_connection(pool, connection); 
+	}
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_connection_post_close						     */
 /*---------------------------------------------------------------------------*/
 static void xio_connection_post_close(void *_connection)
@@ -2348,6 +2372,7 @@ static void xio_connection_post_destroy(struct kref *kref)
 
 	/* remove the connection from the session's connections list */
 	xio_connection_flush_tasks(connection);
+	xio_connection_detach_of_tasks(connection);
 
 	/* for race condition between connection teardown and transport closed */
 	if (connection->nexus) {

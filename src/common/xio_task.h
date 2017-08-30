@@ -381,4 +381,27 @@ static inline int xio_task_swap_mbuf(struct xio_task *t1,
 	return 0;
 }
 
+/*---------------------------------------------------------------------------*/
+/* xio_tasks_pool_detach_connection					     */
+/*---------------------------------------------------------------------------*/
+static inline void xio_tasks_pool_detach_connection(
+						struct xio_tasks_pool *q, 
+						struct xio_connection *conn)
+{
+	struct xio_tasks_slab	*pslab;
+	unsigned int i;
+
+	if (unlikely(!q || !conn))
+		return;
+
+	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
+		for (i = 0; i < pslab->nr; i++)
+			if (pslab->array[i]->connection == conn) {
+				pslab->array[i]->connection = NULL;
+				pslab->array[i]->session = NULL;
+				pslab->array[i]->nexus = NULL;
+			}
+	}
+}
+
 #endif

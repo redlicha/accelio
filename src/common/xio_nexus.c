@@ -873,16 +873,18 @@ static int xio_nexus_on_recv_rsp(struct xio_nexus *nexus,
 	nexus_event_data.msg.task = task;
 	nexus_event_data.msg.op = XIO_WC_OP_RECV;
 	if (likely(task->sender_task)) {
-		if (unlikely(task->sender_task->nexus != nexus)) {
-			DEBUG_LOG("spurious event\n");
-			return 0;
-		}
-		if (unlikely(task->sender_task->connection &&
-			     task->sender_task->connection->nexus != nexus)) {
+		if (unlikely(!task->sender_task->connection || !task->sender_task->nexus)) {
 			DEBUG_LOG("connection disconnected from nexus. task dismissed\n");
-			return 0;
+			goto task_cleanup;
 		}
-
+		if (unlikely( task->sender_task->nexus != nexus)) {
+			DEBUG_LOG("spurious event\n");
+			goto task_cleanup;
+		}
+		if (unlikely(task->sender_task->connection->nexus != nexus)) {
+			DEBUG_LOG("connection disconnected from nexus. task dismissed\n");
+			goto task_cleanup;
+		}
 		/* route the response to the sender session */
 		xio_observable_notify_observer(
 				&nexus->observable,
@@ -898,6 +900,15 @@ static int xio_nexus_on_recv_rsp(struct xio_nexus *nexus,
 	}
 
 	return 0;
+
+task_cleanup:
+	if (task->sender_task && !task->on_hold) {
+		xio_tasks_pool_put(task->sender_task);
+		task->sender_task = NULL;
+	}
+	xio_tasks_pool_put(task);
+	return 0;
+
 }
 
 /*---------------------------------------------------------------------------*/
