@@ -198,7 +198,8 @@ void xio_observable_notify_observer(struct xio_observable *observable,
 				    struct xio_observer *observer,
 				    int event, void *event_data)
 {
-	if (likely(observable->impl && observer->impl && observer->notify))
+	if (likely(observer && observable && observable->impl &&
+		   observer->impl && observer->notify))
 		observer->notify(observer->impl, observable->impl,
 				 event, event_data);
 	else
