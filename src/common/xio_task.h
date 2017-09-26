@@ -78,7 +78,9 @@ struct xio_task {
 	uint32_t                magic;
 	int32_t                 status;
 	uint32_t                on_hold:1;
-	uint32_t                pad:31;
+	uint32_t                ctrl_rsp_sent:1;
+	uint32_t                nexus_sent_fin:2;
+	uint32_t                pad:28;
 
 	void			*pool;
 	void			*slab;

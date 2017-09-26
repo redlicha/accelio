@@ -367,10 +367,10 @@ int xio_connection_send(struct xio_connection *connection,
 		} else if (IS_RESPONSE(msg->type)) {
 			task = container_of(msg->request,
 					    struct xio_task, imsg);
-
+			if (is_control)
+				task->ctrl_rsp_sent = 1;
 			list_move_tail(&task->tasks_list_entry,
 				       &connection->pre_send_list);
-
 			hdr.serial_num	= msg->request->sn;
 		} else {
 			ERROR_LOG("Unknown message type %u\n", msg->type);
