@@ -1792,6 +1792,7 @@ static int xio_rdma_read_rsp_header(struct xio_rdma_transport *rdma_hndl,
 	uint32_t			*wr_len;
 	int				i;
 
+	memset(rsp_hdr, 0, sizeof(*rsp_hdr));
 	/* point to transport header */
 	xio_mbuf_set_trans_hdr(&task->mbuf);
 	tmp_rsp_hdr = (struct xio_rdma_rsp_hdr *)
@@ -1932,7 +1933,7 @@ static int xio_rdma_prep_rsp_header(struct xio_rdma_transport *rdma_hndl,
 				    uint32_t status)
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
-	struct xio_rdma_rsp_hdr	rsp_hdr;
+	struct xio_rdma_rsp_hdr	rsp_hdr = {0};
 
 	if (unlikely(!IS_RESPONSE(task->tlv_type))) {
 		ERROR_LOG("unknown message type\n");

@@ -1553,7 +1553,7 @@ static int xio_tcp_prep_rsp_header(struct xio_tcp_transport *tcp_hndl,
 				   uint32_t status)
 {
 	XIO_TO_TCP_TASK(task, tcp_task);
-	struct xio_tcp_rsp_hdr	rsp_hdr;
+	struct xio_tcp_rsp_hdr	rsp_hdr = {};
 
 	if (unlikely(!IS_RESPONSE(task->tlv_type))) {
 		ERROR_LOG("unknown message type\n");
@@ -1937,6 +1937,7 @@ static int xio_tcp_read_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	int				i;
 	size_t				hdr_len;
 
+	memset(rsp_hdr, 0, sizeof(*rsp_hdr));
 	/* point to transport header */
 	xio_mbuf_set_trans_hdr(&task->mbuf);
 	tmp_rsp_hdr = (struct xio_tcp_rsp_hdr *)
