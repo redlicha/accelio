@@ -1064,12 +1064,24 @@ static int xio_nexus_on_send_msg_comp(struct xio_nexus *nexus,
 	nexus_event_data.msg.task	= task;
 	nexus_event_data.msg.op		= XIO_WC_OP_SEND;
 
-	xio_observable_notify_observer(
-			&nexus->observable,
-			&task->session->observer,
-			XIO_NEXUS_EVENT_SEND_COMPLETION,
-			&nexus_event_data);
+	if (task && task->session) {
+		xio_observable_notify_observer(
+				&nexus->observable,
+				&task->session->observer,
+				XIO_NEXUS_EVENT_SEND_COMPLETION,
+				&nexus_event_data);
+		return 0;
+	} else {
+		DEBUG_LOG("spurious event. nexus:%p, task:%p\n", nexus, task);
+		goto task_cleanup;
 
+	}
+task_cleanup:
+	if (task->sender_task && !task->on_hold) {
+		xio_tasks_pool_put(task->sender_task);
+		task->sender_task = NULL;
+	}
+	xio_tasks_pool_put(task);
 	return 0;
 }
 
