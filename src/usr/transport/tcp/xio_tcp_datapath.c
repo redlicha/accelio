@@ -975,7 +975,11 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 	if (tcp_hndl->tx_ready_tasks_num == 0 ||
 	    tcp_hndl->tx_comp_cnt > COMPLETION_BATCH_MAX ||
 	    tcp_hndl->state != XIO_TRANSPORT_STATE_CONNECTED) {
-		xio_set_error(XIO_EAGAIN);
+		if (unlikely(tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED ||
+			     tcp_hndl->state == XIO_TRANSPORT_STATE_CLOSED))
+			xio_set_error(ESHUTDOWN);
+		else
+			xio_set_error(XIO_EAGAIN);
 		return -1;
 	}
 

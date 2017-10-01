@@ -589,11 +589,12 @@ int xio_mempool_alloc(struct xio_mempool *p, size_t length,
 	struct xio_mem_slab	*slab;
 	struct xio_mem_block	*block;
 	int			ret = 0;
+	int			err = 0;
 
 	index = size2index(p, length);
 retry:
 	if (index == -1) {
-		errno = EINVAL;
+		err = EINVAL;
 		ret = -1;
 		reg_mem->addr	= NULL;
 		reg_mem->mr	= NULL;
@@ -653,10 +654,10 @@ retry:
 #endif
 
 cleanup:
-
 #ifdef DEBUG_MEMPOOL_MT
 	xio_mempool_dump(p);
 #endif
+	xio_set_error(err);
 	return ret;
 }
 
