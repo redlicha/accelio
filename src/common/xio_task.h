@@ -303,6 +303,8 @@ static inline struct xio_task *xio_tasks_pool_get(
 	if (q->params.pool_hooks.task_post_get)
 		q->params.pool_hooks.task_post_get(context, t);
 
+	xio_mbuf_reset(&t->mbuf);
+
 	return t;
 
 pool_exhausted:

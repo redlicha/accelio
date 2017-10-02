@@ -886,6 +886,8 @@ int xio_nexus_send_fin_req(struct xio_nexus *nexus)
 		ERROR_LOG("tasks pool is empty\n");
 		return -ENOMEM;
 	}
+	/* reset the task mbuf */
+	xio_mbuf_reset(&task->mbuf);
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(nexus->transport_hndl->ctx);
 
@@ -929,6 +931,9 @@ int xio_nexus_send_fin_ack(struct xio_nexus *nexus, struct xio_task *task)
 	msg->out.header.iov_len	= 0;
 	msg->in.data_tbl.nents	= 0;
 	msg->out.data_tbl.nents	= 0;
+
+	/* reset mbuf */
+	xio_mbuf_reset(&task->mbuf);
 
 	task->omsg = msg;
 	task->tlv_type = XIO_FIN_RSP;
