@@ -1961,6 +1961,8 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 static void xio_pre_disconnect(void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
+	bool expedite_disconnection = true;
+	int retval;
 
 	/* now we are on the right context, reaffirm that in the mean time,
 	 * state was not changed
@@ -1973,16 +1975,20 @@ static void xio_pre_disconnect(void *conn)
 	/* on keep alive timeout, assume fin is also timeout and bypass  */
 	if (!connection->ka.timedout && !connection->ka.req_sent) {
 		connection->state = XIO_CONNECTION_STATE_FIN_WAIT_1;
-
 		DEBUG_LOG("xio_pre_disconnect: sending fin request");
-		xio_send_fin_req(connection);
-
+		retval = xio_send_fin_req(connection);
 		if (!connection->disable_notify) {
 			connection->close_reason = XIO_E_SESSION_CLOSED;
 			xio_session_notify_connection_closed(
 					connection->session, connection);
 		}
-	} else {
+		if (retval)
+			ERROR_LOG("xio_pre_disconnect: sending fin request failed.");
+		else
+			expedite_disconnection = false;
+	}
+
+	if (expedite_disconnection) {
 		DEBUG_LOG("xio_pre_disconnect: expediting disconnection. ka.timedout:%d, ka.req_sent:%d", 
 			  connection->ka.timedout, connection->ka.req_sent);
 		xio_ctx_del_delayed_work(connection->ctx,
@@ -2832,6 +2838,7 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 			struct xio_task *task)
 {
 	struct xio_transition	*transition;
+	int retval = 0;
 
 	DEBUG_LOG("fin request received. session:%p, connection:%p\n",
 		  connection->session, connection);
@@ -2851,9 +2858,20 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 	/* flush all pending requests */
 	xio_connection_notify_req_msgs_flush(connection, XIO_E_MSG_FLUSHED);
 	/*fin req was flushed. need to send it again */
-	if (connection->fin_request_flushed)
-		xio_send_fin_req(connection);
-
+	retval = 0;
+	if (connection->fin_request_flushed) {
+		retval = xio_send_fin_req(connection);
+		if (retval) {
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection.");
+			xio_ctx_del_delayed_work(connection->ctx,
+					&connection->ka.timer);
+			xio_ctx_del_delayed_work(connection->ctx,
+					&connection->fin_timeout_work);
+			connection->state = XIO_CONNECTION_STATE_TIME_WAIT;
+			xio_close_time_wait(connection);
+			return 0;
+		}
+	}
 	if (transition->send_flags & SEND_ACK)
 		xio_send_fin_ack(connection, task);
 
@@ -2901,7 +2919,7 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 	/* transition from online to close_wait - notify the application */
 	if (connection->state == XIO_CONNECTION_STATE_CLOSE_WAIT) {
 		connection->disconnecting = 1;
-		xio_send_fin_req(connection);
+		retval = xio_send_fin_req(connection);
 
 		connection->close_reason = XIO_E_SESSION_DISCONNECTED;
 		if (!connection->disable_notify)
@@ -2909,14 +2927,23 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 					connection->session,
 					connection);
 
-		DEBUG_LOG("connection %p state change: current_state:%s, " \
-			  "next_state:%s\n",
-			  connection,
-			  xio_connection_state_str((enum xio_connection_state)
-							connection->state),
-			  xio_connection_state_str(
-				  XIO_CONNECTION_STATE_LAST_ACK));
-		connection->state = XIO_CONNECTION_STATE_LAST_ACK;
+		if (retval) {
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection");
+			xio_ctx_del_delayed_work(connection->ctx,
+					&connection->ka.timer);
+			xio_ctx_del_delayed_work(connection->ctx,
+					&connection->fin_timeout_work);
+			connection->state = XIO_CONNECTION_STATE_TIME_WAIT;
+		} else {
+			DEBUG_LOG("connection %p state change: current_state:%s, " \
+					"next_state:%s\n",
+					connection,
+					xio_connection_state_str((enum xio_connection_state)
+						connection->state),
+					xio_connection_state_str(
+						XIO_CONNECTION_STATE_LAST_ACK));
+			connection->state = XIO_CONNECTION_STATE_LAST_ACK;
+		}
 	}
 
 	if (connection->state == XIO_CONNECTION_STATE_TIME_WAIT) {
