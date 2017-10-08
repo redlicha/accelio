@@ -1511,6 +1511,9 @@ static int xio_rdma_write_req_header(struct xio_rdma_transport *rdma_hndl,
 	/* sn		shall be coded later */
 	/* ack_sn	shall be coded later */
 	/* credits	shall be coded later */
+	tmp_req_hdr->sn = 0;
+	tmp_req_hdr->ack_sn = ~0;
+	tmp_req_hdr->credits = 0;
 	PACK_LVAL(req_hdr, tmp_req_hdr, ltid);
 	tmp_req_hdr->in_ib_op	   = req_hdr->in_ib_op;
 	tmp_req_hdr->out_ib_op	   = req_hdr->out_ib_op;
@@ -1714,6 +1717,9 @@ static int xio_rdma_write_rsp_header(struct xio_rdma_transport *rdma_hndl,
 	/* sn		shall be coded later */
 	/* ack_sn	shall be coded later */
 	/* credits	shall be coded later */
+	tmp_rsp_hdr->sn = 0;
+	tmp_rsp_hdr->ack_sn = ~0;
+	tmp_rsp_hdr->credits = 0;
 	PACK_LVAL(rsp_hdr, tmp_rsp_hdr, rtid);
 	tmp_rsp_hdr->out_ib_op = rsp_hdr->out_ib_op;
 	PACK_LVAL(rsp_hdr, tmp_rsp_hdr, status);
@@ -1811,6 +1817,7 @@ static int xio_rdma_read_rsp_header(struct xio_rdma_transport *rdma_hndl,
 
 	UNPACK_SVAL(tmp_rsp_hdr, rsp_hdr, sn);
 	/* ack_sn not used */
+	tmp_rsp_hdr->ack_sn = ~0;
 	UNPACK_SVAL(tmp_rsp_hdr, rsp_hdr, credits);
 	UNPACK_LVAL(tmp_rsp_hdr, rsp_hdr, rtid);
 	rsp_hdr->out_ib_op = tmp_rsp_hdr->out_ib_op;
@@ -4632,7 +4639,7 @@ static int xio_rdma_send_nop(struct xio_rdma_transport *rdma_hndl)
 		.flags		= 0
 	};
 
-	TRACE_LOG("SEND_NOP\n");
+	TRACE_LOG("SEND_NOP. rdma_hndl:%p\n", rdma_hndl);
 
 	task = xio_rdma_primary_task_alloc(rdma_hndl);
 	if (!task) {
@@ -4713,7 +4720,7 @@ static int xio_rdma_on_recv_nop(struct xio_rdma_transport *rdma_hndl,
 {
 	struct xio_nop_hdr	nop;
 
-	TRACE_LOG("RECV_NOP\n");
+	TRACE_LOG("RECV_NOP. rdma_hndl:%p\n", rdma_hndl);
 	xio_rdma_read_nop(rdma_hndl, task, &nop);
 
 	if (rdma_hndl->exp_sn == nop.sn)
