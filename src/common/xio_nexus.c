@@ -889,6 +889,10 @@ int xio_nexus_send_fin_req(struct xio_nexus *nexus)
 	/* reset the task mbuf */
 	xio_mbuf_reset(&task->mbuf);
 
+	/* set start of the tlv */
+	if (xio_mbuf_tlv_start(&task->mbuf) != 0)
+		return -1;
+
 	msg = (struct xio_msg *)xio_context_msg_pool_get(nexus->transport_hndl->ctx);
 
 	msg->type		= (enum xio_msg_type)XIO_FIN_REQ;
