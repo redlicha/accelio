@@ -180,6 +180,7 @@ static inline void xio_task_reset(struct xio_task *task)
 	*/
 	task->sender_task		= NULL;
 	task->tlv_type			= 0xdead;
+	task->omsg			= NULL;
 	task->status			= 0;
 
 	if (task->imsg.user_context)
