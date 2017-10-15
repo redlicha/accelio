@@ -846,11 +846,13 @@ int xio_nexus_on_fin_ack_send_comp(struct xio_nexus *nexus,
 			     struct xio_task *task)
 {
 	DEBUG_LOG("fin ack send completion received. "  \
-		  "nexus:%p\n");
+		  "nexus:%p\n", nexus);
 
-	clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
-	if (--task->nexus_sent_fin == 0)
+	if (--task->nexus_sent_fin == 0) {
+		clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
+		clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->omsg->flags);
 		xio_context_msg_pool_put(task->omsg);
+	}
 	xio_tasks_pool_put(task);
 
 	return 0;
@@ -863,11 +865,12 @@ int xio_nexus_on_fin_req_send_comp(struct xio_nexus *nexus,
 				   struct xio_task *task)
 {
 	DEBUG_LOG("fin req send completion received. "  \
-		  "nexus:%p\n");
+		  "nexus:%p\n", nexus);
 
-	clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->omsg->flags);
-	if (--task->nexus_sent_fin == 0)
-		xio_context_msg_pool_put(task->omsg);
+	if (--task->nexus_sent_fin == 0) {
+			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->omsg->flags);
+			xio_context_msg_pool_put(task->omsg);
+	}
 	xio_tasks_pool_put(task);
 
 	return 0;
@@ -936,6 +939,8 @@ int xio_nexus_send_fin_ack(struct xio_nexus *nexus, struct xio_task *task)
 	msg->in.data_tbl.nents	= 0;
 	msg->out.data_tbl.nents	= 0;
 
+	set_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &msg->flags);
+
 	/* reset mbuf */
 	xio_mbuf_reset(&task->mbuf);
 
@@ -972,6 +977,7 @@ static int xio_nexus_on_recv_req(struct xio_nexus *nexus,
 	/* handle critical message that must be sent */
 	if (task->tlv_type == XIO_FIN_REQ) {
 		critical_msg = true;
+		task->ctrl_rsp_sent = 0;
 		tlv_type = task->tlv_type;
 		if (test_flag(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags)) {
 			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
@@ -1016,8 +1022,11 @@ static int xio_nexus_on_recv_rsp(struct xio_nexus *nexus,
 	/* this is response to request that we sent */
 	if (task->sender_task &&
 	    task->sender_task->nexus_sent_fin && task->tlv_type == XIO_FIN_RSP) {
-		if (--task->sender_task->nexus_sent_fin == 0)
+		if (--task->sender_task->nexus_sent_fin == 0) {
+			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
+			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->sender_task->omsg->flags);
 			xio_context_msg_pool_put(task->sender_task->omsg);
+		}
 		goto task_cleanup;
 	}
 

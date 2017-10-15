@@ -305,6 +305,7 @@ static inline struct xio_task *xio_tasks_pool_get(
 		q->params.pool_hooks.task_post_get(context, t);
 
 	xio_mbuf_reset(&t->mbuf);
+	xio_mbuf_tlv_start(&t->mbuf);
 
 	return t;
 
