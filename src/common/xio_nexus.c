@@ -991,7 +991,8 @@ static int xio_nexus_on_recv_req(struct xio_nexus *nexus,
 			XIO_NEXUS_EVENT_NEW_MESSAGE,
 			&nexus_event_data);
 
-	if (critical_msg && !task->ctrl_rsp_sent) {
+	/* disable this code for now */
+	if (0 && critical_msg && !task->ctrl_rsp_sent) {
 		WARN_LOG("response to critical request 0x%x was not sent. forcing response\n",
 			 tlv_type);
 		/* send the ack and reply with request */
@@ -1002,6 +1003,7 @@ static int xio_nexus_on_recv_req(struct xio_nexus *nexus,
 			xio_tasks_pool_put(task);
 		}
 	}
+
 	task->ctrl_rsp_sent = 0;
 
 	xio_tasks_pool_put(task);
@@ -1082,24 +1084,15 @@ static int xio_nexus_on_send_msg_comp(struct xio_nexus *nexus,
 	nexus_event_data.msg.task	= task;
 	nexus_event_data.msg.op		= XIO_WC_OP_SEND;
 
-	if (task && task->session) {
+	if (task && task->session)
 		xio_observable_notify_observer(
 				&nexus->observable,
 				&task->session->observer,
 				XIO_NEXUS_EVENT_SEND_COMPLETION,
 				&nexus_event_data);
-		return 0;
-	} else {
-		DEBUG_LOG("spurious event. nexus:%p, task:%p\n", nexus, task);
-		goto task_cleanup;
+	 else
+		ERROR_LOG("spurious event. nexus:%p, task:%p\n", nexus, task);
 
-	}
-task_cleanup:
-	if (task->sender_task && !task->on_hold) {
-		xio_tasks_pool_put(task->sender_task);
-		task->sender_task = NULL;
-	}
-	xio_tasks_pool_put(task);
 	return 0;
 }
 

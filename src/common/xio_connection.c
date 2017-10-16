@@ -381,8 +381,6 @@ int xio_connection_send(struct xio_connection *connection,
 		} else if (IS_RESPONSE(msg->type)) {
 			task = container_of(msg->request,
 					    struct xio_task, imsg);
-			if (is_control)
-				task->ctrl_rsp_sent = 1;
 			list_move_tail(&task->tasks_list_entry,
 				       &connection->pre_send_list);
 			hdr.serial_num	= msg->request->sn;
@@ -1890,6 +1888,9 @@ int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 	msg->out.header.iov_len	= 0;
 	msg->in.data_tbl.nents	= 0;
 	msg->out.data_tbl.nents	= 0;
+
+	/* mark the request */
+	task->ctrl_rsp_sent = 1;
 
 	/* insert to the tail of the queue */
 	xio_msg_list_insert_tail(&connection->rsps_msgq, msg, pdata);
