@@ -2924,6 +2924,10 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 		  "session:%p, connection:%p\n",
 		  connection->session, connection);
 
+	/* cancel the timer */
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_timeout_work);
+
 	xio_connection_release_fin(connection, task->omsg);
 	task->sender_task = NULL;
 	xio_tasks_pool_put(task);
