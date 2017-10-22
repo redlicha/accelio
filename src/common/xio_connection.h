@@ -100,7 +100,8 @@ struct xio_connection {
 	uint16_t			conn_idx;
 	uint16_t			state;
 
-	uint16_t			fin_req_timeout;
+	uint8_t				fin_req_timeout;
+	uint8_t				fin_ack_timeout;
 	uint16_t			disable_notify;
 	uint16_t			disconnecting;
 	uint16_t			restarted;
@@ -123,9 +124,10 @@ struct xio_connection {
 	struct xio_msg_list		in_flight_rsps_msgq;
 
 	xio_work_handle_t		hello_work;
-	xio_work_handle_t		fin_work;
+	xio_work_handle_t		disconnect_work;
 	xio_delayed_work_handle_t	fin_delayed_work;
-	xio_delayed_work_handle_t	fin_timeout_work;
+	xio_delayed_work_handle_t	fin_req_timeout_work;
+	xio_delayed_work_handle_t	fin_ack_timeout_work;
 
 	struct list_head		managed_rkey_list;
 	struct list_head		io_tasks_list;

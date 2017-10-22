@@ -1538,12 +1538,18 @@ static void xio_connection_post_close(void *_connection)
 				 &connection->fin_delayed_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_req_timeout_work);
+	
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
+
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
 
-	xio_ctx_del_work(connection->ctx, &connection->fin_work);
+	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
 	spin_lock(&connection->ctx->ctx_list_lock);
@@ -1776,23 +1782,28 @@ int xio_poll_completions(struct xio_connection *connection,
 		return xio_nexus_poll(connection->nexus, min_nr, nr, timeout);
 	else
 		return 0;
+
+	kref_put(&connection->kref, xio_connection_post_destroy);
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_fin_req_timeout							     */
+/* xio_fin_msg_timeout							     */
 /*---------------------------------------------------------------------------*/
-static void xio_fin_req_timeout(void *data)
+static void xio_fin_msg_timeout(struct xio_connection *connection, bool is_req)
 {
-	struct xio_connection *connection = (struct xio_connection *)data;
+	if (is_req) {
+		if (connection->fin_req_timeout)
+			return;
 
-	if (connection->fin_req_timeout)
-		return;
+		connection->fin_req_timeout++;
+	} else {
+		if (connection->fin_ack_timeout)
+			return;
 
-	connection->fin_req_timeout++;
-	ERROR_LOG("connection close timeout. session:%p, connection:%p\n",
-		  connection->session, connection);
+		connection->fin_ack_timeout++;
+	}
 
-	DEBUG_LOG("connection %p state change: current_state:%s, " \
+	DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -1832,6 +1843,32 @@ static void xio_fin_req_timeout(void *data)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_fin_req_timeout							     */
+/*---------------------------------------------------------------------------*/
+static void xio_fin_req_timeout(void *conn)
+{
+	struct xio_connection *connection = (struct xio_connection *)conn;
+
+	ERROR_LOG("fin request timeout. session:%p, connection:%p\n",
+		  connection->session, connection);
+
+	xio_fin_msg_timeout(connection, true);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_fin_ack_timeout							     */
+/*---------------------------------------------------------------------------*/
+static void xio_fin_ack_timeout(void *conn)
+{
+	struct xio_connection *connection = (struct xio_connection *)conn;
+	
+	ERROR_LOG("fin ack timeout. session:%p, connection:%p\n",
+		  connection->session, connection);
+
+	xio_fin_msg_timeout(connection, false);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_send_fin_req							     */
 /*---------------------------------------------------------------------------*/
 int xio_send_fin_req(struct xio_connection *connection)
@@ -1859,7 +1896,7 @@ int xio_send_fin_req(struct xio_connection *connection)
 				connection->ctx,
 				connection->disconnect_timeout, connection,
 				xio_fin_req_timeout,
-				&connection->fin_timeout_work);
+				&connection->fin_req_timeout_work);
 	if (retval != 0) {
 		ERROR_LOG("xio_ctx_timer_add failed.\n");
 		return retval;
@@ -1879,6 +1916,7 @@ int xio_send_fin_req(struct xio_connection *connection)
 int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 {
 	struct xio_msg *msg;
+	int retval;
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 
@@ -1900,6 +1938,18 @@ int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 
 	/* add reference to avoid race */
 	kref_get(&connection->kref);
+
+	/* trigger the timer */
+	connection->fin_ack_timeout = 0;
+	retval = xio_ctx_add_delayed_work(
+				connection->ctx,
+				connection->disconnect_timeout, connection,
+				xio_fin_ack_timeout,
+				&connection->fin_ack_timeout_work);
+	if (retval != 0) {
+		ERROR_LOG("xio_ctx_timer_add failed.\n");
+		return retval;
+	}
 
 	/* status is not important - just send */
 	return xio_connection_xmit(connection);
@@ -1935,7 +1985,7 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 	DEBUG_LOG("send fin request. session:%p, connection:%p\n",
 		  connection->session, connection);
 
-	TRACE_LOG("connection %p state change: current_state:%s, " \
+	TRACE_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -1955,7 +2005,7 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 				connection->ctx,
 				connection->disconnect_timeout, connection,
 				xio_fin_req_timeout,
-				&connection->fin_timeout_work);
+				&connection->fin_req_timeout_work);
 	if (unlikely(retval)) {
 		ERROR_LOG("xio_ctx_add_delayed_work failed.\n");
 		/* not critical - do not exit */
@@ -2008,7 +2058,9 @@ static void xio_pre_disconnect(void *conn)
 		xio_ctx_del_delayed_work(connection->ctx,
 					 &connection->ka.timer);
 		xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_req_timeout_work);
+		xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
 		if (!connection->disable_notify) {
 			connection->close_reason = XIO_E_TIMEOUT;
 			xio_session_notify_connection_closed(
@@ -2060,7 +2112,7 @@ int xio_disconnect(struct xio_connection *connection)
 			connection->ctx,
 			connection,
 			xio_pre_disconnect,
-			&connection->fin_work);
+			&connection->disconnect_work);
 	if (retval != 0) {
 		ERROR_LOG("xio_ctx_timer_add failed.\n");
 
@@ -2532,13 +2584,15 @@ int xio_connection_destroy(struct xio_connection *connection)
 	 * users may call this function at any stage
 	 **/
 	xio_ctx_del_work(connection->ctx, &connection->hello_work);
-	xio_ctx_del_work(connection->ctx, &connection->fin_work);
+	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->fin_delayed_work);
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_req_timeout_work);
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
 
@@ -2580,9 +2634,12 @@ int xio_connection_disconnected(struct xio_connection *connection)
 				 &connection->fin_delayed_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_req_timeout_work);
 
-	xio_ctx_del_work(connection->ctx, &connection->fin_work);
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
+
+	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 
 	if (!connection->disable_notify && !connection->disconnecting) {
 		xio_session_notify_connection_disconnected(
@@ -2696,7 +2753,7 @@ int xio_connection_error_event(struct xio_connection *connection,
 int xio_on_fin_req_send_comp(struct xio_connection *connection,
 			     struct xio_task *task)
 {
-	DEBUG_LOG("got fin request send completion. session:%p, " \
+	DEBUG_LOG("fin request send completion received. session:%p, " \
 		  "connection:%p\n",
 		  connection->session, connection);
 
@@ -2709,7 +2766,7 @@ static void xio_close_time_wait(void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
-	DEBUG_LOG("connection %p state change: current_state:%s, " \
+	DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -2747,7 +2804,7 @@ static void xio_handle_last_ack(void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
-	DEBUG_LOG("connection %p state change: current_state:%s, " \
+	DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -2786,7 +2843,7 @@ int xio_on_fin_ack_recv(struct xio_connection *connection,
 	struct xio_transition	*transition;
 	int			retval = 0;
 
-	DEBUG_LOG("got fin ack. session:%p, connection:%p\n",
+	DEBUG_LOG("fin ack received. session:%p, connection:%p\n",
 		  connection->session, connection);
 
 	if (connection->fin_req_timeout)
@@ -2796,7 +2853,7 @@ int xio_on_fin_ack_recv(struct xio_connection *connection,
 
 	/* cancel the timer */
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_req_timeout_work);
 
 	xio_connection_release_fin(connection, task->sender_task->omsg);
 
@@ -2823,7 +2880,7 @@ int xio_on_fin_ack_recv(struct xio_connection *connection,
 		goto cleanup;
 	}
 
-	DEBUG_LOG("connection %p state change: current_state:%s, " \
+	DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -2885,7 +2942,9 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 			xio_ctx_del_delayed_work(connection->ctx,
 					&connection->ka.timer);
 			xio_ctx_del_delayed_work(connection->ctx,
-					&connection->fin_timeout_work);
+					&connection->fin_req_timeout_work);
+			xio_ctx_del_delayed_work(connection->ctx,
+						 &connection->fin_ack_timeout_work);
 			connection->state = XIO_CONNECTION_STATE_TIME_WAIT;
 			xio_close_time_wait(connection);
 			return 0;
@@ -2898,7 +2957,9 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 			xio_ctx_del_delayed_work(connection->ctx,
 					&connection->ka.timer);
 			xio_ctx_del_delayed_work(connection->ctx,
-					&connection->fin_timeout_work);
+					&connection->fin_req_timeout_work);
+			xio_ctx_del_delayed_work(connection->ctx,
+					&connection->fin_ack_timeout_work);
 			xio_release_response_task(task);
 			if (connection->state != XIO_CONNECTION_STATE_ONLINE) {
 				connection->state = XIO_CONNECTION_STATE_LAST_ACK;
@@ -2926,7 +2987,7 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 
 	/* cancel the timer */
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_timeout_work);
+				 &connection->fin_ack_timeout_work);
 
 	xio_connection_release_fin(connection, task->omsg);
 	task->sender_task = NULL;
@@ -2944,7 +3005,7 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 		return -1;
 	}
 
-	DEBUG_LOG("connection %p state change: current_state:%s, " \
+	DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 		  "next_state:%s\n",
 		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
@@ -2961,7 +3022,9 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 		xio_ctx_del_delayed_work(connection->ctx,
 				&connection->ka.timer);
 		xio_ctx_del_delayed_work(connection->ctx,
-				&connection->fin_timeout_work);
+				&connection->fin_req_timeout_work);
+		xio_ctx_del_delayed_work(connection->ctx,
+					 &connection->fin_ack_timeout_work);
 
 		connection->close_reason = XIO_E_SESSION_DISCONNECTED;
 		if (!connection->disable_notify)
@@ -2969,7 +3032,7 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 						connection->session,
 						connection);
 
-		DEBUG_LOG("connection %p state change: current_state:%s, " \
+		DEBUG_LOG("connection state change. connection:%p current_state:%s, " \
 				"next_state:%s\n",
 				connection,
 				xio_connection_state_str((enum xio_connection_state)
@@ -3025,7 +3088,7 @@ int xio_on_connection_hello_rsp_recv(struct xio_connection *connection,
 		  session, connection);
 
 	if (task) {
-		DEBUG_LOG("got hello response. session:%p, connection:%p\n",
+		DEBUG_LOG("hello response received. session:%p, connection:%p\n",
 			  session, connection);
 
 		xio_connection_release_hello(connection,

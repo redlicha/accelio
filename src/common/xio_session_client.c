@@ -982,7 +982,7 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 					connection->ctx,
 					connection,
 					xio_session_refuse_connection,
-					&connection->fin_work);
+					&connection->disconnect_work);
 			if (retval != 0)
 				ERROR_LOG("xio_ctx_timer_add failed.\n");
 
