@@ -1773,7 +1773,7 @@ static int xio_nexus_on_assign_in_buf(struct xio_nexus *nexus,
 {
 	int				retval = 0;
 	struct xio_task			*task = event_data->msg.task;
-	union xio_nexus_event_data	nexus_event_data;
+	union xio_nexus_event_data	nexus_event_data = {};
 
 	nexus_event_data.assign_in_buf.task = event_data->msg.task;
 	task->nexus = nexus;
