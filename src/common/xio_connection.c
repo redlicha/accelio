@@ -177,10 +177,12 @@ char *xio_connection_state_str(enum xio_connection_state state)
 /*---------------------------------------------------------------------------*/
 /* xio_is_connection_online						     */
 /*---------------------------------------------------------------------------*/
-static int xio_is_connection_online(struct xio_connection *connection)
+static inline int xio_is_connection_online(struct xio_connection *connection)
 {
-	    return connection->session->state == XIO_SESSION_STATE_ONLINE &&
-		   connection->state == XIO_CONNECTION_STATE_ONLINE;
+	    return connection &&
+		   connection->state == XIO_CONNECTION_STATE_ONLINE &&	   
+		   connection->session &&
+		   connection->session->state == XIO_SESSION_STATE_ONLINE;
 }
 
 /*---------------------------------------------------------------------------*/
