@@ -2530,6 +2530,12 @@ static int xio_tcp_on_recv_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	/* find the sender task */
 	task->sender_task =
 		xio_tcp_primary_task_lookup(tcp_hndl, rsp_hdr.rtid);
+	if (task->sender_task == NULL) {
+		ERROR_LOG("sender task not found!!!!!. Releasing incoming response. tcp_hndl:%p\n", tcp_hndl);
+		xio_tasks_pool_put(task);
+		return 0;
+	}
+
 	task->rtid       = rsp_hdr.ltid;
 
 	tcp_sender_task = (struct xio_tcp_task *)task->sender_task->dd_data;

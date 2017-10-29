@@ -3043,6 +3043,11 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 	sender_task =
 		xio_rdma_primary_task_lookup(rdma_hndl,
 					     rsp_hdr.rtid);
+	if (sender_task == NULL) {
+		ERROR_LOG("sender task not found!!!!!. Releasing incoming response. rdma_hndl:%p\n", rdma_hndl);
+		xio_tasks_pool_put(task);
+		return 0;
+	}
 	task->sender_task = sender_task;
 	rdma_sender_task = (struct xio_rdma_task *)sender_task->dd_data;
 	task->rtid	 = rsp_hdr.ltid;
