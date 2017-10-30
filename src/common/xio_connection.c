@@ -1172,6 +1172,12 @@ int xio_send_response(struct xio_msg *msg)
 	while (pmsg) {
 		task	   = container_of(pmsg->request, struct xio_task, imsg);
 		connection = task->connection;
+		if (unlikely(!connection)) {
+			ERROR_LOG("sending response after connection destroyed is prohibited, " \
+				  "connection:%p\n", connection);
+			xio_set_error(EINVAL);
+			return -1;
+		}
 #ifdef XIO_CFLAG_STAT_COUNTERS
 		stats	   = &connection->ctx->stats;
 #endif
