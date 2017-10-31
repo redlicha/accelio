@@ -341,6 +341,7 @@ static void xio_tcp_close_cb(struct kref *kref)
 		break;
 	}
 
+	xio_context_disable_event(&tcp_hndl->disconnect_event);
 	if (tcp_hndl->state  == XIO_TRANSPORT_STATE_DESTROYED)
 		xio_tcp_post_close(tcp_hndl);
 }
