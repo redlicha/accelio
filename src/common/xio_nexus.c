@@ -840,173 +840,22 @@ static int xio_nexus_on_recv_session_setup_req(struct xio_nexus *nexus,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_nexus_on_fin_ack_send_comp					     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_on_fin_ack_send_comp(struct xio_nexus *nexus,
-			     struct xio_task *task)
-{
-	DEBUG_LOG("fin ack send completion received. "  \
-		  "nexus:%p\n", nexus);
-
-	if (--task->nexus_sent_fin == 0) {
-		clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
-		clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->omsg->flags);
-		xio_context_msg_pool_put(task->omsg);
-	}
-	xio_tasks_pool_put(task);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_on_fin_req_send_comp					     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_on_fin_req_send_comp(struct xio_nexus *nexus,
-				   struct xio_task *task)
-{
-	DEBUG_LOG("fin req send completion received. "  \
-		  "nexus:%p\n", nexus);
-
-	if (--task->nexus_sent_fin == 0) {
-			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->omsg->flags);
-			xio_context_msg_pool_put(task->omsg);
-	}
-	xio_tasks_pool_put(task);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_send_fin_req						     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_send_fin_req(struct xio_nexus *nexus)
-{
-	struct xio_msg *msg;
-	int retval;
-
-	struct xio_task *task = xio_nexus_get_primary_task(nexus);
-	if (!task) {
-		ERROR_LOG("tasks pool is empty\n");
-		return -ENOMEM;
-	}
-	/* reset the task mbuf */
-	xio_mbuf_reset(&task->mbuf);
-
-	/* set start of the tlv */
-	if (xio_mbuf_tlv_start(&task->mbuf) != 0)
-		return -1;
-
-	msg = (struct xio_msg *)xio_context_msg_pool_get(nexus->transport_hndl->ctx);
-
-	msg->type		= (enum xio_msg_type)XIO_FIN_REQ;
-	msg->request		= NULL;
-	msg->in.header.iov_len	= 0;
-	msg->out.header.iov_len	= 0;
-	msg->in.data_tbl.nents	= 0;
-	msg->out.data_tbl.nents	= 0;
-	set_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &msg->flags);
-
-	task->omsg = msg;
-	task->tlv_type = XIO_FIN_REQ;
-	task->nexus_sent_fin = 2;
-
-	xio_task_addref(task);
-	retval = nexus->transport->send(nexus->transport_hndl, task);
-	if (retval != 0) {
-		ERROR_LOG("send fin request failed\n");
-		xio_tasks_pool_put(task);
-		xio_tasks_pool_put(task);
-		return -1;
-	}
-	DEBUG_LOG("send fin request. nexus:%p\n", nexus);
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_send_fin_ack						     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_send_fin_ack(struct xio_nexus *nexus, struct xio_task *task)
-{
-	struct xio_msg *msg;
-	int retval;
-
-	msg = (struct xio_msg *)xio_context_msg_pool_get(nexus->transport_hndl->ctx);
-
-	msg->type		= (enum xio_msg_type)XIO_FIN_RSP;
-	msg->request		= &task->imsg;
-	msg->in.header.iov_len	= 0;
-	msg->out.header.iov_len	= 0;
-	msg->in.data_tbl.nents	= 0;
-	msg->out.data_tbl.nents	= 0;
-
-	set_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &msg->flags);
-
-	/* reset mbuf */
-	xio_mbuf_reset(&task->mbuf);
-
-	task->omsg = msg;
-	task->tlv_type = XIO_FIN_RSP;
-	task->nexus_sent_fin = 1;
-
-	retval = nexus->transport->send(nexus->transport_hndl, task);
-	if (retval != 0) {
-		ERROR_LOG("send fin ack failed\n");
-		xio_tasks_pool_put(task);
-		return -1;
-	}
-	DEBUG_LOG("send fin response. nexus:%p\n", nexus);
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
 /* xio_nexus_on_recv_req						     */
 /*---------------------------------------------------------------------------*/
 static int xio_nexus_on_recv_req(struct xio_nexus *nexus,
 				 struct xio_task *task)
 {
 	union xio_nexus_event_data nexus_event_data;
-	bool critical_msg = false;
-	int tlv_type = 0;
-	bool sent_by_remote_nexus = false;
 
 	task->nexus = nexus;
 	nexus_event_data.msg.task = task;
 	nexus_event_data.msg.op = XIO_WC_OP_RECV;
 
-
-	/* handle critical message that must be sent */
-	if (task->tlv_type == XIO_FIN_REQ) {
-		critical_msg = true;
-		task->ctrl_rsp_sent = 0;
-		tlv_type = task->tlv_type;
-		if (test_flag(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags)) {
-			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
-			sent_by_remote_nexus = true;
-		}
-	}
-	xio_task_addref(task);
 	/* route the message to any of observer */
 	xio_observable_notify_any_observer(
 			&nexus->observable,
 			XIO_NEXUS_EVENT_NEW_MESSAGE,
 			&nexus_event_data);
-
-	/* disable this code for now */
-	if (0 && critical_msg && !task->ctrl_rsp_sent) {
-		WARN_LOG("response to critical request 0x%x was not sent. forcing response\n",
-			 tlv_type);
-		/* send the ack and reply with request */
-		xio_nexus_send_fin_ack(nexus, task);
-		if (!sent_by_remote_nexus) {
-			xio_nexus_send_fin_req(nexus);
-		} else {
-			xio_tasks_pool_put(task);
-		}
-	}
-
-	task->ctrl_rsp_sent = 0;
-
-	xio_tasks_pool_put(task);
 
 	return 0;
 }
@@ -1020,17 +869,6 @@ static int xio_nexus_on_recv_rsp(struct xio_nexus *nexus,
 	union xio_nexus_event_data nexus_event_data;
 
 	task->nexus = nexus;
-
-	/* this is response to request that we sent */
-	if (task->sender_task &&
-	    task->sender_task->nexus_sent_fin && task->tlv_type == XIO_FIN_RSP) {
-		if (--task->sender_task->nexus_sent_fin == 0) {
-			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->imsg.flags);
-			clr_bits(XIO_MSG_FLAG_EX_NEXUS_FIN, &task->sender_task->omsg->flags);
-			xio_context_msg_pool_put(task->sender_task->omsg);
-		}
-		goto task_cleanup;
-	}
 
 	nexus_event_data.msg.task = task;
 	nexus_event_data.msg.op = XIO_WC_OP_RECV;
@@ -1488,7 +1326,7 @@ static void xio_nexus_on_new_transport(struct xio_nexus *nexus,
 			nexus,
 			event_data->new_connection.child_trans_hndl);
 
-	TRACE_LOG("%s: nexus:%p, trns_hndl:%p\n", __func__,
+	TRACE_LOG("%s: nexus:%p, trans_hndl:%p\n", __func__,
 		  child_nexus, event_data->new_connection.child_trans_hndl);
 	nexus_event_data.new_nexus.child_nexus = child_nexus;
 	if (!child_nexus) {
@@ -1712,22 +1550,6 @@ static int xio_nexus_on_send_completion(struct xio_nexus *nexus,
 		break;
 	case XIO_NEXUS_SETUP_REQ:
 		retval = 0;
-		break;
-	case XIO_FIN_REQ:
-		retval = 0;
-		if (!task->nexus_sent_fin) {
-			retval = xio_nexus_on_send_msg_comp(nexus, task);
-		} else {
-			retval = xio_nexus_on_fin_req_send_comp(nexus, task);
-		}
-		break;
-	case XIO_FIN_RSP:
-		retval = 0;
-		if (!task->nexus_sent_fin) {
-			retval = xio_nexus_on_send_msg_comp(nexus, task);
-		} else {
-			retval = xio_nexus_on_fin_ack_send_comp(nexus, task);
-		}
 		break;
 	default:
 		retval = xio_nexus_on_send_msg_comp(nexus, task);

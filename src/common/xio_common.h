@@ -86,14 +86,12 @@ enum xio_msg_flags_ex {
 	XIO_MSG_FLAG_EX_IMM_READ_RECEIPT  = BIT(10), /**< immediate receipt  */
 	XIO_MSG_FLAG_EX_RECEIPT_FIRST	  = BIT(11), /**< read receipt first */
 	XIO_MSG_FLAG_EX_RECEIPT_LAST	  = BIT(12), /**< read receipt last  */
-	XIO_MSG_FLAG_EX_NEXUS_FIN	  = BIT(13), /**< nexus fin  */
 };
 
 #define xio_clear_ex_flags(flag) \
 	((*(flag)) &= ~(XIO_MSG_FLAG_EX_RECEIPT_FIRST | \
 			XIO_MSG_FLAG_EX_RECEIPT_LAST  | \
-			XIO_MSG_FLAG_EX_IMM_READ_RECEIPT | \
-		        XIO_MSG_FLAG_EX_NEXUS_FIN))
+			XIO_MSG_FLAG_EX_IMM_READ_RECEIPT))
 
 #define xio_app_receipt_request(rq) \
 	((rq)->flags & (XIO_MSG_FLAG_EX_RECEIPT_FIRST | \

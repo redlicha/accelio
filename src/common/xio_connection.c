@@ -1935,9 +1935,6 @@ int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 	msg->in.data_tbl.nents	= 0;
 	msg->out.data_tbl.nents	= 0;
 
-	/* mark the request */
-	task->ctrl_rsp_sent = 1;
-
 	/* insert to the tail of the queue */
 	xio_msg_list_insert_tail(&connection->rsps_msgq, msg, pdata);
 
