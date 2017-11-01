@@ -1170,6 +1170,13 @@ int xio_send_response(struct xio_msg *msg)
 #endif
 
 	while (pmsg) {
+		if (pmsg == pmsg->request) {
+			ERROR_LOG("response message must be different then request message. " \
+				  "connection:%p, response:%p, request:%p\n",
+				  connection, pmsg, pmsg->request);
+			xio_set_error(EINVAL);
+			return -1;
+		}
 		task	   = container_of(pmsg->request, struct xio_task, imsg);
 		connection = task->connection;
 		if (unlikely(!connection)) {
@@ -1521,8 +1528,10 @@ int xio_connection_detach_of_tasks(struct xio_connection *connection)
 
 	if (connection->nexus) {
 		int proto = xio_nexus_get_proto(connection->nexus);
-		pool = connection->ctx->primary_tasks_pool[proto];
-		xio_tasks_pool_detach_connection(pool, connection); 
+		if (proto == XIO_PROTO_RDMA || proto == XIO_PROTO_TCP) {
+			pool = connection->ctx->primary_tasks_pool[proto];
+			xio_tasks_pool_detach_connection(pool, connection);
+		}
 	} else {
 		pool = connection->ctx->primary_tasks_pool[XIO_PROTO_RDMA];
 		xio_tasks_pool_detach_connection(pool, connection); 
@@ -1560,6 +1569,9 @@ static void xio_connection_post_close(void *_connection)
 	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
+
+	xio_connection_detach_of_tasks(connection);
+
 	spin_lock(&connection->ctx->ctx_list_lock);
 	list_del(&connection->ctx_list_entry);
 	spin_unlock(&connection->ctx->ctx_list_lock);
@@ -2457,7 +2469,6 @@ static void xio_connection_post_destroy(struct kref *kref)
 
 	/* remove the connection from the session's connections list */
 	xio_connection_flush_tasks(connection);
-	xio_connection_detach_of_tasks(connection);
 
 	/* for race condition between connection teardown and transport closed */
 	xio_connection_nexus_safe_close(connection,

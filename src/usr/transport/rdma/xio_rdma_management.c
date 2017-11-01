@@ -1652,7 +1652,7 @@ static int xio_rdma_primary_pool_slab_pre_create(
 	struct xio_rdma_tasks_slab *rdma_slab =
 		(struct xio_rdma_tasks_slab *)slab_dd_data;
 	size_t inline_buf_sz = xio_rdma_get_inline_buffer_size();
-	size_t alloc_sz = alloc_nr * ALIGN(inline_buf_sz, PAGE_SIZE);
+	size_t alloc_sz = ALIGN((alloc_nr * inline_buf_sz), PAGE_SIZE);
 	int	retval;
 
 	if (alloc_sz == 0) {
@@ -1842,8 +1842,7 @@ static int xio_rdma_primary_pool_slab_init_task(
 		(struct xio_rdma_transport *)transport_hndl;
 	struct xio_rdma_tasks_slab *rdma_slab =
 		(struct xio_rdma_tasks_slab *)slab_dd_data;
-	void *buf = rdma_slab->data_pool + tid * ALIGN(rdma_slab->buf_size,
-						       PAGE_SIZE);
+	void *buf = rdma_slab->data_pool + tid * rdma_slab->buf_size;
 	int  max_iovsz = max(rdma_options.max_out_iovsz,
 			     rdma_options.max_in_iovsz) + 1;
 	int  max_sge;
