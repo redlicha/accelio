@@ -2066,6 +2066,8 @@ static void xio_session_pre_teardown(void *_session)
 	int			destroy_session = 0;
 	int			reason;
 
+	DEBUG_LOG("xio_session_pre_teardown: session:%p\n", session);
+
 	switch (session->state) {
 	case XIO_SESSION_STATE_REJECTED:
 		reason = XIO_E_SESSION_REJECTED;
@@ -2109,6 +2111,7 @@ static void xio_session_pre_teardown(void *_session)
 		xio_context_reg_observer(session->teardown_work_ctx,
 					 &session->ctx_observer);
 
+		DEBUG_LOG("xio_session_pre_teardown: notify teardown. session:%p\n", session);
 		xio_session_notify_teardown(session, session->teardown_reason);
 	} else {
 		mutex_unlock(&session->lock);
@@ -2125,6 +2128,8 @@ void xio_session_init_teardown(struct xio_session *session,
 		session->teardown_reason = close_reason;
 		session->teardown_work_ctx = ctx;
 
+		DEBUG_LOG("xio_session_init_teardown: session:%p\n", session);
+		
 		xio_ctx_add_work(
 				ctx,
 				session,

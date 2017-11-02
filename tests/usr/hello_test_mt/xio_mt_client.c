@@ -280,12 +280,12 @@ static void *worker_thread(void *data)
 					tdata->session,
 					xio_strerror(xio_errno()));
 			msg_pool_put(tdata->pool, msg);
-			tdata->nsent++;
 			/* on error - disconnect */
 			tdata->exit_code = -1;
 			xio_disconnect(tdata->conn);
 			break;
 		}
+		tdata->nsent++;
 	}
 
 	/* the default xio supplied main loop */
@@ -372,7 +372,6 @@ static int on_response(struct xio_session *session,
 			return 0;
 		}
 		if (tdata->nsent == tdata->disconnect_nr) {
-			printf("already sent more that needed\n");
 			return 0;
 		}
 	}
@@ -403,9 +402,9 @@ static int on_response(struct xio_session *session,
 					session,
 					xio_strerror(xio_errno()));
 		msg_pool_put(tdata->pool, msg);
-		tdata->nsent++;
 		return 0;
 	}
+	tdata->nsent++;
 
 	return 0;
 }

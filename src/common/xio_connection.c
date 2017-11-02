@@ -2470,10 +2470,6 @@ static void xio_connection_post_destroy(struct kref *kref)
 	/* remove the connection from the session's connections list */
 	xio_connection_flush_tasks(connection);
 
-	/* for race condition between connection teardown and transport closed */
-	xio_connection_nexus_safe_close(connection,
-					&session->observer);
-
 	/* leading connection */
 	spin_lock(&session->connections_list_lock);
 	if (session->lead_connection &&
@@ -2487,27 +2483,41 @@ static void xio_connection_post_destroy(struct kref *kref)
                 }
                 tmp_connection = session->lead_connection;
 		session->lead_connection = NULL;
-		TRACE_LOG("lead connection is closed\n");
+	
+		DEBUG_LOG("xio_connection_post_destroy: lead connection is closed. " \
+			  "session:%p, connection:%p nexus:%p nr:%d\n",
+			  session, connection, connection->nexus);
+
 	} else if (session->redir_connection &&
 		   session->redir_connection->nexus == connection->nexus) {
 		tmp_connection = session->redir_connection;
 		session->redir_connection = NULL;
-		TRACE_LOG("redirected connection is closed\n");
+		DEBUG_LOG("xio_connection_post_destroy: redirected connection is closed. " \
+			  "session:%p, connection:%p nexus:%p nr:%d\n",
+			  session, connection, connection->nexus);
 	} else {
 		session->connections_nr--;
 		list_del(&connection->connections_list_entry);
 		tmp_connection = connection;
+		DEBUG_LOG("xio_connection_post_destroy: connection is closed. " \
+			  "session:%p, connection:%p nexus:%p nr:%d\n",
+			  session, connection, connection->nexus);
 	}
 	destroy_session = ((session->connections_nr == 0) &&
 			   !session->lead_connection &&
 			   !session->redir_connection);
 	spin_unlock(&session->connections_list_lock);
-	retval = xio_connection_close(tmp_connection);
 
+	/* for race condition between connection teardown and transport closed */
+	xio_connection_nexus_safe_close(connection,
+					&session->observer);
+
+	retval = xio_connection_close(tmp_connection);
 	if (retval != 0) {
 		ERROR_LOG("failed to close connection");
 		return;
 	}
+
 	DEBUG_LOG("xio_connection_post_destroy init session teardown. " \
 		  "session:%p, connection:%p, nr:%d, disable_teardown:%d, " \
 		  "destroy_session:%d\n", 
