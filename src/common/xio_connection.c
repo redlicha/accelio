@@ -2471,13 +2471,19 @@ static void xio_connection_post_destroy(struct kref *kref)
 	close_reason = connection->close_reason;
 
 	DEBUG_LOG("xio_connection_post_destroy. session:%p, connection:%p " \
-		  "nexus:%p nr:%d\n",
+		  "nexus:%p nr:%d, state:%s\n",
 		  session, connection, connection->nexus,
-		  session->connections_nr);
+		  session->connections_nr,
+		  xio_connection_state_str((enum xio_connection_state)
+					    connection->state));
 
 	/* remove the connection from the session's connections list */
 	xio_connection_flush_tasks(connection);
 
+	/* for race condition between connection teardown and transport closed */
+	if (connection->nexus && connection->state != XIO_CONNECTION_STATE_DISCONNECTED)
+		xio_connection_nexus_safe_close(connection,
+						&session->observer);
 	/* leading connection */
 	spin_lock(&session->connections_list_lock);
 	if (session->lead_connection &&
@@ -2494,7 +2500,7 @@ static void xio_connection_post_destroy(struct kref *kref)
 	
 		DEBUG_LOG("xio_connection_post_destroy: lead connection is closed. " \
 			  "session:%p, connection:%p nexus:%p nr:%d\n",
-			  session, connection, connection->nexus);
+			  session, connection, connection->nexus, session->connections_nr);
 
 	} else if (session->redir_connection &&
 		   session->redir_connection->nexus == connection->nexus) {
@@ -2502,30 +2508,27 @@ static void xio_connection_post_destroy(struct kref *kref)
 		session->redir_connection = NULL;
 		DEBUG_LOG("xio_connection_post_destroy: redirected connection is closed. " \
 			  "session:%p, connection:%p nexus:%p nr:%d\n",
-			  session, connection, connection->nexus);
+			  session, connection, connection->nexus, session->connections_nr);
 	} else {
 		session->connections_nr--;
 		list_del(&connection->connections_list_entry);
 		tmp_connection = connection;
 		DEBUG_LOG("xio_connection_post_destroy: connection is closed. " \
 			  "session:%p, connection:%p nexus:%p nr:%d\n",
-			  session, connection, connection->nexus);
+			  session, connection, connection->nexus, session->connections_nr);
 	}
 	destroy_session = ((session->connections_nr == 0) &&
 			   !session->lead_connection &&
 			   !session->redir_connection);
 	spin_unlock(&session->connections_list_lock);
 
-	/* for race condition between connection teardown and transport closed */
-	xio_connection_nexus_safe_close(connection,
-					&session->observer);
-
 	retval = xio_connection_close(tmp_connection);
 	if (retval != 0) {
-		ERROR_LOG("failed to close connection");
+		ERROR_LOG("xio_connection_post_destroy. failed to " \
+			  "close connection. connection:%p\n",
+			  tmp_connection);
 		return;
 	}
-
 	DEBUG_LOG("xio_connection_post_destroy init session teardown. " \
 		  "session:%p, connection:%p, nr:%d, disable_teardown:%d, " \
 		  "destroy_session:%d\n", 
@@ -2659,7 +2662,10 @@ int xio_connection_disconnected(struct xio_connection *connection)
 {
 	int close = 0;
 
-	DEBUG_LOG("connection disconnected: connection:%p\n", connection);
+	DEBUG_LOG("xio_connection_disconnected: connection:%p, state:%s\n",
+		  connection, 
+		  xio_connection_state_str((enum xio_connection_state)
+					   connection->state));
 
 	/* stop all pending timers */
 	xio_ctx_del_work(connection->ctx, &connection->hello_work);
@@ -2698,20 +2704,29 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		if (connection->session->lead_connection &&
 		    connection->session->lead_connection->nexus ==
 		    connection->nexus) {
+			DEBUG_LOG("xio_connection_disconnected: null " \
+				  "the lead connection. connection:%p\n", 
+				  connection);
 			connection->session->lead_connection = NULL;
 			close = 1;
 		}
 		if (connection->session->redir_connection &&
 		    connection->session->redir_connection->nexus ==
 		    connection->nexus) {
+			DEBUG_LOG("xio_connection_disconnected: null " \
+				  "the redir connection connection:%p\n", 
+				  connection);
 			connection->session->redir_connection = NULL;
 			close = 1;
 		}
 		/* free nexus and tasks pools */
 		if (close) {
+			DEBUG_LOG("xio_connection_disconnected: nexus " \
+				  "close. connection:%p nexus:%p\n", 
+				  connection, connection->nexus);
 			xio_connection_flush_tasks(connection);
 			xio_connection_nexus_safe_close(connection,
-						        &connection->session->observer);
+							&connection->session->observer);
 		}
 	}
 
