@@ -2036,7 +2036,7 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 			  rdma_hndl->trans_attr_mask,
 			  rdma_hndl->trans_attr.tos);
 	}
-
+	rdma_hndl->retries = 2;
 	retval = rdma_resolve_route(rdma_hndl->cm_id, ROUTE_RESOLVE_TIMEOUT);
 	if (retval) {
 		xio_set_error(errno);
@@ -2589,9 +2589,28 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 	case RDMA_CM_EVENT_CONNECT_RESPONSE:
 		break;
 
-	case RDMA_CM_EVENT_CONNECT_ERROR:
 	case RDMA_CM_EVENT_ADDR_ERROR:
+		if (rdma_hndl->retries--) {
+			if (!rdma_resolve_addr(rdma_hndl->cm_id, 
+					   rdma_hndl->src_addr_bounded ?
+					   &rdma_hndl->src_sa.sa : NULL, 
+					   &rdma_hndl->dst_sa.sa,
+					   ADDR_RESOLVE_TIMEOUT))
+				break;
+	        }
+		on_cm_error(ev, rdma_hndl);
+		break;
+
 	case RDMA_CM_EVENT_ROUTE_ERROR:
+		if (rdma_hndl->retries--) {
+			if (!rdma_resolve_route(rdma_hndl->cm_id,
+					        ROUTE_RESOLVE_TIMEOUT))
+				break;
+		}
+		on_cm_error(ev, rdma_hndl);
+		break;
+
+	case RDMA_CM_EVENT_CONNECT_ERROR:
 	case RDMA_CM_EVENT_UNREACHABLE:
 	default:
 		on_cm_error(ev, rdma_hndl);
@@ -3070,11 +3089,10 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 {
 	struct xio_rdma_transport *rdma_hndl =
 		(struct xio_rdma_transport *)trans_hndl;
-	union xio_sockaddr		sa;
 	int				retval = 0;
 
 	/* resolve the portal_uri */
-	if (xio_uri_to_ss(trans_hndl->portal_uri, &sa.sa_stor) == -1) {
+	if (xio_uri_to_ss(trans_hndl->portal_uri, &rdma_hndl->dst_sa.sa_stor) == -1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
 		ERROR_LOG("address [%s] resolving failed\n",
 			  trans_hndl->portal_uri);
@@ -3092,24 +3110,27 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 	}
 
 	if (out_if_addr) {
-		union xio_sockaddr if_sa;
-
 		if (xio_host_port_to_ss(out_if_addr,
-					&if_sa.sa_stor) == -1) {
+					&rdma_hndl->src_sa.sa_stor) == -1) {
 			xio_set_error(XIO_E_ADDR_ERROR);
 			ERROR_LOG("outgoing interface [%s] resolving failed\n",
 				  out_if_addr);
 			goto exit2;
 		}
-		retval = rdma_bind_addr(rdma_hndl->cm_id, &if_sa.sa);
+		rdma_hndl->src_addr_bounded = 1;
+		retval = rdma_bind_addr(rdma_hndl->cm_id, &rdma_hndl->src_sa.sa);
 		if (retval) {
 			xio_set_error(errno);
 			ERROR_LOG("rdma_bind_addr failed. (errno=%d %m)\n",
 				  errno);
 			goto exit2;
 		}
-	}
-	retval = rdma_resolve_addr(rdma_hndl->cm_id, NULL, &sa.sa,
+	} 
+	rdma_hndl->retries = 2;
+	retval = rdma_resolve_addr(rdma_hndl->cm_id, 
+				   rdma_hndl->src_addr_bounded ?
+				   &rdma_hndl->src_sa.sa : NULL, 
+				   &rdma_hndl->dst_sa.sa,
 				   ADDR_RESOLVE_TIMEOUT);
 	if (retval) {
 		xio_set_error(errno);

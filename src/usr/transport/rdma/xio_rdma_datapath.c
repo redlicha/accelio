@@ -687,13 +687,20 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 	/* temporary  */
 	if (wc->status != IBV_WC_WR_FLUSH_ERR) {
 		if (rdma_hndl) {
-			ERROR_LOG("cq error reported. calling " \
-				  "rdma_disconnect. rdma_hndl:%p\n",
-				  rdma_hndl);
-			retval = rdma_disconnect(rdma_hndl->cm_id);
-			if (retval)
-				ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
-					  "failed, %m\n", rdma_hndl);
+			if (!rdma_hndl->rdma_disconnect_called) {
+				ERROR_LOG("cq error reported. calling " \
+					  "rdma_disconnect. rdma_hndl:%p\n",
+					  rdma_hndl);
+				rdma_hndl->rdma_disconnect_called = 1;
+				retval = rdma_disconnect(rdma_hndl->cm_id);
+				if (retval)
+					ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
+						  "failed, %m\n", rdma_hndl);
+			} else {
+				ERROR_LOG("cq error reported. not calling " \
+					  "rdma_disconnect. rdma_hndl:%p\n",
+					  rdma_hndl);
+			}
 		} else {
 			/* TODO: handle each error specifically */
 			ERROR_LOG("ASSERT: program abort\n");
