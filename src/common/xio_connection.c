@@ -1549,6 +1549,8 @@ static void xio_connection_post_close(void *_connection)
 {
 	struct xio_connection *connection = (struct xio_connection *)_connection;
 
+	DEBUG_LOG("xio_connection_post_close. connection:%p\n", connection);
+
 	xio_ctx_del_work(connection->ctx, &connection->hello_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
@@ -1585,8 +1587,14 @@ static void xio_connection_post_close(void *_connection)
 /*---------------------------------------------------------------------------*/
 int xio_connection_close(struct xio_connection *connection)
 {
+	DEBUG_LOG("xio_connection_close. connection:%p\n", connection);
+
 	if (xio_ctx_is_work_in_handler(connection->ctx,
 				       &connection->teardown_work)) {
+		DEBUG_LOG("calling xio_ctx_set_work_destructor with " \
+			  "xio_connection_post_close. connection:%p\n",
+			  connection);
+
 		xio_ctx_set_work_destructor(
 		     connection->ctx, connection,
 		     xio_connection_post_close,
