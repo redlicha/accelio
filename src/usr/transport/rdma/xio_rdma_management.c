@@ -2557,6 +2557,8 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 		on_cm_refused(ev, rdma_hndl);
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
+		xio_rdma_disconnect(rdma_hndl, 0);
+		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		on_cm_disconnected(ev, rdma_hndl);
 		break;
