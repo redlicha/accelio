@@ -53,6 +53,7 @@ extern spinlock_t		dev_list_lock;
 #define XIO_DISCONNECT_TIMEOUT		100     /* 100 mili */
 #define XIO_TIMEWAIT_EXIT_TIMEOUT	60000  /* 1 minute */
 #define XIO_TIMEWAIT_EXIT_FAST_TIMEOUT	0     /*  0 milliseconds */
+#define XIO_RELISTEN_TIMEOUT		10     /* 10 mili */
 
 /* poll_cq definitions */
 #define MAX_RDMA_ADAPTERS		64   /* 64 adapters per unit */
@@ -485,6 +486,7 @@ struct xio_rdma_transport {
 	struct xio_ev_data		close_event;
 	struct xio_ev_data		timewait_exit_event;
 	xio_delayed_work_handle_t	timewait_timeout_work;
+	xio_delayed_work_handle_t	addr_change_work;
 	xio_delayed_work_handle_t	disconnect_timeout_work;
 	struct ibv_send_wr		beacon;
 	struct xio_task			beacon_task;
@@ -493,6 +495,7 @@ struct xio_rdma_transport {
 	struct xio_srq			*xio_srq;
 	union xio_sockaddr		src_sa;
 	union xio_sockaddr		dst_sa;
+	char 				*srv_listen_uri;
 	HT_ENTRY(rdma_hndl, xio_key_int32) rdma_hndl_htbl;
 };
 
@@ -563,6 +566,8 @@ static inline void xio_device_put(struct xio_device *dev)
 }
 
 void xio_set_timewait_timer(struct xio_rdma_transport *rdma_hndl);
+
+void xio_set_disconnect_timer(struct xio_rdma_transport *rdma_hndl);
 
 /*---------------------------------------------------------------------------*/
 /* xio_reg_mr_add_dev							     */

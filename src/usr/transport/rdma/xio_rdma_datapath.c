@@ -688,14 +688,22 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 	if (wc->status != IBV_WC_WR_FLUSH_ERR) {
 		if (rdma_hndl) {
 			if (!rdma_hndl->rdma_disconnect_called) {
-				ERROR_LOG("cq error reported. calling " \
-					  "rdma_disconnect. rdma_hndl:%p\n",
-					  rdma_hndl);
-				rdma_hndl->rdma_disconnect_called = 1;
-				retval = rdma_disconnect(rdma_hndl->cm_id);
-				if (retval)
-					ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
-						  "failed, %m\n", rdma_hndl);
+				rdma_hndl->disconnect_nr = 0;
+				rdma_hndl->ignore_timewait = 1;
+				xio_ctx_del_delayed_work(
+						rdma_hndl->base.ctx,
+						&rdma_hndl->disconnect_timeout_work);
+				xio_set_disconnect_timer(rdma_hndl);
+				if (wc->status !=  IBV_WC_RETRY_EXC_ERR) {
+					ERROR_LOG("cq error reported. calling " \
+						  "rdma_disconnect. rdma_hndl:%p, status:%d\n",
+						  rdma_hndl, wc->status);
+					rdma_hndl->rdma_disconnect_called = 1;
+					retval = rdma_disconnect(rdma_hndl->cm_id);
+					if (retval)
+						ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
+							  "failed, %m\n", rdma_hndl);
+				}
 			} else {
 				ERROR_LOG("cq error reported. not calling " \
 					  "rdma_disconnect. rdma_hndl:%p\n",

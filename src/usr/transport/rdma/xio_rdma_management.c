@@ -114,6 +114,7 @@ static struct xio_cm_channel *xio_cm_channel_get(struct xio_context *ctx);
 static void xio_rdma_post_close(struct xio_transport_base *trans_hndl);
 static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl);
 static void xio_device_release(struct xio_device *dev);
+static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog);
 
 /*---------------------------------------------------------------------------*/
 /* xio_rdma_get_max_header_size						     */
@@ -1964,6 +1965,9 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 				 &rdma_hndl->timewait_timeout_work);
 
 	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
+				 &rdma_hndl->addr_change_work);
+
+	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
 				 &rdma_hndl->disconnect_timeout_work);
 
 	xio_context_disable_event(&rdma_hndl->timewait_exit_event);
@@ -2004,6 +2008,7 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	/* last chance to flush all tasks */
 	xio_rdma_flush_all_tasks(rdma_hndl);
 
+	ufree(rdma_hndl->srv_listen_uri);
 	ufree(rdma_hndl);
 }
 
@@ -2531,11 +2536,26 @@ void xio_close_handler(void *hndl)
 }
 
 /*---------------------------------------------------------------------------*/
+/* on_cm_addr_change							     */
+/*---------------------------------------------------------------------------*/
+static void on_cm_addr_change(void *trans_hndl)
+{
+	struct xio_rdma_transport *rdma_hndl =
+				(struct xio_rdma_transport *)trans_hndl;
+
+	DEBUG_LOG("on_cm_addr_change. rdma_hndl:%p, state:%s\n",
+		  rdma_hndl, xio_transport_state_str(rdma_hndl->state));
+
+	xio_rdma_relisten(rdma_hndl, 0);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_handle_cm_event							     */
 /*---------------------------------------------------------------------------*/
 static void xio_handle_cm_event(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl)
 {
+	int retval = 0;
 	DEBUG_LOG("cm event: [%s], hndl:%p, status:%d\n",
 		  rdma_event_str(ev->event), rdma_hndl, ev->status);
 
@@ -2557,7 +2577,19 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 		on_cm_refused(ev, rdma_hndl);
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
-		xio_rdma_disconnect(rdma_hndl, 0);
+		if (rdma_hndl->srv_listen_uri) {
+			/* trigger the timer */
+			retval = xio_ctx_add_delayed_work(
+					rdma_hndl->base.ctx,
+					XIO_RELISTEN_TIMEOUT, 
+					rdma_hndl,
+					on_cm_addr_change,
+					&rdma_hndl->addr_change_work);
+			if (retval)
+				ERROR_LOG("xio_ctx_add_delayed_work failed.\n");
+		} else {
+			xio_rdma_disconnect(rdma_hndl, 0);
+		}
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		on_cm_disconnected(ev, rdma_hndl);
@@ -3187,6 +3219,72 @@ exit1:
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_rdma_relisten							     */
+/*---------------------------------------------------------------------------*/
+static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
+{
+	union xio_sockaddr	sa;
+	int			retval = 0;
+	char 			*srv_listen_uri;
+	char 			*p;
+
+	retval = rdma_disconnect(rdma_hndl->cm_id);
+	if (unlikely(retval)) {
+		ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
+				rdma_hndl);
+		return -1;
+	}
+	/* resolve the portal_uri */
+	srv_listen_uri = ustrdup(rdma_hndl->srv_listen_uri);
+	p = srv_listen_uri;
+	if (xio_uri_to_ss(srv_listen_uri, &sa.sa_stor) == -1) {
+		xio_set_error(XIO_E_ADDR_ERROR);
+		ERROR_LOG("address [%s] resolving failed rdma_hndl:%p\n", 
+			  rdma_hndl->srv_listen_uri, rdma_hndl);
+		return -1;
+	}
+	ufree(p);
+
+	rdma_destroy_id(rdma_hndl->cm_id);
+	/* create cm id */
+	retval = rdma_create_id(rdma_hndl->cm_channel->cm_channel,
+			&rdma_hndl->cm_id,
+			rdma_hndl, RDMA_PS_TCP);
+	if (retval) {
+		xio_set_error(errno);
+		DEBUG_LOG("rdma_create id failed. (errno=%d %m)\n", errno);
+		goto exit1;
+	}
+	retval = rdma_bind_addr(rdma_hndl->cm_id, &sa.sa);
+	if (retval) {
+		xio_set_error(errno);
+		ERROR_LOG("rdma_bind_addr failed. (errno=%d %m)\n", errno);
+		goto exit2;
+	}
+
+	backlog = backlog > 0 ? backlog : RDMA_DEFAULT_BACKLOG;
+	retval  = rdma_listen(rdma_hndl->cm_id, backlog);
+	if (retval) {
+		xio_set_error(errno);
+		ERROR_LOG("rdma_listen failed. (errno=%d %m)\n", errno);
+		goto exit2;
+	}
+
+	rdma_hndl->state = XIO_TRANSPORT_STATE_LISTEN;
+	ERROR_LOG("relisten on [%s]\n", rdma_hndl->srv_listen_uri);
+
+	return 0;
+
+exit2:
+	TRACE_LOG("call rdma_destroy_id\n");
+	rdma_destroy_id(rdma_hndl->cm_id);
+exit1:
+	rdma_hndl->cm_id = NULL;
+
+	return -1;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_rdma_listen							     */
 /*---------------------------------------------------------------------------*/
 static int xio_rdma_listen(struct xio_transport_base *transport,
@@ -3200,12 +3298,14 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	uint16_t		sport;
 
 	/* resolve the portal_uri */
+	rdma_hndl->srv_listen_uri = ustrdup(portal_uri);
 	if (xio_uri_to_ss(portal_uri, &sa.sa_stor) == -1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
 		DEBUG_LOG("address [%s] resolving failed\n", portal_uri);
 		return -1;
 	}
 	rdma_hndl->base.is_client = 0;
+
 	/*is_server = 1; */
 
 	/* create cm id */
