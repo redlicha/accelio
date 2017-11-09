@@ -1526,19 +1526,12 @@ int xio_connection_detach_of_tasks(struct xio_connection *connection)
 	if (!connection || !connection->ctx)
 		return 0;
 
-	if (connection->nexus) {
-		int proto = xio_nexus_get_proto(connection->nexus);
-		if (proto == XIO_PROTO_RDMA || proto == XIO_PROTO_TCP) {
-			pool = connection->ctx->primary_tasks_pool[proto];
-			xio_tasks_pool_detach_connection(pool, connection);
-		}
-	} else {
-		pool = connection->ctx->primary_tasks_pool[XIO_PROTO_RDMA];
-		xio_tasks_pool_detach_connection(pool, connection); 
+	pool = connection->ctx->primary_tasks_pool[XIO_PROTO_RDMA];
+	xio_tasks_pool_detach_connection(pool, connection); 
 
-		pool = connection->ctx->primary_tasks_pool[XIO_PROTO_TCP];
-		xio_tasks_pool_detach_connection(pool, connection); 
-	}
+	pool = connection->ctx->primary_tasks_pool[XIO_PROTO_TCP];
+	xio_tasks_pool_detach_connection(pool, connection); 
+
 	return 0;
 }
 
