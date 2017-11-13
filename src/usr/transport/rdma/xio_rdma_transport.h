@@ -53,7 +53,7 @@ extern spinlock_t		dev_list_lock;
 #define XIO_DISCONNECT_TIMEOUT		100     /* 100 mili */
 #define XIO_TIMEWAIT_EXIT_TIMEOUT	60000   /* 1 minute */
 #define XIO_TIMEWAIT_EXIT_FAST_TIMEOUT	0       /*  0 milliseconds */
-#define XIO_RELISTEN_TIMEOUT		100     /* 100 mili */
+#define XIO_RELISTEN_TIMEOUT		1000    /* 1000 mili */
 
 /* poll_cq definitions */
 #define MAX_RDMA_ADAPTERS		64   /* 64 adapters per unit */

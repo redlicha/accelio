@@ -166,13 +166,13 @@ static void xio_async_ev_handler(int fd, int events, void *user_context)
 			return;
 		}
 		if (async_event.event_type == IBV_EVENT_QP_LAST_WQE_REACHED) {
-			DEBUG_LOG("ibv_get_async_event: dev:%s evt: %s\n",
-				dev_name,
-				ibv_event_type_str(async_event.event_type));
+			WARN_LOG("ibv_get_async_event: dev:%s evt: %s\n",
+				 dev_name,
+				 ibv_event_type_str(async_event.event_type));
 		} else {
-			ERROR_LOG("ibv_get_async_event: dev:%s evt: %s\n",
-				dev_name,
-				ibv_event_type_str(async_event.event_type));
+			WARN_LOG("ibv_get_async_event: dev:%s evt: %s\n",
+				 dev_name,
+				 ibv_event_type_str(async_event.event_type));
 
 			if (async_event.event_type == IBV_EVENT_COMM_EST) {
 				struct xio_rdma_transport *rdma_hndl;
@@ -3271,7 +3271,7 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 	}
 
 	rdma_hndl->state = XIO_TRANSPORT_STATE_LISTEN;
-	ERROR_LOG("relisten on [%s]\n", rdma_hndl->srv_listen_uri);
+	INFO_LOG("relisten on [%s]\n", rdma_hndl->srv_listen_uri);
 
 	return 0;
 

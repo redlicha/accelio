@@ -1103,10 +1103,14 @@ static void xio_nexus_release_cb(void *data)
 		nexus->state = XIO_NEXUS_STATE_CLOSED;
 		TRACE_LOG("nexus state changed to closed\n");
 	}
+	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+				 &nexus->close_time_hndl);
 
 	/* now it is zero */
-	if (nexus->transport && nexus->transport->close)
+	if (nexus->transport && nexus->transport->close) {
 		nexus->transport->close(nexus->transport_hndl);
+		nexus->transport_hndl = NULL;
+	}
 }
 
 /*---------------------------------------------------------------------------*/
