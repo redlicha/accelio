@@ -1109,7 +1109,6 @@ static void xio_nexus_release_cb(void *data)
 	/* now it is zero */
 	if (nexus->transport && nexus->transport->close) {
 		nexus->transport->close(nexus->transport_hndl);
-		nexus->transport_hndl = NULL;
 	}
 }
 

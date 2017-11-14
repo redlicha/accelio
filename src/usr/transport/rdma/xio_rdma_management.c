@@ -2546,7 +2546,10 @@ static void on_cm_addr_change(void *trans_hndl)
 	DEBUG_LOG("on_cm_addr_change. rdma_hndl:%p, state:%s\n",
 		  rdma_hndl, xio_transport_state_str(rdma_hndl->state));
 
-	xio_rdma_relisten(rdma_hndl, 0);
+	if (rdma_hndl->srv_listen_uri) 
+		xio_rdma_relisten(rdma_hndl, 0);
+	else if (!rdma_hndl->base.is_client)
+		xio_rdma_disconnect(rdma_hndl, 0);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2577,19 +2580,15 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 		on_cm_refused(ev, rdma_hndl);
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
-		if (rdma_hndl->srv_listen_uri) {
-			/* trigger the timer */
-			retval = xio_ctx_add_delayed_work(
-					rdma_hndl->base.ctx,
-					XIO_RELISTEN_TIMEOUT, 
-					rdma_hndl,
-					on_cm_addr_change,
-					&rdma_hndl->addr_change_work);
-			if (retval)
-				ERROR_LOG("xio_ctx_add_delayed_work failed.\n");
-		} else {
-			xio_rdma_disconnect(rdma_hndl, 0);
-		}
+		/* trigger the timer */
+		retval = xio_ctx_add_delayed_work(
+				rdma_hndl->base.ctx,
+				XIO_RELISTEN_TIMEOUT, 
+				rdma_hndl,
+				on_cm_addr_change,
+				&rdma_hndl->addr_change_work);
+		if (retval)
+			ERROR_LOG("xio_ctx_add_delayed_work failed.\n");
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		on_cm_disconnected(ev, rdma_hndl);
