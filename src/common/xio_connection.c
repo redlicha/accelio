@@ -1565,6 +1565,8 @@ static void xio_connection_post_close(void *_connection)
 
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
 
+	xio_connection_nexus_safe_close(connection, NULL);
+
 	xio_connection_detach_of_tasks(connection);
 
 	spin_lock(&connection->ctx->ctx_list_lock);
@@ -3391,7 +3393,7 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	connection->ka.io_rcv = 0;
 
 	/* insert to the tail of the queue */
-	xio_msg_list_insert_head(&connection->reqs_msgq, msg, pdata);
+	xio_msg_list_insert_tail(&connection->reqs_msgq, msg, pdata);
 
 	/* do not xmit until connection is assigned */
 	return xio_connection_xmit(connection);
@@ -3404,6 +3406,11 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 			       struct xio_task *task)
 {
 	struct xio_msg	*msg;
+
+	if (connection->state != XIO_CONNECTION_STATE_ONLINE) {
+	    xio_tasks_pool_put(task);
+	    return 0;
+	}
 
 	TRACE_LOG("send keepalive response. session:%p, connection:%p\n",
 		  connection->session, connection);
@@ -3418,7 +3425,7 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 	msg->out.data_tbl.nents	= 0;
 
 	/* insert to the tail of the queue */
-	xio_msg_list_insert_head(&connection->rsps_msgq, msg, pdata);
+	xio_msg_list_insert_tail(&connection->rsps_msgq, msg, pdata);
 
 	/* do not xmit until connection is assigned */
 	return xio_connection_xmit(connection);
