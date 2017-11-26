@@ -1994,18 +1994,6 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 	struct xio_msg *msg;
 	int		retval;
 
-	/* if connection already disconnecting then ignore */
-	if (connection->state != XIO_CONNECTION_STATE_INIT &&
-	    connection->state != XIO_CONNECTION_STATE_ESTABLISHED &&
-	    connection->state != XIO_CONNECTION_STATE_ONLINE) {
-		TRACE_LOG("%s. ignore disconnect.  connection:%p, state:%s\n",
-			  __func__,
-			  connection,
-			  xio_connection_state_str((enum xio_connection_state)
-						connection->state));
-		return 0;
-	}
-
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 
 	msg->type		= (enum xio_msg_type)XIO_FIN_REQ;
