@@ -56,6 +56,7 @@ struct xio_ev_data {
 	};
 	int				reserved;
 	void				*data;
+	void				*loop;
 	struct list_head		events_list_entry;
 };
 

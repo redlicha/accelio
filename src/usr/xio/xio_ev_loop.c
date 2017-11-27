@@ -63,6 +63,7 @@ struct xio_ev_loop {
 	int				deleted_events_nr;
 	struct list_head		poll_events_list;
 	struct list_head		events_list;
+	struct xio_ev_data		*tev_next;	
 	struct xio_ev_data		*deleted_events[MAX_DELETED_EVENTS];
 };
 
@@ -138,6 +139,7 @@ int xio_ev_loop_add(void *loop_hndl, int fd, int events,
 			return -1;
 		}
 		tev->data	= data;
+		tev->loop	= loop_hndl;
 		tev->ev_handler	= handler;
 		tev->fd		= fd;
 
@@ -314,6 +316,7 @@ void xio_ev_loop_init_event(struct xio_ev_data *evt,
 void xio_ev_loop_add_event(void *_loop, struct xio_ev_data *evt)
 {
 	struct xio_ev_loop *loop = (struct xio_ev_loop *)_loop;
+	evt->loop = _loop;
 
 	if (!evt->scheduled) {
 		evt->scheduled = 1;
@@ -327,8 +330,13 @@ void xio_ev_loop_add_event(void *_loop, struct xio_ev_data *evt)
 /*---------------------------------------------------------------------------*/
 void xio_ev_loop_remove_event(struct xio_ev_data *evt)
 {
+	struct xio_ev_loop *loop = (struct xio_ev_loop *)evt->loop;
 	if (evt->scheduled) {
 		evt->scheduled = 0;
+		if (loop->tev_next == evt) {
+			loop->tev_next = list_next_entry(loop->tev_next, 
+							 events_list_entry);
+		}
 		list_del_init(&evt->events_list_entry);
 	}
 }
@@ -348,7 +356,7 @@ static int xio_ev_loop_exec_scheduled(struct xio_ev_loop *loop)
 {
 	struct list_head	*last_sched;
 	struct list_head	*events_list_entry;
-	struct xio_ev_data	*tev, *tevn;
+	struct xio_ev_data	*tev;
 	xio_event_handler_t	event_handler;
 	void			*event_data;
 	int work_remains = 0;
@@ -356,7 +364,8 @@ static int xio_ev_loop_exec_scheduled(struct xio_ev_loop *loop)
 	if (!list_empty(&loop->events_list)) {
 		/* execute only work scheduled till now */
 		last_sched = loop->events_list.prev;
-		list_for_each_entry_safe(tev, tevn, &loop->events_list,
+		list_for_each_entry_safe(tev, loop->tev_next, 
+					 &loop->events_list,
 					 events_list_entry) {
 			xio_ev_loop_remove_event(tev);
 			/* copy the relevant fields tev can be freed in
@@ -369,6 +378,7 @@ static int xio_ev_loop_exec_scheduled(struct xio_ev_loop *loop)
 			if (events_list_entry == last_sched)
 				break;
 		}
+		loop->tev_next = NULL;
 		if (!list_empty(&loop->events_list))
 			work_remains = 1;
 	}
