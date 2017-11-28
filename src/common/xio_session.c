@@ -1512,16 +1512,27 @@ int xio_on_assign_in_buf(struct xio_session *session,
 	struct xio_connection	*connection;
 	int retval;
 
-	if (!session)
+	if (!session) {
 		session = xio_find_session(task);
+		if (!session) {
+			ERROR_LOG("failed to find session session:%p, " \
+				  "nexus:%p. dropping message:%d\n",
+				  session, nexus,
+				  event_data->msg.op);
+			event_data->assign_in_buf.is_assigned = 0;
+			return -1;
+		}
+	}
 
 	connection = xio_session_find_connection(session, nexus);
 	if (!connection) {
 		connection = xio_session_assign_nexus(session, nexus);
 		if (!connection) {
-			ERROR_LOG("failed to find connection :%p. " \
-				  "dropping message:%d\n", nexus,
+			ERROR_LOG("failed to find connection. session:%p, " \
+				  "connection:%p. dropping message:%d\n",
+				  session, nexus,
 				  event_data->msg.op);
+			event_data->assign_in_buf.is_assigned = 0;
 			return -1;
 		}
 	}
