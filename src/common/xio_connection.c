@@ -2476,9 +2476,8 @@ static void xio_connection_post_destroy(struct kref *kref)
 	xio_connection_flush_tasks(connection);
 
 	/* for race condition between connection teardown and transport closed */
-	if (connection->nexus && connection->state != XIO_CONNECTION_STATE_DISCONNECTED)
-		xio_connection_nexus_safe_close(connection,
-						&session->observer);
+	xio_connection_nexus_safe_close(connection,
+					&session->observer);
 	/* leading connection */
 	spin_lock(&session->connections_list_lock);
 	if (session->lead_connection &&
