@@ -169,7 +169,8 @@ struct xio_nexus {
 	struct xio_ev_data		destroy_event;
 	struct xio_ev_data		trans_error_event;
 	spinlock_t			nexus_obs_lock;
-	int 				pad2;
+	int				released:1;
+	int 				pad2:31;
 	struct mutex			lock_connect;      /* lock nexus connect */
 
 	HT_ENTRY(xio_nexus, xio_key_int32) nexus_htbl;

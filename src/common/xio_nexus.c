@@ -1092,8 +1092,9 @@ static void xio_nexus_release_cb(void *data)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)data;
 
-	if (!xio_observable_is_empty(&nexus->observable))
+	if (nexus->released)
 		return;
+	nexus->released = 1;
 
 	TRACE_LOG("physical nexus close. nexus:%p %s_hndl:%p\n",
 		  nexus, xio_proto_str(nexus->transport_hndl->proto),
@@ -1122,7 +1123,7 @@ static void xio_nexus_release(void *data)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)data;
 
-	if (!xio_observable_is_empty(&nexus->observable))
+	if (nexus->released)
 		return;
 
 	TRACE_LOG("physical nexus close. nexus:%p %s_hndl:%p\n",
