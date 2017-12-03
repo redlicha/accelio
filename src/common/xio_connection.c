@@ -2475,9 +2475,6 @@ static void xio_connection_post_destroy(struct kref *kref)
 	/* remove the connection from the session's connections list */
 	xio_connection_flush_tasks(connection);
 
-	/* for race condition between connection teardown and transport closed */
-	xio_connection_nexus_safe_close(connection,
-					&session->observer);
 	/* leading connection */
 	spin_lock(&session->connections_list_lock);
 	if (session->lead_connection &&
@@ -2515,6 +2512,10 @@ static void xio_connection_post_destroy(struct kref *kref)
 			   !session->lead_connection &&
 			   !session->redir_connection);
 	spin_unlock(&session->connections_list_lock);
+
+	/* for race condition between connection teardown and transport closed */
+	xio_connection_nexus_safe_close(connection,
+					&session->observer);
 
 	retval = xio_connection_close(tmp_connection);
 	if (retval != 0) {
