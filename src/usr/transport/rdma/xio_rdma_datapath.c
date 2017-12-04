@@ -4334,7 +4334,7 @@ static int xio_rdma_send_setup_req(struct xio_rdma_transport *rdma_hndl,
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
-	TRACE_LOG("rdma send setup request\n");
+	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
 
 	/* set the length */
 	rdma_task->txd.sge[0].length	= xio_mbuf_data_length(&task->mbuf);
@@ -4384,7 +4384,7 @@ static int xio_rdma_send_setup_rsp(struct xio_rdma_transport *rdma_hndl,
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
-	TRACE_LOG("rdma send setup response\n");
+	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
 
 	/* set the length */
 	rdma_task->txd.sge[0].length = xio_mbuf_data_length(&task->mbuf);
@@ -4427,6 +4427,10 @@ static int xio_rdma_on_setup_msg(struct xio_rdma_transport *rdma_hndl,
 					struct xio_task,  tasks_list_entry);
 		else
 			ERROR_LOG("could not find sender task\n");
+
+		if (sender_task->tlv_type != XIO_NEXUS_SETUP_REQ)
+			ERROR_LOG("%s - failed to find sender task. rdma_hndl:%p\n",
+				  __func__, rdma_hndl);
 
 		task->sender_task = sender_task;
 		xio_rdma_read_setup_msg(rdma_hndl, task, rsp);
@@ -4472,8 +4476,7 @@ static int xio_rdma_on_setup_msg(struct xio_rdma_transport *rdma_hndl,
 	event_data.msg.op	= XIO_WC_OP_RECV;
 	event_data.msg.task	= task;
 
-	TRACE_LOG("setup complete. send_buf_sz:%d\n",
-		  rdma_hndl->max_inline_buf_sz);
+	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
 
 	xio_transport_notify_observer(&rdma_hndl->base,
 				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
