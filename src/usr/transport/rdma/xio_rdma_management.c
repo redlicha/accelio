@@ -2546,10 +2546,12 @@ static void on_cm_addr_change(void *trans_hndl)
 	DEBUG_LOG("on_cm_addr_change. rdma_hndl:%p, state:%s\n",
 		  rdma_hndl, xio_transport_state_str(rdma_hndl->state));
 
-	if (rdma_hndl->srv_listen_uri) 
+	if (rdma_hndl->srv_listen_uri) {
 		xio_rdma_relisten(rdma_hndl, 0);
-	else if (!rdma_hndl->base.is_client)
+	} else if (!rdma_hndl->base.is_client) {
+		rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 		xio_rdma_disconnect(rdma_hndl, 0);
+	}
 }
 
 /*---------------------------------------------------------------------------*/

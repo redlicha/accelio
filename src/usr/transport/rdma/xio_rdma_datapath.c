@@ -237,6 +237,10 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 	uint16_t		retval;
 	uint16_t		req_nr = 0;
 
+
+	if (rdma_hndl->state != XIO_TRANSPORT_STATE_CONNECTED)
+		return 0;
+
 	tx_window = tx_window_sz(rdma_hndl);
 #ifdef XIO_SRQ_ENABLE
 	window = min(rdma_hndl->sqe_avail, tx_window);
@@ -392,6 +396,9 @@ static int xio_xmit_rdma_rd_(struct xio_rdma_transport *rdma_hndl,
 	struct xio_work_req	*curr_wr = NULL;
 	int num_reqs = 0;
 	int err;
+
+	if (rdma_hndl->state != XIO_TRANSPORT_STATE_CONNECTED)
+		return 0;
 
 	if (list_empty(rdma_rd_list) ||
 	    rdma_hndl->sqe_avail == 0)
@@ -699,6 +706,7 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 						  "rdma_disconnect. rdma_hndl:%p, status:%d\n",
 						  rdma_hndl, wc->status);
 					rdma_hndl->rdma_disconnect_called = 1;
+					rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 					retval = rdma_disconnect(rdma_hndl->cm_id);
 					if (retval)
 						ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
