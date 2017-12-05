@@ -405,24 +405,4 @@ static inline void xio_tasks_pool_detach_connection(
 	}
 }
 
-/*---------------------------------------------------------------------------*/
-/* xio_tasks_pool_detach_context					     */
-/*---------------------------------------------------------------------------*/
-static inline void xio_tasks_pool_detach_context(struct xio_tasks_pool *q, 
-						 void *context)
-{
-	struct xio_tasks_slab	*pslab;
-	unsigned int i;
-
-	if (unlikely(!q || !context))
-		return;
-
-	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
-		for (i = 0; i < pslab->nr; i++)
-			if (pslab->array[i]->context == context) {
-				pslab->array[i]->context = NULL;
-			}
-	}
-}
-
 #endif

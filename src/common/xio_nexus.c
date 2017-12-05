@@ -1795,11 +1795,6 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 {
 	DEBUG_LOG("nexus:%p - close complete\n", nexus);
 
-	xio_tasks_pool_detach_context(nexus->primary_tasks_pool,
-				      nexus->transport_hndl);
-	xio_tasks_pool_detach_context(nexus->initial_tasks_pool,
-				      nexus->transport_hndl);
-
 	xio_context_disable_event(&nexus->destroy_event);
 	xio_context_disable_event(&nexus->trans_error_event);
 
