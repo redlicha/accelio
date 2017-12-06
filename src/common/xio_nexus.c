@@ -1365,6 +1365,13 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 					  union xio_transport_event_data
 					  *event_data)
 {
+	/* this is the very last message from transport */
+	xio_transport_unreg_observer(nexus->transport_hndl,
+				     &nexus->trans_observer);
+	xio_context_unreg_observer(nexus->transport_hndl->ctx,
+				   &nexus->ctx_observer);
+	nexus->transport_hndl = NULL;
+
 	if (xio_observable_is_empty(&nexus->observable))
 		xio_nexus_destroy(nexus);
 }
@@ -2247,6 +2254,11 @@ static void xio_nexus_delayed_close(struct kref *kref)
 
 	TRACE_LOG("xio_nexus_deleyed close. nexus:%p, state:%d\n",
 		  nexus, nexus->state);
+
+	if (!nexus->transport_hndl) {
+		xio_nexus_destroy(nexus);
+		return;
+	}
 
 	switch (nexus->state) {
 	case XIO_NEXUS_STATE_LISTEN:

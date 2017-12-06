@@ -157,7 +157,11 @@ struct xio_connection *xio_session_find_connection(
 		struct xio_nexus *nexus)
 {
 	struct xio_connection		*connection;
-	struct xio_context		*ctx = nexus->transport_hndl->ctx;
+	struct xio_context		*ctx =
+		nexus->transport_hndl ? nexus->transport_hndl->ctx : NULL;
+
+	if (!ctx)
+		return NULL;
 
 	list_for_each_entry(connection, &ctx->ctx_list, ctx_list_entry) {
 		if (connection->nexus == nexus &&
