@@ -2400,6 +2400,11 @@ int xio_nexus_poll(struct xio_nexus *nexus, long min_nr, long nr,
 {
 	int	retval = 0;
 
+	if (unlikely(!nexus || !nexus->transport_hndl ||
+		     !nexus->transport)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
 	if (nexus->transport->poll) {
 		retval = nexus->transport->poll(nexus->transport_hndl,
 					       min_nr, nr, timeout);
@@ -2418,6 +2423,12 @@ int xio_nexus_poll(struct xio_nexus *nexus, long min_nr, long nr,
 int xio_nexus_set_opt(struct xio_nexus *nexus, int optname, const void *optval,
 		      int optlen)
 {
+	if (unlikely(!nexus || !nexus->transport_hndl ||
+		     !nexus->transport)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
+
 	if (nexus->transport->set_opt)
 		return nexus->transport->set_opt(nexus->transport_hndl,
 				optname, optval, optlen);
@@ -2432,6 +2443,12 @@ int xio_nexus_set_opt(struct xio_nexus *nexus, int optname, const void *optval,
 int xio_nexus_get_opt(struct xio_nexus *nexus, int optname, void *optval,
 		      int *optlen)
 {
+	if (unlikely(!nexus || !nexus->transport_hndl ||
+		     !nexus->transport)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
+
 	if (nexus->transport->get_opt)
 		return nexus->transport->get_opt(nexus->transport_hndl,
 				optname, optval, optlen);
@@ -2448,6 +2465,12 @@ int xio_nexus_modify(struct xio_nexus *nexus,
 {
 	int			   tattr_mask = 0;
 	struct xio_transport_attr tattr;
+
+	if (unlikely(!nexus || !nexus->transport_hndl ||
+		     !nexus->transport)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
 
 	if (!nexus->transport->modify)
 		goto not_supported;
@@ -2475,6 +2498,12 @@ int xio_nexus_query(struct xio_nexus *nexus,
 {
 	int			   tattr_mask = 0, retval;
 	struct xio_transport_attr tattr;
+
+	if (unlikely(!nexus || !nexus->transport_hndl ||
+		     !nexus->transport)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
 
 	if (!nexus->transport->modify)
 		goto not_supported;
@@ -2505,6 +2534,11 @@ not_supported:
 int xio_nexus_get_peer_addr(struct xio_nexus *nexus,
 			    struct sockaddr_storage *sa, socklen_t len)
 {
+	if (unlikely(!nexus || nexus->transport_hndl)) {
+		xio_set_error(EINVAL);
+		memset(sa, 0, sizeof(*sa));
+		return -1;
+	}
 	memcpy(sa, &nexus->transport_hndl->peer_addr, len);
 	return 0;
 }
@@ -2515,6 +2549,11 @@ int xio_nexus_get_peer_addr(struct xio_nexus *nexus,
 int xio_nexus_get_local_addr(struct xio_nexus *nexus,
 			     struct sockaddr_storage *sa, socklen_t len)
 {
+	if (unlikely(!nexus || nexus->transport_hndl)) {
+		xio_set_error(EINVAL);
+		memset(sa, 0, sizeof(*sa));
+		return -1;
+	}
 	memcpy(sa, &nexus->transport_hndl->local_addr, len);
 	return 0;
 }
