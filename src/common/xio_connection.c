@@ -2318,7 +2318,7 @@ int xio_query_connection(struct xio_connection *connection,
 			 int attr_mask)
 {
 	int		       retval = 0;
-	
+
 	if (!connection || !attr) {
 		xio_set_error(EINVAL);
 		ERROR_LOG("invalid parameters\n");

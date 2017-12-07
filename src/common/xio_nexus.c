@@ -2534,7 +2534,7 @@ not_supported:
 int xio_nexus_get_peer_addr(struct xio_nexus *nexus,
 			    struct sockaddr_storage *sa, socklen_t len)
 {
-	if (unlikely(!nexus || nexus->transport_hndl)) {
+	if (unlikely(!nexus || !nexus->transport_hndl)) {
 		xio_set_error(EINVAL);
 		memset(sa, 0, sizeof(*sa));
 		return -1;
@@ -2549,7 +2549,7 @@ int xio_nexus_get_peer_addr(struct xio_nexus *nexus,
 int xio_nexus_get_local_addr(struct xio_nexus *nexus,
 			     struct sockaddr_storage *sa, socklen_t len)
 {
-	if (unlikely(!nexus || nexus->transport_hndl)) {
+	if (unlikely(!nexus || !nexus->transport_hndl)) {
 		xio_set_error(EINVAL);
 		memset(sa, 0, sizeof(*sa));
 		return -1;
