@@ -1372,6 +1372,10 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 				   &nexus->ctx_observer);
 	nexus->transport_hndl = NULL;
 
+	/* remove from cache */
+	if (!nexus->is_listener)
+		xio_nexus_cache_remove(nexus->cid);
+
 	if (xio_observable_is_empty(&nexus->observable))
 		xio_nexus_destroy(nexus);
 }
@@ -1881,7 +1885,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	}
 
 	nexus = xio_nexus_cache_find(&query);
-	if (nexus &&
+	if (nexus && nexus->transport_hndl &&
 	    (nexus->state == XIO_NEXUS_STATE_CONNECTED ||
 	     nexus->state == XIO_NEXUS_STATE_CONNECTING ||
 	     nexus->state == XIO_NEXUS_STATE_OPEN ||
@@ -2330,7 +2334,7 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 		ERROR_LOG("transport not initialized\n");
 		return -1;
 	}
-	if (!nexus->transport->send)
+	if (!nexus->transport->send || !nexus->transport_hndl)
 		return 0;
 
 	while (1) {
