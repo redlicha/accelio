@@ -104,7 +104,7 @@ int xio_post_recv(struct xio_rdma_transport *rdma_hndl,
 		  struct xio_task *task, int num_recv_bufs)
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
-	struct ibv_recv_wr	*bad_wr	= NULL;
+	struct ibv_recv_wr	*bad_wr	= NULL, *wr;
 	int			retval, nr_posted;
 
 #ifdef XIO_SRQ_ENABLE
@@ -115,11 +115,19 @@ int xio_post_recv(struct xio_rdma_transport *rdma_hndl,
 #endif
 	if (likely(!retval)) {
 		nr_posted = num_recv_bufs;
+		for (wr = &rdma_task->rxd.recv_wr; wr != NULL; wr = wr->next) {
+			struct xio_task *task =
+				(struct xio_task *)ptr_from_int64(wr->wr_id);
+			xio_task_addref(task);
+		}
 	} else {
-		struct ibv_recv_wr *wr;
-			nr_posted = 0;
-		for (wr = &rdma_task->rxd.recv_wr; wr != bad_wr; wr = wr->next)
+		nr_posted = 0;
+		for (wr = &rdma_task->rxd.recv_wr; wr != bad_wr; wr = wr->next) {
+			struct xio_task *task =
+				(struct xio_task *)ptr_from_int64(wr->wr_id);
+			xio_task_addref(task);
 			nr_posted++;
+		}
 
 		xio_set_error(retval);
 		ERROR_LOG("ibv_post_recv failed. (errno=%d %s)\n",
@@ -144,7 +152,7 @@ static int xio_post_send(struct xio_rdma_transport *rdma_hndl,
 			 struct xio_work_req *xio_send,
 			 int num_send_reqs)
 {
-	struct ibv_send_wr	*bad_wr;
+	struct ibv_send_wr	*bad_wr, *wr;
 	int			retval, nr_posted;
 
 	/*
@@ -156,14 +164,24 @@ static int xio_post_send(struct xio_rdma_transport *rdma_hndl,
 	*/
 	retval = ibv_post_send(rdma_hndl->qp, &xio_send->send_wr, &bad_wr);
 	if (likely(!retval)) {
+		for (wr = &xio_send->send_wr; wr != NULL; wr = wr->next) {
+			if (wr->send_flags & IBV_SEND_SIGNALED) {
+				struct xio_task *task =
+					(struct xio_task *)ptr_from_int64(wr->wr_id);
+				xio_task_addref(task);
+			}
+		}
 		nr_posted = num_send_reqs;
 	} else {
-		struct ibv_send_wr *wr;
-
 		nr_posted = 0;
-		for (wr = &xio_send->send_wr; wr != bad_wr; wr = wr->next)
+		for (wr = &xio_send->send_wr; wr != bad_wr; wr = wr->next) {
+			if (wr->send_flags & IBV_SEND_SIGNALED) {
+				struct xio_task *task =
+					(struct xio_task *)ptr_from_int64(wr->wr_id);
+				xio_task_addref(task);
+			}
 			nr_posted++;
-
+		}
 		xio_set_error(retval);
 
 		ERROR_LOG("ibv_post_send failed. (errno=%d %s)  posted:%d/%d " \
@@ -607,9 +625,9 @@ static void xio_handle_task_error(struct xio_task *task)
 		xio_rdma_wr_error_handler(rdma_hndl, task);
 		break;
 	default:
-		ERROR_LOG("unknown out_ib_op: task:%p, type:0x%x, " \
+		ERROR_LOG("unknown out_ib_op: rdma_hndl:%p, task:%p, type:0x%x, " \
 			  "magic:0x%x, out_ib_op:0x%x\n",
-			  task, task->tlv_type,
+			  rdma_hndl, task, task->tlv_type,
 			  task->magic, rdma_task->out_ib_op);
 		break;
 	}
@@ -648,6 +666,11 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			rdma_hndl = (struct xio_rdma_transport *)task->context;
 		}
 	}
+	if (!rdma_hndl) {
+		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
+		xio_tasks_pool_put(task);
+		goto cleanup;
+	}
 
 	if (wc->status == IBV_WC_WR_FLUSH_ERR) {
 		TRACE_LOG("rdma_hndl:%p, rdma_task:%p, task:%p, " \
@@ -658,31 +681,21 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			   ibv_wc_status_str(wc->status),
 			   wc->vendor_err);
 	} else {
-		if (rdma_hndl)  {
-			ERROR_LOG("[%s] - state:%d, rdma_hndl:%p, " \
-				  "rdma_task:%p, task:%p, wr_id:0x%lx, " \
-				  "err:%s, vendor_err:0x%x, " \
-				  "byte_len:%d, opcode:0x%x\n",
-				  rdma_hndl->base.is_client ?
-				  "client" : "server",
-				  rdma_hndl->state,
-				  rdma_hndl, rdma_task, task,
-				  wc->wr_id,
-				  ibv_wc_status_str(wc->status),
-				  wc->vendor_err,
-				  wc->byte_len,
-				  wc->opcode);
-			if (task->omsg)
-				xio_msg_dump(task->omsg);
-		} else {
-			ERROR_LOG("wr_id:0x%lx, err:%s, vendor_err:0x%x " \
-				  "byte_len:%d, opcode:0x%x\n",
-				  wc->wr_id,
-				  ibv_wc_status_str(wc->status),
-				  wc->vendor_err,
-				  wc->byte_len,
-				  wc->opcode);
-		}
+		ERROR_LOG("[%s] - state:%d, rdma_hndl:%p, " \
+			  "rdma_task:%p, task:%p, wr_id:0x%lx, " \
+			  "err:%s, vendor_err:0x%x, " \
+			  "byte_len:%d, opcode:0x%x\n",
+			  rdma_hndl->base.is_client ?
+			  "client" : "server",
+			  rdma_hndl->state,
+			  rdma_hndl, rdma_task, task,
+			  wc->wr_id,
+			  ibv_wc_status_str(wc->status),
+			  wc->vendor_err,
+			  wc->byte_len,
+			  wc->opcode);
+		if (task->omsg)
+			xio_msg_dump(task->omsg);
 		ERROR_LOG("qp_num:0x%x, src_qp:0x%x, wc_flags:0x%x, " \
 			  "pkey_index:%d, slid:%d, sl:0x%x, dlid_path_bits:0x%x\n",
 			   wc->qp_num, wc->src_qp, wc->wc_flags, wc->pkey_index,
@@ -693,36 +706,33 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 
 	/* temporary  */
 	if (wc->status != IBV_WC_WR_FLUSH_ERR) {
-		if (rdma_hndl) {
-			if (!rdma_hndl->rdma_disconnect_called) {
-				rdma_hndl->disconnect_nr = 0;
-				rdma_hndl->ignore_timewait = 1;
-				xio_ctx_del_delayed_work(
-						rdma_hndl->base.ctx,
-						&rdma_hndl->disconnect_timeout_work);
-				xio_set_disconnect_timer(rdma_hndl);
-				if (wc->status !=  IBV_WC_RETRY_EXC_ERR) {
-					ERROR_LOG("cq error reported. calling " \
-						  "rdma_disconnect. rdma_hndl:%p, status:%d\n",
-						  rdma_hndl, wc->status);
-					rdma_hndl->rdma_disconnect_called = 1;
-					rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
-					retval = rdma_disconnect(rdma_hndl->cm_id);
-					if (retval)
-						ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
-							  "failed, %m\n", rdma_hndl);
-				}
-			} else {
-				ERROR_LOG("cq error reported. not calling " \
-					  "rdma_disconnect. rdma_hndl:%p\n",
-					  rdma_hndl);
+		if (!rdma_hndl->rdma_disconnect_called) {
+			rdma_hndl->disconnect_nr = 0;
+			rdma_hndl->ignore_timewait = 1;
+			xio_ctx_del_delayed_work(
+					rdma_hndl->base.ctx,
+					&rdma_hndl->disconnect_timeout_work);
+			xio_set_disconnect_timer(rdma_hndl);
+			if (wc->status !=  IBV_WC_RETRY_EXC_ERR) {
+				ERROR_LOG("cq error reported. calling " \
+						"rdma_disconnect. rdma_hndl:%p, status:%d\n",
+						rdma_hndl, wc->status);
+				rdma_hndl->rdma_disconnect_called = 1;
+				rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
+				retval = rdma_disconnect(rdma_hndl->cm_id);
+				if (retval)
+					ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
+							"failed, %m\n", rdma_hndl);
 			}
 		} else {
-			/* TODO: handle each error specifically */
-			ERROR_LOG("ASSERT: program abort\n");
-			exit(0);
+			ERROR_LOG("cq error reported. not calling " \
+					"rdma_disconnect. rdma_hndl:%p\n",
+					rdma_hndl);
 		}
 	}
+cleanup:
+	/* task ref add before ibv_post_send/recv */
+	xio_tasks_pool_put(task);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1178,6 +1188,10 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 	} else {
 		rdma_hndl = (struct xio_rdma_transport *)task->context;
 	}
+	if (!rdma_hndl) {
+		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
+		goto cleanup;
+	}
 
 	/*
 	TRACE_LOG("received opcode :%s [%x]\n",
@@ -1213,6 +1227,10 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 			  ibv_wc_opcode_str(wc->opcode), wc->opcode);
 		break;
 	}
+
+cleanup:
+	/* task ref add before ibv_post_send/recv */
+	xio_tasks_pool_put(task);
 }
 
 /*
@@ -4070,8 +4088,8 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->ack_sn = req_hdr.sn;
 		rdma_hndl->peer_credits += req_hdr.credits;
 	} else {
-		ERROR_LOG("ERROR: sn expected:%d, " \
-			  "sn arrived:%d out_ib_op:%u in_num_sge:%u " \
+		ERROR_LOG("ERROR: expected sn:%d, " \
+			  "arrived sn:%d out_ib_op:%u in_num_sge:%u " \
 			  "out_num_sge:%u, rdma_hndl:%p\n",
 			  rdma_hndl->exp_sn, req_hdr.sn,
 			  req_hdr.out_ib_op, req_hdr.in_num_sge,
@@ -4764,7 +4782,7 @@ static int xio_rdma_on_recv_nop(struct xio_rdma_transport *rdma_hndl,
 	if (rdma_hndl->exp_sn == nop.sn)
 		rdma_hndl->peer_credits += nop.credits;
 	else
-		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d, rdma_hndl:%p\n",
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
 			  rdma_hndl->exp_sn, nop.sn, rdma_hndl);
 
 	/* the rx task is returned back to pool */
@@ -5117,7 +5135,7 @@ static int xio_rdma_on_recv_cancel_req(struct xio_rdma_transport *rdma_hndl,
 		rdma_hndl->ack_sn = req_hdr.sn;
 		rdma_hndl->peer_credits += req_hdr.credits;
 	} else {
-		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d, rdma_hndl:%p\n",
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
 			  rdma_hndl->exp_sn, req_hdr.sn, rdma_hndl);
 	}
 

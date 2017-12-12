@@ -180,6 +180,7 @@ static inline void xio_task_reset(struct xio_task *task)
 	task->tlv_type			= 0xdead;
 	task->omsg			= NULL;
 	task->status			= 0;
+	task->context			= NULL;
 
 	if (task->imsg.user_context)
 		task->imsg.user_context	= NULL;
@@ -296,8 +297,7 @@ static inline struct xio_task *xio_tasks_pool_get(
 	kref_init(&t->kref);
 	t->tlv_type	= 0xbeef;  /* poison the type */
 
-	if (t->context != context)
-		xio_task_reinit(context, t);
+	xio_task_reinit(context, t);
 
 	if (q->params.pool_hooks.task_post_get)
 		q->params.pool_hooks.task_post_get(context, t);
