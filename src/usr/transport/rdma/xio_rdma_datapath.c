@@ -4215,7 +4215,8 @@ static void xio_rdma_write_setup_msg(struct xio_rdma_transport *rdma_hndl,
 	PACK_LVAL(msg, tmp_msg, max_out_iovsz);
 	PACK_SVAL(msg, tmp_msg, rkey_tbl_size);
 	PACK_LVAL(msg, tmp_msg, max_header_len);
-
+	PACK_LLVAL(msg, tmp_msg, my_handle);
+	
 #ifdef EYAL_TODO
 	print_hex_dump_bytes("post_send: ", DUMP_PREFIX_ADDRESS,
 			     task->mbuf.tlv.head,
@@ -4273,6 +4274,7 @@ static void xio_rdma_read_setup_msg(struct xio_rdma_transport *rdma_hndl,
 	UNPACK_LVAL(tmp_msg, msg, max_out_iovsz);
 	UNPACK_SVAL(tmp_msg, msg, rkey_tbl_size);
 	UNPACK_LVAL(tmp_msg, msg, max_header_len);
+	UNPACK_LLVAL(tmp_msg, msg, my_handle);
 
 #ifdef EYAL_TODO
 	print_hex_dump_bytes("post_send: ", DUMP_PREFIX_ADDRESS,
@@ -4280,6 +4282,7 @@ static void xio_rdma_read_setup_msg(struct xio_rdma_transport *rdma_hndl,
 			     64);
 #endif
 	xio_mbuf_inc(&task->mbuf, sizeof(struct xio_rdma_setup_msg));
+	rdma_hndl->peer_rdma_hndl = ptr_from_int64(msg->my_handle);
 
 	if (!msg->rkey_tbl_size)
 		return;
@@ -4325,6 +4328,7 @@ static int xio_rdma_send_setup_req(struct xio_rdma_transport *rdma_hndl,
 	req.max_out_iovsz	= rdma_options.max_out_iovsz;
 	req.rkey_tbl_size	= rdma_hndl->rkey_tbl_size;
 	req.max_header_len	= g_options.max_inline_xio_hdr;
+	req.my_handle		= uint64_from_ptr(rdma_hndl);
 
 	xio_rdma_write_setup_msg(rdma_hndl, task, &req);
 
@@ -4374,6 +4378,7 @@ static int xio_rdma_send_setup_rsp(struct xio_rdma_transport *rdma_hndl,
 	rdma_hndl->setup_rsp.max_out_iovsz	= rdma_options.max_out_iovsz;
 	rdma_hndl->setup_rsp.buffer_sz		= rdma_hndl->membuf_sz;
 	rdma_hndl->setup_rsp.max_header_len	= g_options.max_inline_xio_hdr;
+	rdma_hndl->setup_rsp.my_handle		= uint64_from_ptr(rdma_hndl);
 
 	xio_rdma_write_setup_msg(rdma_hndl, task, &rdma_hndl->setup_rsp);
 	rdma_hndl->credits = 0;
@@ -4384,7 +4389,9 @@ static int xio_rdma_send_setup_rsp(struct xio_rdma_transport *rdma_hndl,
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
-	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
+	DEBUG_LOG("%s - rdma_hndl:%p, peer_rdma_hndl:%p\n",
+		  __func__,
+		  rdma_hndl, rdma_hndl->peer_rdma_hndl);
 
 	/* set the length */
 	rdma_task->txd.sge[0].length = xio_mbuf_data_length(&task->mbuf);

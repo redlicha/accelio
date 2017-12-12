@@ -222,6 +222,7 @@ struct __attribute__((__packed__)) xio_rdma_setup_msg {
 	uint32_t		max_out_iovsz;
 	uint32_t                max_header_len;
 	uint32_t		pad;
+	uint64_t		my_handle;
 };
 
 struct __attribute__((__packed__)) xio_nop_hdr {
@@ -376,6 +377,7 @@ struct xio_rdma_transport {
 	struct ibv_qp			*qp;
 	struct xio_mempool		*rdma_mempool;
 	struct xio_tasks_pool		*phantom_tasks_pool;
+	void				*peer_rdma_hndl;
 
 	struct list_head		trans_list_entry;
 
