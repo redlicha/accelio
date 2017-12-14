@@ -171,6 +171,8 @@ static void on_sock_close(struct xio_tcp_transport *tcp_hndl)
 	xio_transport_notify_observer(&tcp_hndl->base,
 				      XIO_TRANSPORT_EVENT_CLOSED,
 				      NULL);
+	xio_context_disable_event(&tcp_hndl->disconnect_event);
+	xio_observable_unreg_all_observers(&tcp_hndl->base.observable);
 
 	tcp_hndl->state = XIO_TRANSPORT_STATE_DESTROYED;
 }
@@ -337,6 +339,7 @@ static void xio_tcp_close_cb(struct kref *kref)
 				&tcp_hndl->base,
 				XIO_TRANSPORT_EVENT_CLOSED,
 				NULL);
+		xio_observable_unreg_all_observers(&tcp_hndl->base.observable);
 		tcp_hndl->state = XIO_TRANSPORT_STATE_DESTROYED;
 		break;
 	}
