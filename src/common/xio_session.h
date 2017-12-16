@@ -84,6 +84,7 @@ struct xio_session {
 	HT_ENTRY(xio_session, xio_key_int32) sessions_htbl;
 
 	struct xio_msg			*setup_req;
+	struct xio_msg			*client_setup_req;
 	struct xio_observer		observer;
 	struct xio_observer		ctx_observer;
 
