@@ -705,7 +705,8 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 		xio_handle_task_error(task);
 
 	/* temporary  */
-	if (wc->status != IBV_WC_WR_FLUSH_ERR) {
+	if (wc->status != IBV_WC_WR_FLUSH_ERR ||
+	    rdma_hndl->state == XIO_TRANSPORT_STATE_CONNECTED) {
 		if (!rdma_hndl->rdma_disconnect_called) {
 			rdma_hndl->disconnect_nr = 0;
 			rdma_hndl->ignore_timewait = 1;
@@ -1190,6 +1191,18 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 	}
 	if (!rdma_hndl) {
 		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
+		goto cleanup;
+	}
+	if (unlikely(rdma_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED ||
+		     rdma_hndl->state == XIO_TRANSPORT_STATE_RECONNECT ||
+		     rdma_hndl->state == XIO_TRANSPORT_STATE_CLOSED ||
+		     rdma_hndl->state == XIO_TRANSPORT_STATE_ERROR ||
+		     rdma_hndl->state == XIO_TRANSPORT_STATE_DESTROYED)) {
+		ERROR_LOG("receive message while transport in error state. task is flushed. " \
+			  "task:%p, opcode:%s, rdma_hndl:%p, state:%s\n",
+			  task, ibv_wc_opcode_str(wc->opcode), rdma_hndl,
+			  xio_transport_state_str(rdma_hndl->state));
+		xio_tasks_pool_put(task);
 		goto cleanup;
 	}
 
