@@ -1111,9 +1111,9 @@ static void xio_nexus_release_cb(void *data)
 				 &nexus->close_time_hndl);
 
 	/* now it is zero */
-	if (nexus->transport && nexus->transport->close) {
+	if (nexus->transport && nexus->transport->close &&
+	    !nexus->in_disconnected)
 		nexus->transport->close(nexus->transport_hndl);
-	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1150,7 +1150,7 @@ static void xio_on_context_close(struct xio_nexus *nexus,
 	xio_ctx_del_delayed_work(ctx, &nexus->close_time_hndl);
 
 	/* shut down the context and its dependent without waiting */
-	if (nexus->transport->context_shutdown)
+	if (nexus->transport->context_shutdown && !nexus->in_disconnected)
 		nexus->transport->context_shutdown(nexus->transport_hndl, ctx);
 
 	/* at that stage the nexus may no longer exist */
@@ -1365,19 +1365,7 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 					  union xio_transport_event_data
 					  *event_data)
 {
-	/* this is the very last message from transport */
-	xio_transport_unreg_observer(nexus->transport_hndl,
-				     &nexus->trans_observer);
-	xio_context_unreg_observer(nexus->transport_hndl->ctx,
-				   &nexus->ctx_observer);
-	nexus->transport_hndl = NULL;
-
-	/* remove from cache */
-	if (!nexus->is_listener)
-		xio_nexus_cache_remove(nexus->cid);
-
-	if (xio_observable_is_empty(&nexus->observable))
-		xio_nexus_destroy(nexus);
+	xio_nexus_destroy(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1508,11 +1496,14 @@ static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
 						union xio_transport_event_data
 						*event_data)
 {
+	nexus->in_disconnected = 1;
 	/* cancel old timers */
 	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
 				 &nexus->close_time_hndl);
 
 	xio_nexus_disconnected(nexus);
+
+	nexus->in_disconnected = 0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1933,7 +1924,6 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 		ERROR_LOG("kcalloc failed. %m\n");
 		return NULL;
 	}
-
 	XIO_OBSERVER_INIT(&nexus->trans_observer, nexus,
 			  xio_nexus_on_transport_event);
 	XIO_OBSERVABLE_INIT(&nexus->observable, nexus);
@@ -2258,11 +2248,6 @@ static void xio_nexus_delayed_close(struct kref *kref)
 
 	TRACE_LOG("xio_nexus_deleyed close. nexus:%p, state:%d\n",
 		  nexus, nexus->state);
-
-	if (!nexus->transport_hndl) {
-		xio_nexus_destroy(nexus);
-		return;
-	}
 
 	switch (nexus->state) {
 	case XIO_NEXUS_STATE_LISTEN:
