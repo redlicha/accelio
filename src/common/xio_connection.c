@@ -2631,8 +2631,6 @@ static void xio_connection_teardown_handler(void *connection_)
 /*---------------------------------------------------------------------------*/
 int xio_connection_disconnected(struct xio_connection *connection)
 {
-	int close = 0;
-
 	DEBUG_LOG("xio_connection_disconnected: connection:%p, state:%s\n",
 		  connection, 
 		  xio_connection_state_str((enum xio_connection_state)
@@ -2679,7 +2677,6 @@ int xio_connection_disconnected(struct xio_connection *connection)
 				  "the lead connection. connection:%p\n", 
 				  connection);
 			connection->session->lead_connection = NULL;
-			close = 1;
 		}
 		if (connection->session->redir_connection &&
 		    connection->session->redir_connection->nexus ==
@@ -2688,17 +2685,14 @@ int xio_connection_disconnected(struct xio_connection *connection)
 				  "the redir connection connection:%p\n", 
 				  connection);
 			connection->session->redir_connection = NULL;
-			close = 1;
 		}
 		/* free nexus and tasks pools */
-		if (close) {
-			DEBUG_LOG("xio_connection_disconnected: nexus " \
-				  "close. connection:%p nexus:%p\n", 
-				  connection, connection->nexus);
-			xio_connection_flush_tasks(connection);
-			xio_connection_nexus_safe_close(connection,
-							&connection->session->observer);
-		}
+		DEBUG_LOG("xio_connection_disconnected: nexus " \
+			  "close. connection:%p nexus:%p\n", 
+			  connection, connection->nexus);
+		xio_connection_flush_tasks(connection);
+		xio_connection_nexus_safe_close(connection,
+						&connection->session->observer);
 	}
 
 	if (!connection->disable_notify)
