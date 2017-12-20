@@ -694,8 +694,10 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			  wc->vendor_err,
 			  wc->byte_len,
 			  wc->opcode);
+		/*
 		if (task->omsg)
 			xio_msg_dump(task->omsg);
+		*/
 		ERROR_LOG("qp_num:0x%x, src_qp:0x%x, wc_flags:0x%x, " \
 			  "pkey_index:%d, slid:%d, sl:0x%x, dlid_path_bits:0x%x\n",
 			   wc->qp_num, wc->src_qp, wc->wc_flags, wc->pkey_index,
