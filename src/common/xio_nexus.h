@@ -171,7 +171,8 @@ struct xio_nexus {
 	spinlock_t			nexus_obs_lock;
 	int				released:1;
 	int			        in_disconnected:1;
-	int 				pad2:30;
+	int 				defered_close:1;
+	int 				pad2:29;
 	struct mutex			lock_connect;      /* lock nexus connect */
 
 	HT_ENTRY(xio_nexus, xio_key_int32) nexus_htbl;

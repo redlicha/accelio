@@ -1365,7 +1365,16 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 					  union xio_transport_event_data
 					  *event_data)
 {
-	xio_nexus_destroy(nexus);
+	/* remove the nexus from table */
+	xio_nexus_cache_remove(nexus->cid);
+
+	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx, 
+				  &nexus->close_time_hndl);
+
+	if (xio_observable_is_empty(&nexus->observable))
+		xio_nexus_destroy(nexus);
+	else
+		nexus->defered_close = 1;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2276,6 +2285,9 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 {
 	TRACE_LOG("nexus: [putref] ptr:%p, refcnt:%d\n", nexus,
 		  atomic_read(&nexus->kref.refcount));
+
+	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable))
+		xio_nexus_destroy(nexus);
 
 	if (observer) {
 		xio_nexus_notify_observer(
