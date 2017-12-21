@@ -3104,6 +3104,11 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		xio_tasks_pool_put(task);
 		return 0;
 	}
+	if (!xio_transport_is_task_routable(sender_task)) {
+		ERROR_LOG("invalid sender task. Releasing incoming response. rdma_hndl:%p\n", rdma_hndl);
+		xio_tasks_pool_put(task);
+		return 0;
+	}
 	task->sender_task = sender_task;
 	rdma_sender_task = (struct xio_rdma_task *)sender_task->dd_data;
 	task->rtid	 = rsp_hdr.ltid;
