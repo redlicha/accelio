@@ -184,7 +184,7 @@ const char *ibv_wc_opcode_str(enum ibv_wc_opcode opcode)
 static int xio_dereg_mr(struct xio_mr *tmr)
 {
 	struct xio_mr		*ptmr, *tmp_ptmr;
-	struct xio_mr_elem	*tmr_elem, *tmp_tmr_elem;
+	struct xio_mr_elem	*tmr_elem;
 	int			retval, found = 0;
 
 	spin_lock(&mr_list_lock);
@@ -198,20 +198,22 @@ static int xio_dereg_mr(struct xio_mr *tmr)
 	spin_unlock(&mr_list_lock);
 
 	if (found) {
-		list_for_each_entry_safe(tmr_elem, tmp_tmr_elem, &tmr->dm_list,
-					 dm_list_entry) {
+		spin_lock(&dev_list_lock);
+		while (!list_empty(&tmr->dm_list)) {
+			tmr_elem = list_first_entry(&tmr->dm_list, struct xio_mr_elem, dm_list_entry);
+			/* Remove the item from the list. */
+			list_del(&tmr_elem->dm_list_entry);
+			list_del(&tmr_elem->xm_list_entry);
+			spin_unlock(&dev_list_lock);
 			retval = ibv_dereg_mr(tmr_elem->mr);
 			if (unlikely(retval != 0)) {
 				xio_set_error(errno);
 				ERROR_LOG("ibv_dereg_mr failed, %m\n");
 			}
-			/* Remove the item from the list. */
-			spin_lock(&dev_list_lock);
-			list_del(&tmr_elem->dm_list_entry);
-			list_del(&tmr_elem->xm_list_entry);
-			spin_unlock(&dev_list_lock);
 			ufree(tmr_elem);
+			spin_lock(&dev_list_lock);
 		}
+		spin_unlock(&dev_list_lock);
 		ufree(tmr);
 	}
 
