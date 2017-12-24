@@ -1692,6 +1692,7 @@ int xio_release_response(struct xio_msg *msg)
 		list_move_tail(&task->tasks_list_entry,
 			       &connection->post_io_tasks_list);
 
+		task->sender_task->omsg = NULL;
 		xio_release_response_task(task);
 
 		pmsg = pmsg->next;
