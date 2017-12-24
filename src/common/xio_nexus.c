@@ -77,8 +77,9 @@ struct xio_event_params {
 
 struct xio_nexus_observer_work {
 	struct xio_observer_event	observer_event;
-	xio_work_handle_t               observer_work;
-	struct xio_context 	*ctx;
+	xio_work_handle_t		observer_work;
+	struct xio_context		*ctx;
+	struct xio_nexus		*nexus;
 };
 
 static int xio_msecs[] = {60000, 30000, 15000, 0};
@@ -2077,10 +2078,13 @@ static void xio_nexus_notify_observer_work(void *_work_params)
 {
 	struct xio_nexus_observer_work  *work_params =
                 (struct xio_nexus_observer_work *) _work_params;
-	xio_observable_notify_observer(work_params->observer_event.observable,
-                                       work_params->observer_event.observer,
-                                       work_params->observer_event.event,
-                                       work_params->observer_event.event_data);
+
+	if (work_params->nexus->state == XIO_NEXUS_STATE_CONNECTED)
+		xio_observable_notify_observer(
+				work_params->observer_event.observable,
+				work_params->observer_event.observer,
+				work_params->observer_event.event,
+				work_params->observer_event.event_data);
 	xio_ctx_set_work_destructor(work_params->ctx,
 	                                            work_params,
 	                                            (void (*)(void *))kfree,
@@ -2146,6 +2150,7 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		work_params->observer_event.event = XIO_NEXUS_EVENT_ESTABLISHED;
 		work_params->observer_event.event_data = NULL;
 		work_params->ctx = nexus->transport_hndl->ctx;
+		work_params->nexus = nexus;
 		xio_ctx_add_work(nexus->transport_hndl->ctx,
                                  work_params,
                                  xio_nexus_notify_observer_work,
