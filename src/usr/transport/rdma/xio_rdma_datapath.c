@@ -666,12 +666,6 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			rdma_hndl = (struct xio_rdma_transport *)task->context;
 		}
 	}
-	if (!rdma_hndl) {
-		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
-		xio_tasks_pool_put(task);
-		goto cleanup;
-	}
-
 	if (wc->status == IBV_WC_WR_FLUSH_ERR) {
 		TRACE_LOG("rdma_hndl:%p, rdma_task:%p, task:%p, " \
 			  "wr_id:0x%llx, " \
@@ -681,19 +675,31 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			   ibv_wc_status_str(wc->status),
 			   wc->vendor_err);
 	} else {
-		ERROR_LOG("[%s] - state:%d, rdma_hndl:%p, " \
-			  "rdma_task:%p, task:%p, wr_id:0x%lx, " \
-			  "err:%s, vendor_err:0x%x, " \
-			  "byte_len:%d, opcode:0x%x\n",
-			  rdma_hndl->base.is_client ?
-			  "client" : "server",
-			  rdma_hndl->state,
-			  rdma_hndl, rdma_task, task,
-			  wc->wr_id,
-			  ibv_wc_status_str(wc->status),
-			  wc->vendor_err,
-			  wc->byte_len,
-			  wc->opcode);
+		if (rdma_hndl)
+			ERROR_LOG("[%s] - state:%d, rdma_hndl:%p, " \
+				  "rdma_task:%p, task:%p, wr_id:0x%lx, " \
+				  "err:%s, vendor_err:0x%x, " \
+				  "byte_len:%d, opcode:0x%x\n",
+				  rdma_hndl->base.is_client ?
+				  "client" : "server",
+				  rdma_hndl->state,
+				  rdma_hndl, rdma_task, task,
+				  wc->wr_id,
+				  ibv_wc_status_str(wc->status),
+				  wc->vendor_err,
+				  wc->byte_len,
+				  wc->opcode);
+		else
+			ERROR_LOG("[unknown] - state:-1, rdma_hndl:%p, " \
+				  "rdma_task:%p, task:%p, wr_id:0x%lx, " \
+				  "err:%s, vendor_err:0x%x, " \
+				  "byte_len:%d, opcode:0x%x\n",
+				  rdma_hndl, rdma_task, task,
+				  wc->wr_id,
+				  ibv_wc_status_str(wc->status),
+				  wc->vendor_err,
+				  wc->byte_len,
+				  wc->opcode);
 		/*
 		if (task->omsg)
 			xio_msg_dump(task->omsg);
@@ -702,6 +708,15 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			  "pkey_index:%d, slid:%d, sl:0x%x, dlid_path_bits:0x%x\n",
 			   wc->qp_num, wc->src_qp, wc->wc_flags, wc->pkey_index,
 			   wc->slid, wc->sl, wc->dlid_path_bits);
+	}
+	if (!task) {
+		ERROR_LOG("got error with null task. task:%p\n", task);
+		return;
+	}
+	if (!rdma_hndl) {
+		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
+		xio_tasks_pool_put(task);
+		goto cleanup;
 	}
 	if (task && rdma_task)
 		xio_handle_task_error(task);

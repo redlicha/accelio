@@ -50,7 +50,8 @@ struct xio_tasks_pool_ops;
 /* preprocessor declarations						     */
 /*---------------------------------------------------------------------------*/
 #define xio_transport_is_task_routable(t) \
-	((t)->context && (t)->session && (t)->connection && (t)->nexus)
+	((t)->omsg && (t)->context && (t)->session && \
+	 (t)->connection && (t)->nexus)
 
 /*---------------------------------------------------------------------------*/
 /* enums								     */
