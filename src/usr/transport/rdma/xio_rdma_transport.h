@@ -126,8 +126,9 @@ struct ibv_exp_reg_mr_in {
 	struct ibv_pd *pd;
 	void *addr;
 	size_t length;
-	int exp_access;
+	uint64_t exp_access;
 	uint32_t comp_mask;
+	uint32_t create_flags;
 };
 
 static inline struct ibv_mr *ibv_xio_reg_mr(struct ibv_exp_reg_mr_in *in)

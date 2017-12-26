@@ -230,7 +230,7 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 	struct xio_mr_elem *mr_elem;
 	struct ibv_mr	   *mr;
 	int retval;
-	struct ibv_exp_reg_mr_in reg_mr_in;
+	struct ibv_exp_reg_mr_in reg_mr_in = {};
 	int alloc_mr = !(*addr);
 
 	reg_mr_in.pd = dev->pd;
@@ -238,6 +238,7 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 	reg_mr_in.length = length;
 	reg_mr_in.exp_access = access;
 	reg_mr_in.comp_mask = 0;
+	reg_mr_in.create_flags = 0;
 
 	TRACE_LOG("before ibv_reg_mr\n");
 	mr = ibv_xio_reg_mr(&reg_mr_in);
