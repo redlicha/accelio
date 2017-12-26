@@ -2260,7 +2260,7 @@ static void xio_nexus_delayed_close(struct kref *kref)
 					     kref);
 	int		retval;
 
-	TRACE_LOG("xio_nexus_deleyed close. nexus:%p, state:%d\n",
+	TRACE_LOG("%s. nexus:%p, state:%d\n", __func__,
 		  nexus, nexus->state);
 
 	switch (nexus->state) {
@@ -2291,8 +2291,10 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 	TRACE_LOG("nexus: [putref] ptr:%p, refcnt:%d\n", nexus,
 		  atomic_read(&nexus->kref.refcount));
 
-	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable))
+	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable)) {
 		xio_nexus_destroy(nexus);
+		return;
+	}
 
 	if (observer) {
 		xio_nexus_notify_observer(
