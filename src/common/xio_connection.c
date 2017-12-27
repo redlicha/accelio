@@ -1650,6 +1650,15 @@ int xio_release_response(struct xio_msg *msg)
 			xio_set_error(EINVAL);
 			return -1;
 		}
+
+		if (unlikely(!task->sender_task || !task->sender_task->omsg ||
+			     task->sender_task->omsg != msg)) {
+			/* do not release response in responder */
+			ERROR_LOG("xio_release_response failed.\n");
+			xio_set_error(EINVAL);
+			return -1;
+		}
+
 		connection = task->connection;
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);

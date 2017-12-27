@@ -1374,8 +1374,13 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 
 	if (xio_observable_is_empty(&nexus->observable))
 		xio_nexus_destroy(nexus);
-	else
+	else {
 		nexus->defered_close = 1;
+		xio_transport_unreg_observer(nexus->transport_hndl,
+					     &nexus->trans_observer);
+		xio_context_unreg_observer(nexus->transport_hndl->ctx,
+					   &nexus->ctx_observer);
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2292,6 +2297,7 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 		  atomic_read(&nexus->kref.refcount));
 
 	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable)) {
+		nexus->transport_hndl = NULL;
 		xio_nexus_destroy(nexus);
 		return;
 	}
