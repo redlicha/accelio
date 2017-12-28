@@ -1235,21 +1235,30 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 	sender_task =
 		xio_rdma_primary_task_lookup(rdma_hndl, rsp_hdr.rtid);
 
-	if (!sender_task || !sender_task->omsg ||
+	if (!sender_task ||
 	    !IS_REQUEST(sender_task->tlv_type) ||
 	    sender_task->tlv_type == 0xbeef ||
-	    sender_task->tlv_type == 0xdead)
+	    sender_task->tlv_type == 0xdead) {
+		ERROR_LOG("sender_task:%p, rdma_hndl:%p\n",
+			  sender_task, rdma_hndl);
 		goto cleanup;
-
-	if (task == sender_task || task->context != sender_task->context)
+	}
+	if (task == sender_task || task->context != sender_task->context) {
+		ERROR_LOG("sender_task:%p, task:%p, task_context:%p, " \
+			  "sender_task_context:%p, rdma_hndl:%p\n",
+			  sender_task, task,
+			  task->context, sender_task->context,
+			  rdma_hndl);
 		goto cleanup;
+	}
 
 	task->sender_task = sender_task;
 	task->tlv_type = tlv_type;
 	return 0;
 
 cleanup:
-	ERROR_LOG("task matching failed. release task:%p\n", task);
+	ERROR_LOG("task matching failed. rdma_hndl:%p, release task:%p\n",
+		  rdma_hndl, task);
 	xio_tasks_pool_put(task);
 	return -1;
 }
@@ -3201,6 +3210,15 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
 			  rdma_hndl->exp_sn, rsp_hdr.sn, rdma_hndl);
 	}
+	if (!sender_task->omsg) {
+		ERROR_LOG("null sender_task->omsg. Releasing incoming response. rdma_hndl:%p\n",
+			  sender_task->tlv_type,
+			  rdma_hndl);
+		xio_tasks_pool_put(sender_task);
+		xio_tasks_pool_put(task);
+		return 0;
+	}
+
 	/* read the sn */
 	rdma_task->sn = rsp_hdr.sn;
 	task->sender_task = sender_task;
