@@ -84,7 +84,6 @@ struct xio_session {
 	HT_ENTRY(xio_session, xio_key_int32) sessions_htbl;
 
 	struct xio_msg			*setup_req;
-	struct xio_msg			*client_setup_req;
 	struct xio_observer		observer;
 	struct xio_observer		ctx_observer;
 
@@ -249,6 +248,8 @@ void xio_session_notify_reconnected(
 
 void xio_session_init_teardown(struct xio_session *session,
 			       struct xio_context *ctx, int close_reason);
+
+void xio_session_on_setup_request_flush(struct xio_task *task);
 
 #endif /*XIO_SESSION_H */
 

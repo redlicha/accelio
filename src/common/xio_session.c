@@ -1846,7 +1846,6 @@ void xio_session_post_destroy(void *_session)
 	kfree(session->portals_array);
 	kfree(session->hs_private_data);
 	kfree(session->uri);
-	kfree(session->client_setup_req);
 	XIO_OBSERVER_DESTROY(&session->observer);
 	XIO_OBSERVER_DESTROY(&session->ctx_observer);
 

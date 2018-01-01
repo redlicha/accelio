@@ -143,7 +143,6 @@ struct xio_msg *xio_session_write_setup_req(struct xio_session *session)
 		kfree(msg);
 		return NULL;
 	}
-	session->client_setup_req = msg;
 
 	return msg;
 }
@@ -312,7 +311,6 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 	/* free the outgoing message */
 	kfree(task->sender_task->omsg);
 	task->sender_task->omsg = NULL;
-	session->client_setup_req = NULL;
 
 	/* read the message */
 	ptr = (uint8_t *)msg->in.header.iov_base;
@@ -1103,3 +1101,11 @@ cleanup2:
 	return NULL;
 }
 EXPORT_SYMBOL(xio_connect);
+
+void xio_session_on_setup_request_flush(struct xio_task *task)
+{
+	if (task->tlv_type == XIO_SESSION_SETUP_REQ) {
+		kfree(task->omsg);
+		task->omsg = NULL;
+	}
+}
