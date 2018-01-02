@@ -653,8 +653,6 @@ int xio_connection_flush_tasks(struct xio_connection *connection)
 				xio_tasks_pool_put(ptask->sender_task);
 				ptask->sender_task = NULL;
 			}
-			if (ptask->tlv_type == XIO_SESSION_SETUP_REQ)
-				xio_session_on_setup_request_flush(ptask);
 			xio_tasks_pool_put(ptask);
 		}
 	}

@@ -1189,7 +1189,10 @@ int xio_on_nexus_disconnected(struct xio_session *session,
 			xio_connection_disconnected(connection);
 		}
 	}
-
+	if (session->client_setup_req) {
+		kfree(session->client_setup_req);
+		session->client_setup_req = NULL;
+	}
 	return 0;
 }
 
