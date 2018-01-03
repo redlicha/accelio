@@ -143,7 +143,6 @@ int xio_rdma_get_inline_buffer_size(void)
 	int inline_buf_sz = xio_rdma_get_max_header_size() +
 			    g_options.max_inline_xio_hdr +
 			    g_options.max_inline_xio_data;
-	inline_buf_sz = ALIGN(inline_buf_sz, 1024);
 
 	return inline_buf_sz;
 }
@@ -1662,7 +1661,7 @@ static int xio_rdma_primary_pool_slab_pre_create(
 	struct xio_rdma_tasks_slab *rdma_slab =
 		(struct xio_rdma_tasks_slab *)slab_dd_data;
 	size_t inline_buf_sz = xio_rdma_get_inline_buffer_size();
-	size_t alloc_sz = ALIGN((alloc_nr * inline_buf_sz), PAGE_SIZE);
+	size_t alloc_sz = alloc_nr * inline_buf_sz;
 	int	retval;
 
 	if (alloc_sz == 0) {

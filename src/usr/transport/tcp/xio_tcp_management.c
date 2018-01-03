@@ -114,9 +114,9 @@ int xio_tcp_get_max_header_size(void)
 /*---------------------------------------------------------------------------*/
 int xio_tcp_get_inline_buffer_size(void)
 {
-	int inline_buf_sz = ALIGN(xio_tcp_get_max_header_size() +
-				  g_options.max_inline_xio_hdr +
-				  g_options.max_inline_xio_data, 1024);
+	int inline_buf_sz = xio_tcp_get_max_header_size() +
+			    g_options.max_inline_xio_hdr +
+			    g_options.max_inline_xio_data;
 	return inline_buf_sz;
 }
 
@@ -2054,7 +2054,7 @@ static int xio_tcp_initial_pool_slab_init_task(
 	struct xio_tcp_tasks_slab *tcp_slab =
 		(struct xio_tcp_tasks_slab *)slab_dd_data;
 	void *buf = sum_to_ptr(tcp_slab->data_pool,
-			       tid * ALIGN(tcp_slab->buf_size, PAGE_SIZE));
+			       tid * tcp_slab->buf_size);
 	char *ptr;
 
 	XIO_TO_TCP_TASK(task, tcp_task);
@@ -2175,7 +2175,7 @@ static int xio_tcp_primary_pool_slab_pre_create(
 	struct xio_tcp_tasks_slab *tcp_slab =
 		(struct xio_tcp_tasks_slab *)slab_dd_data;
 	size_t inline_buf_sz = xio_tcp_get_inline_buffer_size();
-	size_t	alloc_sz = alloc_nr * ALIGN(inline_buf_sz, PAGE_SIZE);
+	size_t alloc_sz = alloc_nr * inline_buf_sz;
 	int	retval;
 
 	tcp_slab->buf_size = inline_buf_sz;
