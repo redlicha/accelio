@@ -676,8 +676,10 @@ static int xio_on_req_recv(struct xio_connection *connection,
 	connection->peer_session = hdr.session;
 #endif
 	msg->sn		= hdr.serial_num;
-	msg->flags	= 0;
+	msg->flags	= task->imsg_flags;
 	msg->next	= NULL;
+
+	xio_clear_internal_flags(&msg->flags);
 
 	if (test_bits(XIO_MSG_FLAG_LAST_IN_BATCH, &task->imsg_flags))
 		set_bits(XIO_MSG_FLAG_LAST_IN_BATCH, &msg->flags);

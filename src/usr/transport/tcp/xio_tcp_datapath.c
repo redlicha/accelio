@@ -533,8 +533,9 @@ static int xio_tcp_prep_req_header(struct xio_tcp_transport *tcp_hndl,
 	req_hdr.ltid		= task->ltid;
 	req_hdr.in_tcp_op	= tcp_task->in_tcp_op;
 	req_hdr.out_tcp_op	= tcp_task->out_tcp_op;
-	req_hdr.flags		= 0;
+	req_hdr.flags		= task->omsg_flags;
 
+	xio_clear_internal_flags(&req_hdr.flags);
 	if (test_bits(XIO_MSG_FLAG_PEER_WRITE_RSP, &task->omsg_flags))
 		set_bits(XIO_MSG_FLAG_PEER_WRITE_RSP, &req_hdr.flags);
 	else if (test_bits(XIO_MSG_FLAG_LAST_IN_BATCH, &task->omsg_flags))
@@ -1566,12 +1567,15 @@ static int xio_tcp_prep_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	rsp_hdr.rtid            = task->rtid;
 	rsp_hdr.ltid		= task->ltid;
 	rsp_hdr.out_tcp_op	= tcp_task->out_tcp_op;
-	rsp_hdr.flags		= XIO_HEADER_FLAG_NONE;
+	rsp_hdr.flags		= task->omsg_flags;
 	rsp_hdr.out_num_sge	= tcp_task->rsp_out_num_sge;
 	rsp_hdr.ulp_hdr_len	= ulp_hdr_len;
 	rsp_hdr.ulp_pad_len	= ulp_pad_len;
 	rsp_hdr.ulp_imm_len	= ulp_imm_len;
 	rsp_hdr.status		= status;
+
+	xio_clear_internal_flags(&rsp_hdr.flags);
+
 	if (xio_tcp_write_rsp_header(tcp_hndl, task, &rsp_hdr) != 0)
 		goto cleanup;
 

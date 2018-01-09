@@ -105,6 +105,13 @@ enum xio_msg_flags_ex {
 	(((rq)->flags & XIO_MSG_FLAG_EX_RECEIPT_LAST) == \
 			XIO_MSG_FLAG_EX_RECEIPT_LAST)
 
+#define xio_clear_internal_flags(flag) \
+	((*(flag)) &= ~(XIO_MSG_FLAG_IMM_SEND_COMP | \
+			XIO_MSG_FLAG_PEER_READ_REQ  | \
+			XIO_MSG_FLAG_PEER_WRITE_RSP | \
+			XIO_MSG_FLAG_REQUEST_READ_RECEIPT | \
+			XIO_MSG_FLAG_LAST_IN_BATCH))
+
 /**
  *  TLV types
  */
