@@ -1660,6 +1660,13 @@ int xio_release_response(struct xio_msg *msg)
 		}
 
 		connection = task->connection;
+		if (unlikely(!connection)) {
+			ERROR_LOG("%s failed. response release after " \
+				  "connection destroy is forbidden\n", 
+				  __func__);
+			xio_set_error(EINVAL);
+			return -1;
+		}
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
