@@ -481,12 +481,14 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 	int			throttle = 0;
 #endif
 
+#if  0
 	list_for_each_entry(tcq, &dev->cq_list, cq_list_entry) {
 		if (tcq->ctx == ctx) {
 			kref_get(&tcq->kref);
 			return tcq;
 		}
 	}
+#endif
 	tcq = (struct xio_cq *)ucalloc(1, sizeof(struct xio_cq));
 	if (!tcq) {
 		xio_set_error(ENOMEM);
@@ -2737,6 +2739,7 @@ static struct xio_cm_channel *xio_cm_channel_get(struct xio_context *ctx)
 	struct xio_cm_channel	*channel;
 	int			retval;
 
+#if 0
 	pthread_rwlock_rdlock(&cm_lock);
 	list_for_each_entry(channel, &cm_list, channels_list_entry) {
 		if (channel->ctx == ctx) {
@@ -2746,7 +2749,7 @@ static struct xio_cm_channel *xio_cm_channel_get(struct xio_context *ctx)
 		}
 	}
 	pthread_rwlock_unlock(&cm_lock);
-
+#endif
 	channel = (struct xio_cm_channel *)
 			ucalloc(1, sizeof(struct xio_cm_channel));
 	if (!channel) {

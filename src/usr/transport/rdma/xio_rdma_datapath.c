@@ -1193,13 +1193,16 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_rsp_comp_handler(
 /* xio_rdma_match_request_to_response					     */
 /*---------------------------------------------------------------------------*/
 int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task, int opcode)
+				       struct xio_task *task, int opcode,
+				       uint32_t qp_num)
 {
 	struct xio_rdma_rsp_hdr	*tmp_rsp_hdr;
 	struct xio_rdma_rsp_hdr	rsp_hdr;
 	int retval;
 	uint64_t tlv_type;
 	struct xio_task *sender_task;
+	bool hdr_read = false;
+	struct xio_rdma_transport *sender_rdma_hndl;
 
 	if (opcode != IBV_WC_RECV)
 		return 0;
@@ -1230,20 +1233,26 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 	tmp_rsp_hdr = (struct xio_rdma_rsp_hdr *)
 				xio_mbuf_get_curr_ptr(&task->mbuf);
 	UNPACK_LVAL(tmp_rsp_hdr, &rsp_hdr, rtid);
+	UNPACK_SVAL(tmp_rsp_hdr, &rsp_hdr, sn);
+	UNPACK_SVAL(tmp_rsp_hdr, &rsp_hdr, credits);
 
+	hdr_read = true;
 	/* find the sender task */
 	sender_task =
 		xio_rdma_primary_task_lookup(rdma_hndl, rsp_hdr.rtid);
 
-	if (!sender_task ||
-	    !IS_REQUEST(sender_task->tlv_type) ||
-	    sender_task->tlv_type == 0xbeef ||
-	    sender_task->tlv_type == 0xdead) {
-		ERROR_LOG("sender_task:%p, rdma_hndl:%p\n",
-			  sender_task, rdma_hndl);
+	if (!sender_task || !sender_task->context) {
+		ERROR_LOG("sender_task:%p", "sender_task_context:%p, rdma_hndl:%p\n",
+			   sender_task, sender_task->context, rdma_hndl);
 		goto cleanup;
 	}
-	if (task == sender_task || task->context != sender_task->context) {
+	sender_rdma_hndl = (struct xio_rdma_transport *)sender_task->context;
+	if (qp_num != sender_rdma_hndl->qp->qp_num) {
+		ERROR_LOG("qp mismatch qp_num:%d, sender_task_qp:%d, rdma_hndl:%p\n",
+			  qp_num, sender_rdma_hndl->qp->qp_num, rdma_hndl);
+		goto cleanup;
+	}
+	if (task == sender_task ||  task->context != sender_task->context) {
 		ERROR_LOG("sender_task:%p, task:%p, task_context:%p, " \
 			  "sender_task_context:%p, rdma_hndl:%p\n",
 			  sender_task, task,
@@ -1251,7 +1260,19 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 			  rdma_hndl);
 		goto cleanup;
 	}
-
+	if (rdma_hndl->exp_sn != rsp_hdr.sn) {
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
+		          rdma_hndl->exp_sn, rsp_hdr.sn, rdma_hndl);
+		goto cleanup;
+	}
+	if (!IS_REQUEST(sender_task->tlv_type) ||
+			sender_task->tlv_type == 0xbeef ||
+			sender_task->tlv_type == 0xdead) {
+		ERROR_LOG("invalid sender task tlv_type. sender_task:%p, \
+			   sender_task->tlv_type:%p, rdma_hndl:%p\n",
+			   sender_task, sender_task->tlv_type, rdma_hndl);
+		goto cleanup;
+	}
 	task->sender_task = sender_task;
 	task->tlv_type = tlv_type;
 	return 0;
@@ -1259,6 +1280,28 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 cleanup:
 	ERROR_LOG("task matching failed. rdma_hndl:%p, release task:%p\n",
 		  rdma_hndl, task);
+	if (hdr_read && rdma_hndl->exp_sn == rsp_hdr.sn) {
+		rdma_hndl->exp_sn++;
+		rdma_hndl->ack_sn = rsp_hdr.sn;
+		rdma_hndl->peer_credits += rsp_hdr.credits;
+	}
+	if (rdma_hndl->state == XIO_TRANSPORT_STATE_CONNECTED &&
+	    !rdma_hndl->rdma_disconnect_called) {
+		rdma_hndl->disconnect_nr = 0;
+		rdma_hndl->ignore_timewait = 1;
+		xio_ctx_del_delayed_work(
+				rdma_hndl->base.ctx,
+				&rdma_hndl->disconnect_timeout_work);
+		xio_set_disconnect_timer(rdma_hndl);
+		rdma_hndl->rdma_disconnect_called = 1;
+		rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
+		ERROR_LOG("%s calling rdma_disconnect. rdma_hndl:%p\n",
+			  __func__, rdma_hndl);
+		retval = rdma_disconnect(rdma_hndl->cm_id);
+		if (retval)
+			ERROR_LOG("rdma_hndl:%p rdma_disconnect" \
+					"failed, %m\n", rdma_hndl);
+	}
 	xio_tasks_pool_put(task);
 	return -1;
 }
@@ -1290,7 +1333,7 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 		     rdma_hndl->state == XIO_TRANSPORT_STATE_CLOSED ||
 		     rdma_hndl->state == XIO_TRANSPORT_STATE_ERROR ||
 		     rdma_hndl->state == XIO_TRANSPORT_STATE_DESTROYED)) {
-		ERROR_LOG("receive message while transport in error state. task is flushed. " \
+		ERROR_LOG("receive message while transport is not connected. task is flushed. " \
 			  "task:%p, opcode:%s, rdma_hndl:%p, state:%s\n",
 			  task, ibv_wc_opcode_str(wc->opcode), rdma_hndl,
 			  xio_transport_state_str(rdma_hndl->state));
@@ -1306,7 +1349,7 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 	switch (opcode) {
 	case IBV_WC_RECV:
 		retval = xio_rdma_match_request_to_response(rdma_hndl,
-							    task, opcode);
+							    task, opcode, wc->qp_num);
 		if (retval) {
 			ERROR_LOG("task matching failed rdma_hndl:%p, " \
 				  "peer_rdma_hndl:%p, task:%p\n",
