@@ -1192,40 +1192,15 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_rsp_comp_handler(
 /*---------------------------------------------------------------------------*/
 /* xio_rdma_match_request_to_response					     */
 /*---------------------------------------------------------------------------*/
-int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task, int opcode,
-				       uint32_t qp_num)
+static int xio_rdma_match_request_to_response(
+		struct xio_rdma_transport *rdma_hndl,
+		struct xio_task *task, uint32_t qp_num)
 {
 	struct xio_rdma_rsp_hdr	*tmp_rsp_hdr;
 	struct xio_rdma_rsp_hdr	rsp_hdr;
-	int retval;
-	uint64_t tlv_type;
 	struct xio_task *sender_task;
-	bool hdr_read = false;
 	struct xio_rdma_transport *sender_rdma_hndl;
 
-	if (opcode != IBV_WC_RECV)
-		return 0;
-
-	xio_mbuf_reset(&task->mbuf);
-	retval = xio_mbuf_read_first_tlv(&task->mbuf);
-	if (retval)
-		goto cleanup;
-
-	tlv_type = xio_mbuf_tlv_type(&task->mbuf);
-	switch (tlv_type) {
-		case XIO_RDMA_READ_ACK:
-		case XIO_NEXUS_SETUP_REQ:
-		case XIO_NEXUS_SETUP_RSP:
-		case XIO_CANCEL_REQ:
-		case XIO_CANCEL_RSP:
-			return 0;
-		break;
-	default:
-		if (!IS_RESPONSE(tlv_type))
-			return 0;
-		break;
-	}
 
 	memset(&rsp_hdr, 0, sizeof(rsp_hdr));
 	/* point to transport header */
@@ -1236,7 +1211,6 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 	UNPACK_SVAL(tmp_rsp_hdr, &rsp_hdr, sn);
 	UNPACK_SVAL(tmp_rsp_hdr, &rsp_hdr, credits);
 
-	hdr_read = true;
 	/* find the sender task */
 	sender_task =
 		xio_rdma_primary_task_lookup(rdma_hndl, rsp_hdr.rtid);
@@ -1274,17 +1248,101 @@ int xio_rdma_match_request_to_response(struct xio_rdma_transport *rdma_hndl,
 		goto cleanup;
 	}
 	task->sender_task = sender_task;
-	task->tlv_type = tlv_type;
 	return 0;
 
 cleanup:
-	ERROR_LOG("task matching failed. rdma_hndl:%p, release task:%p\n",
+	ERROR_LOG("%s failed. rdma_hndl:%p, task:%p\n", __func__,
 		  rdma_hndl, task);
-	if (hdr_read && rdma_hndl->exp_sn == rsp_hdr.sn) {
+	if (rdma_hndl->exp_sn == rsp_hdr.sn) {
 		rdma_hndl->exp_sn++;
 		rdma_hndl->ack_sn = rsp_hdr.sn;
 		rdma_hndl->peer_credits += rsp_hdr.credits;
 	}
+	return -1;
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_rdma_test_request						     */
+/*---------------------------------------------------------------------------*/
+static int xio_rdma_test_request(
+		struct xio_rdma_transport *rdma_hndl,
+		struct xio_task *task)
+{
+	struct xio_rdma_req_hdr	*tmp_req_hdr;
+	struct xio_rdma_req_hdr	req_hdr;
+
+
+	memset(&req_hdr, 0, sizeof(req_hdr));
+	/* point to transport header */
+	xio_mbuf_set_trans_hdr(&task->mbuf);
+	tmp_req_hdr = (struct xio_rdma_req_hdr *)
+				xio_mbuf_get_curr_ptr(&task->mbuf);
+	UNPACK_SVAL(tmp_req_hdr, &req_hdr, sn);
+	UNPACK_SVAL(tmp_req_hdr, &req_hdr, credits);
+
+	if (rdma_hndl->exp_sn != req_hdr.sn) {
+		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d, rdma_hndl:%p\n",
+		          rdma_hndl->exp_sn, req_hdr.sn, rdma_hndl);
+		goto cleanup;
+	}
+	return 0;
+
+cleanup:
+	ERROR_LOG("%s failed. rdma_hndl:%p, task:%p\n", __func__,
+		  rdma_hndl, task);
+	if (rdma_hndl->exp_sn == req_hdr.sn) {
+		rdma_hndl->exp_sn++;
+		rdma_hndl->ack_sn = req_hdr.sn;
+		rdma_hndl->peer_credits += req_hdr.credits;
+	}
+	return -1;
+}
+
+
+/*---------------------------------------------------------------------------*/
+/* xio_rdma_test_request_and_response					     */
+/*---------------------------------------------------------------------------*/
+int xio_rdma_test_request_and_response(struct xio_rdma_transport *rdma_hndl,
+				       struct xio_task *task, int opcode,
+				       uint32_t qp_num)
+{
+	int retval;
+	uint64_t tlv_type;
+
+	if (opcode != IBV_WC_RECV)
+		return 0;
+
+	xio_mbuf_reset(&task->mbuf);
+	retval = xio_mbuf_read_first_tlv(&task->mbuf);
+	if (retval)
+		goto cleanup;
+
+	tlv_type = xio_mbuf_tlv_type(&task->mbuf);
+	switch (tlv_type) {
+		case XIO_RDMA_READ_ACK:
+		case XIO_NEXUS_SETUP_REQ:
+		case XIO_NEXUS_SETUP_RSP:
+		case XIO_CANCEL_REQ:
+		case XIO_CANCEL_RSP:
+			return 0;
+		break;
+	default:
+		if (IS_RESPONSE(tlv_type))
+			retval = xio_rdma_match_request_to_response(rdma_hndl, task, qp_num);
+		else if (IS_REQUEST(tlv_type))
+			retval = xio_rdma_test_request(rdma_hndl, task);
+		else
+			return 0;
+		break;
+	}
+	if (retval)
+		goto cleanup;
+
+	task->tlv_type = tlv_type;
+	return 0;
+
+cleanup:
+	ERROR_LOG("%s failed. rdma_hndl:%p\n", __func__, rdma_hndl);
 	if (rdma_hndl->state == XIO_TRANSPORT_STATE_CONNECTED &&
 	    !rdma_hndl->rdma_disconnect_called) {
 		rdma_hndl->disconnect_nr = 0;
@@ -1348,10 +1406,10 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 
 	switch (opcode) {
 	case IBV_WC_RECV:
-		retval = xio_rdma_match_request_to_response(rdma_hndl,
+		retval = xio_rdma_test_request_and_response(rdma_hndl,
 							    task, opcode, wc->qp_num);
 		if (retval) {
-			ERROR_LOG("task matching failed rdma_hndl:%p, " \
+			ERROR_LOG("task tests failed rdma_hndl:%p, " \
 				  "peer_rdma_hndl:%p, task:%p\n",
 				  rdma_hndl, rdma_hndl->peer_rdma_hndl, task);
 			return;
