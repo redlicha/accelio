@@ -1221,6 +1221,12 @@ static int xio_rdma_match_request_to_response(
 		goto cleanup;
 	}
 	sender_rdma_hndl = (struct xio_rdma_transport *)sender_task->context;
+	if (!sender_rdma_hndl || !sender_rdma_hndl->qp) {
+		ERROR_LOG("sender_rdma_hndl qp does not exist. " \
+			  "sender_rdma_hndl%p, rdma_hndl:%p\n",
+			  sender_rdma_hndl, rdma_hndl);
+		goto cleanup;
+	}
 	if (qp_num != sender_rdma_hndl->qp->qp_num) {
 		ERROR_LOG("qp mismatch qp_num:%d, sender_task_qp:%d, rdma_hndl:%p\n",
 			  qp_num, sender_rdma_hndl->qp->qp_num, rdma_hndl);
