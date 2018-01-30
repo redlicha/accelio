@@ -2541,7 +2541,6 @@ static int xio_tcp_on_recv_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	}
 	if (!xio_transport_is_task_routable(task->sender_task)) {
 		ERROR_LOG("invalid sender task. Releasing incoming response. tcp_hndl:%p\n", tcp_hndl);
-		xio_tasks_pool_put(task->sender_task);
 		xio_tasks_pool_put(task);
 		return 0;
 	}
