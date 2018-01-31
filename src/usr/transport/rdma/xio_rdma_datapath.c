@@ -710,12 +710,11 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 			   wc->slid, wc->sl, wc->dlid_path_bits);
 	}
 	if (!task) {
-		ERROR_LOG("got error with null task. task:%p\n", task);
+		ERROR_LOG("got error with null task\n");
 		return;
 	}
 	if (!rdma_hndl) {
 		ERROR_LOG("got task with null rdma_hndl. task:%p\n", task);
-		xio_tasks_pool_put(task);
 		goto cleanup;
 	}
 	if (task && rdma_task)
@@ -3317,7 +3316,6 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 	}
 	if (!xio_transport_is_task_routable(sender_task)) {
 		ERROR_LOG("invalid sender task. Releasing incoming response. rdma_hndl:%p\n", rdma_hndl);
-		xio_tasks_pool_put(sender_task);
 		xio_tasks_pool_put(task);
 		return 0;
 	}
@@ -3325,7 +3323,6 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		ERROR_LOG("null sender_task->omsg. Releasing incoming response. rdma_hndl:%p\n",
 			  sender_task->tlv_type,
 			  rdma_hndl);
-		xio_tasks_pool_put(sender_task);
 		xio_tasks_pool_put(task);
 		return 0;
 	}
