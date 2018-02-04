@@ -2284,8 +2284,6 @@ static void on_post_disconnected(void *trans_hndl)
 	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
 				 &rdma_hndl->timewait_timeout_work);
 
-	xio_rdma_flush_all_tasks(rdma_hndl);
-
 	if (rdma_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
 		xio_transport_notify_observer(&rdma_hndl->base,
 					      XIO_TRANSPORT_EVENT_DISCONNECTED,
@@ -2327,6 +2325,7 @@ static void on_cm_timewait_exit(void *trans_hndl)
 		rdma_hndl->beacon_sent = 0;
 		kref_put(&rdma_hndl->base.kref, xio_rdma_close_cb);
 	}
+
 	/* now it ok to exit */
 	ref = atomic_read(&rdma_hndl->base.kref.refcount);
 	while (ref--)
