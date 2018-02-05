@@ -192,6 +192,7 @@ PACKED_MEMORY(struct xio_tcp_setup_msg {
 	uint32_t		max_out_iovsz;
 	uint32_t                max_header_len;
 	uint32_t		pad;
+	uint64_t		my_handle;
 });
 
 PACKED_MEMORY(struct xio_tcp_cancel_hdr {
@@ -326,6 +327,7 @@ struct xio_tcp_transport {
 	size_t				membuf_sz;
 
 	struct xio_transport		*transport;
+	void				*peer_tcp_hndl;
 	struct xio_tasks_pool_cls	initial_pool_cls;
 	struct xio_tasks_pool_cls	primary_pool_cls;
 
