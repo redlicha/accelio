@@ -1783,7 +1783,7 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 				tcp_hndl, task,
 				(uint16_t)ulp_hdr_len,
 				(uint16_t)ulp_pad_len, ulp_imm_len,
-				XIO_E_SUCCESS);
+				task->status);
 		if (retval)
 			goto cleanup;
 

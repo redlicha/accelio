@@ -1144,6 +1144,75 @@ send:
 EXPORT_SYMBOL(xio_send_request);
 
 /*---------------------------------------------------------------------------*/
+/* xio_send_single_rsp							     */
+/*---------------------------------------------------------------------------*/
+void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
+{
+	struct xio_msg		*pmsg = msg;
+	struct xio_connection	*connection = task->connection;
+	/* set type for notification */
+	pmsg->type = XIO_MSG_TYPE_RSP;
+	if (unlikely(
+			connection->disconnecting ||
+			(connection->state != XIO_CONNECTION_STATE_ONLINE &&
+			 connection->state != XIO_CONNECTION_STATE_ESTABLISHED &&
+			 connection->state != XIO_CONNECTION_STATE_INIT))) {
+		/* we discard the response as connection is not active
+         * anymore
+         */
+		xio_set_error(XIO_ESHUTDOWN);
+		xio_tasks_pool_put(task);
+
+		xio_session_notify_msg_error(connection, pmsg,
+									 XIO_E_MSG_DISCARDED,
+									 XIO_MSG_DIRECTION_OUT);
+
+		pmsg = pmsg->next;
+		//continue;
+		return;
+	}
+
+	if (task->state != XIO_TASK_STATE_DELIVERED &&
+		task->state != XIO_TASK_STATE_READ) {
+		ERROR_LOG("duplicate response send. request sn:%llu\n",
+				  task->imsg.sn);
+
+		xio_session_notify_msg_error(connection, pmsg,
+									 XIO_E_MSG_INVALID,
+									 XIO_MSG_DIRECTION_OUT);
+		pmsg = pmsg->next;
+		//continue;
+		return;
+	}
+
+	task->state = XIO_TASK_STATE_READ;
+	pmsg->flags |= XIO_MSG_FLAG_EX_RECEIPT_LAST;
+	xio_msg_list_insert_tail(&connection->rsps_msgq, pmsg, pdata);
+
+}
+
+
+/*---------------------------------------------------------------------------*/
+/* xio_send_response_error							     */
+/*---------------------------------------------------------------------------*/
+int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
+{
+	struct xio_task		*task;
+
+	DEBUG_LOG("xio_send_response_error. status: %s\n", xio_strerror(result));
+	msg->hints = 0;
+	msg->flags = 0;
+	msg->request = msg;
+	task	   = container_of(msg->request, struct xio_task, imsg);
+	task->status = result;
+
+	xio_send_single_rsp(msg, task);
+
+
+    return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_send_response							     */
 /*---------------------------------------------------------------------------*/
 int xio_send_response(struct xio_msg *msg)
@@ -1199,37 +1268,7 @@ int xio_send_response(struct xio_msg *msg)
 
 			goto send;
 		}
-		/* set type for notification */
-		pmsg->type = XIO_MSG_TYPE_RSP;
-		if (unlikely(
-		      connection->disconnecting ||
-		      (connection->state != XIO_CONNECTION_STATE_ONLINE &&
-		       connection->state != XIO_CONNECTION_STATE_ESTABLISHED &&
-		       connection->state != XIO_CONNECTION_STATE_INIT))) {
-			/* we discard the response as connection is not active
-			 * anymore
-			 */
-			xio_set_error(XIO_ESHUTDOWN);
-			xio_tasks_pool_put(task);
 
-			xio_session_notify_msg_error(connection, pmsg,
-						     XIO_E_MSG_DISCARDED,
-						     XIO_MSG_DIRECTION_OUT);
-
-			pmsg = pmsg->next;
-			continue;
-		}
-		if (task->state != XIO_TASK_STATE_DELIVERED &&
-		    task->state != XIO_TASK_STATE_READ) {
-			ERROR_LOG("duplicate response send. request sn:%llu\n",
-				  task->imsg.sn);
-
-			xio_session_notify_msg_error(connection, pmsg,
-						     XIO_E_MSG_INVALID,
-						     XIO_MSG_DIRECTION_OUT);
-			pmsg = pmsg->next;
-			continue;
-		}
 #ifdef XIO_CFLAG_STAT_COUNTERS
 		/* Server latency */
 		xio_stat_add(stats, XIO_STAT_APPDELAY,
@@ -1264,12 +1303,11 @@ int xio_send_response(struct xio_msg *msg)
 		xio_stat_inc(stats, XIO_STAT_TX_MSG);
 		xio_stat_add(stats, XIO_STAT_TX_BYTES, bytes);
 #endif
-		pmsg->flags |= XIO_MSG_FLAG_EX_RECEIPT_LAST;
 		if ((pmsg->request->flags &
 		     XIO_MSG_FLAG_REQUEST_READ_RECEIPT) &&
 		    (task->state == XIO_TASK_STATE_DELIVERED))
 			pmsg->flags |= XIO_MSG_FLAG_EX_RECEIPT_FIRST;
-		task->state = XIO_TASK_STATE_READ;
+
 		if (connection->enable_flow_control) {
 			vmsg		= &pmsg->request->in;
 			sgtbl		= xio_sg_table_get(vmsg);
@@ -1281,8 +1319,8 @@ int xio_send_response(struct xio_msg *msg)
 			connection->credits_msgs++;
 			connection->credits_bytes += bytes;
 		}
-		xio_msg_list_insert_tail(&connection->rsps_msgq, pmsg, pdata);
 
+		xio_send_single_rsp(pmsg, task);
 		pmsg = pmsg->next;
 	}
 

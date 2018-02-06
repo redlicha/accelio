@@ -720,6 +720,7 @@ static int xio_on_req_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+			connection->latest_delivered = msg->sn;
 			connection->ses_ops.on_msg(
 					connection->session, msg,
 					task->last_in_rxq,
@@ -727,7 +728,6 @@ static int xio_on_req_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_lock(connection->ctx);
 #endif
-			connection->latest_delivered = msg->sn;
 		}
 	}
 

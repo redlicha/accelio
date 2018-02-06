@@ -2,6 +2,7 @@ XIO_1.0 {
 	global:
 		xio_release_response;
 		xio_send_response;
+		xio_send_response_error;
 		xio_send_request;
 		xio_send_msg;
 		xio_send_rdma;

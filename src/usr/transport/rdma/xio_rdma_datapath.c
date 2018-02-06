@@ -2399,7 +2399,7 @@ static int xio_rdma_prep_rsp_out_data(
 		retval = xio_rdma_prep_rsp_header(
 				rdma_hndl, task,
 				ulp_hdr_len, ulp_pad_len, ulp_imm_len,
-				XIO_E_SUCCESS);
+				task->status);
 		if (retval)
 			goto cleanup;
 

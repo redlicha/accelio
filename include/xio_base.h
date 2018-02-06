@@ -934,6 +934,19 @@ int xio_send_request(struct xio_connection *conn,
  */
 int xio_send_response(struct xio_msg *rsp);
 
+
+/**
+ * send error response back to requester
+ *
+ * @param[in] msg	Response to send
+ * @param[in] result	Error status to be passed to the requester
+ *
+ * @return 0 on success, or -1 on error.  If an error occurs, call
+ *	    xio_errno function to get the failure reason.
+ */
+int xio_send_response_error(struct xio_msg *msg, enum xio_status result);
+
+
 /**
  * cancel an outstanding asynchronous I/O request
  *
