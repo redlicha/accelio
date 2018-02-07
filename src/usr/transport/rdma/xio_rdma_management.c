@@ -1299,6 +1299,8 @@ static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl)
 	if (!list_empty(&rdma_hndl->rx_list)) {
 		TRACE_LOG("rx_list not empty!\n");
 		xio_transport_flush_task_list(&rdma_hndl->rx_list);
+		/* for task that attached to rx with ref count = 2 */
+		xio_transport_flush_task_list(&rdma_hndl->rx_list);
 	}
 
 	rdma_hndl->kick_rdma_rd_req = 0;
