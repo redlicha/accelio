@@ -128,7 +128,8 @@ enum xio_status {
 	XIO_E_USER_OBJ_NOT_FOUND	= (XIO_BASE_STATUS + 37),
 	XIO_E_PEER_QUEUE_SIZE_MISMATCH  = (XIO_BASE_STATUS + 38),
 	XIO_E_RSP_BUF_SIZE_MISMATCH	= (XIO_BASE_STATUS + 39),
-	XIO_E_LAST_STATUS		= (XIO_BASE_STATUS + 40)
+	XIO_E_INSUFFICIENT_RESOURCES	= (XIO_BASE_STATUS + 40),
+	XIO_E_LAST_STATUS		= (XIO_BASE_STATUS + 41)
 };
 
 /*---------------------------------------------------------------------------*/

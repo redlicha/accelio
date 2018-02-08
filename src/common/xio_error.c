@@ -125,6 +125,8 @@ static const char *xio_gen_status_str(enum xio_status ev)
 		return "Peer receive queue is smaller then message size";
 	case XIO_E_RSP_BUF_SIZE_MISMATCH:
 		return "Response buffer is smaller then actual response";
+	case XIO_E_INSUFFICIENT_RESOURCES:
+		return "Insufficient resources to reply";
 	default:
 		return "Unknown error";
 	};
