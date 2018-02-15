@@ -96,6 +96,7 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 	struct xio_context		*ctx = NULL;
 	struct xio_transport		*transport;
 	int				cpu;
+	size_t				msgpool_grow_nr;
 
 	/* check if user called xio_init() */
 	if (!xio_inited()) {
@@ -160,8 +161,10 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 		ERROR_LOG("context's workqueue create failed. %m\n");
 		goto cleanup;
 	}
+	/* 2 messages per connection should suffice  */
+	msgpool_grow_nr = 2 * ctx->max_conns_per_ctx;
 	ctx->msg_pool = xio_objpool_create(sizeof(struct xio_msg),
-					   MSGPOOL_INIT_NR, MSGPOOL_GROW_NR);
+					   MSGPOOL_INIT_NR, msgpool_grow_nr);
 	if (!ctx->msg_pool) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("context's msg_pool create failed. %m\n");
