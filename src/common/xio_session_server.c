@@ -225,6 +225,8 @@ cleanup1:
 	/* the rx task is returned back to pool */
 	xio_tasks_pool_put(task);
 
+	/* disable connection notification to user */
+	connection->disable_notify = 1;
 	xio_connection_force_disconnect(connection, error_event.reason);
 
 	return 0;

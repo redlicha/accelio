@@ -333,9 +333,10 @@ void xio_session_notify_new_connection(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -364,9 +365,11 @@ void xio_session_notify_connection_established(
 #endif
 		xio_ctx_del_delayed_work(connection->ctx,
 					 &connection->connect_work);
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -395,9 +398,11 @@ void xio_session_notify_connection_rejected(
 #endif
 		xio_ctx_del_delayed_work(connection->ctx,
 					 &connection->connect_work);
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -430,9 +435,11 @@ void xio_session_notify_connection_closed(struct xio_session *session,
 #endif
                 xio_ctx_del_delayed_work(connection->ctx,
 				         &connection->connect_work);
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -468,9 +475,10 @@ void xio_session_notify_connection_disconnected(
 		xio_ctx_del_delayed_work(connection->ctx,
 					 &connection->connect_work);
 
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -500,9 +508,10 @@ void xio_session_notify_connection_refused(struct xio_session *session,
                 xio_ctx_del_delayed_work(connection->ctx,
                                          &connection->connect_work);
 
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -528,9 +537,10 @@ void xio_session_notify_connection_teardown(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -559,10 +569,10 @@ void xio_session_notify_connection_error(struct xio_session *session,
 #endif
                 xio_ctx_del_delayed_work(connection->ctx,
                                          &connection->connect_work);
-
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+						session, &event,
+						session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -588,9 +598,10 @@ void xio_session_notify_reconnecting(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+					session, &event,
+					session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
@@ -616,9 +627,10 @@ void xio_session_notify_reconnected(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
-		session->ses_ops.on_session_event(
-				session, &event,
-				session->cb_user_context);
+		if (!connection->disable_notify)
+			session->ses_ops.on_session_event(
+						session, &event,
+						session->cb_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
