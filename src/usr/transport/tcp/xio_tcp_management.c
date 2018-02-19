@@ -2523,7 +2523,7 @@ static int xio_tcp_is_valid_in_req(struct xio_msg *msg)
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge)) {
 			if (sge_mr(sgtbl_ops, sge)) {
-				ERROR_LOG("%s failed. i:%d, sge_addr:%d, " \
+				ERROR_LOG("%s failed. i:%d, sge_addr:%p, " \
 					  "sge_length:%zd, mr_found:%d\n",
 					  __func__, i, sge_addr(sgtbl_ops, sge),
 					  sge_mr(sgtbl_ops, sge),
@@ -2532,7 +2532,7 @@ static int xio_tcp_is_valid_in_req(struct xio_msg *msg)
 			}
 		} else {
 			if (sge_length(sgtbl_ops, sge)  == 0) {
-				ERROR_LOG("%s failed. i:%d, sge_addr:%d, " \
+				ERROR_LOG("%s failed. i:%d, sge_addr:%p, " \
 					  "sge_length:%zd, mr_found:%d\n",
 					  __func__, i, sge_addr(sgtbl_ops, sge),
 					  sge_length(sgtbl_ops, sge),
@@ -2603,7 +2603,7 @@ static int xio_tcp_is_valid_out_msg(struct xio_msg *msg)
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge) ||
 		    (sge_length(sgtbl_ops, sge) == 0)) {
-			ERROR_LOG("%s failed. i:%d, sge_addr:%d, sge_length:%zd, mr_found:%d\n",
+			ERROR_LOG("%s failed. i:%d, sge_addr:%p, sge_length:%zd, mr_found:%d\n",
 				   __func__, i, sge_addr(sgtbl_ops, sge), sge_length(sgtbl_ops, sge),
 				   mr_found);
 			return 0;
