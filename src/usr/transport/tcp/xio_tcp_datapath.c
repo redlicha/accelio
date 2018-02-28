@@ -2549,11 +2549,7 @@ static int xio_tcp_on_recv_rsp_header(struct xio_tcp_transport *tcp_hndl,
 		xio_tasks_pool_put(task);
 		return 0;
 	}
-	if (!xio_transport_is_task_routable(task->sender_task)) {
-		ERROR_LOG("invalid sender task. Releasing incoming response. tcp_hndl:%p\n", tcp_hndl);
-		xio_tasks_pool_put(task);
-		return 0;
-	}
+
 	task->rtid       = rsp_hdr.ltid;
 
 	tcp_sender_task = (struct xio_tcp_task *)task->sender_task->dd_data;
@@ -3344,8 +3340,13 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 					xio_tcp_on_recv_req_data(tcp_hndl,
 								 task);
 				} else if (IS_RESPONSE(task->tlv_type)) {
-					retval =
-					xio_tcp_on_recv_rsp_data(tcp_hndl,
+                    			if (!xio_transport_is_task_routable(task->sender_task)) {
+                        			ERROR_LOG("invalid sender task. Releasing incoming response. tcp_hndl:%p\n", tcp_hndl);
+                        			xio_tasks_pool_put(task);
+                        			retval = 0;
+                    			} else {
+					  	retval =
+					    		xio_tcp_on_recv_rsp_data(tcp_hndl,
 								 task);
 				} else {
 					ERROR_LOG("unknown message type:0x%x\n",
