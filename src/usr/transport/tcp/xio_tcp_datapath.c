@@ -3348,6 +3348,7 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 					  	retval =
 					    		xio_tcp_on_recv_rsp_data(tcp_hndl,
 								 task);
+                                               }		
 				} else {
 					ERROR_LOG("unknown message type:0x%x\n",
 						  task->tlv_type);
