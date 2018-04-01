@@ -3607,6 +3607,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 		ERROR_LOG("keepalive timeout failed - abort\n");
 		return;
 	}
+	xio_connection_send_ka_req(connection);
 }
 
 /*---------------------------------------------------------------------------*/
