@@ -2333,7 +2333,7 @@ static int xio_rdma_prep_rsp_out_data(
 	void			*sgtbl;
 	void			*sg;
 	struct xio_reg_mem	*write_reg_mem;
-	size_t			retval;
+	size_t			retval, nents;
 	uint64_t		xio_hdr_len;
 	uint64_t		ulp_imm_len;
 	uint16_t		ulp_hdr_len;
@@ -2344,6 +2344,7 @@ static int xio_rdma_prep_rsp_out_data(
 	sgtbl		= xio_sg_table_get(&task->omsg->out);
 	sgtbl_ops	= (struct xio_sg_table_ops *)
 				xio_sg_table_ops_get(task->omsg->out.sgl_type);
+	nents		= tbl_nents(sgtbl_ops, sgtbl);
 
 	/* calculate headers */
 	ulp_hdr_len = task->omsg->out.header.iov_len;
@@ -2352,10 +2353,7 @@ static int xio_rdma_prep_rsp_out_data(
 	xio_hdr_len = xio_mbuf_get_curr_offset(&task->mbuf);
 	xio_hdr_len += sizeof(rsp_hdr);
 	xio_hdr_len += rdma_task->req_in_num_sge * sizeof(struct xio_sge);
-
-	enforce_write_rsp = (task->imsg_flags &&
-			   (task->imsg_flags &
-			    XIO_HEADER_FLAG_PEER_WRITE_RSP));
+	enforce_write_rsp = (nents && (task->imsg_flags & XIO_MSG_FLAG_PEER_WRITE_RSP));
 
 	/* force check on application messages only */
 	if (ulp_hdr_len > rdma_hndl->peer_max_header &&
@@ -2388,12 +2386,10 @@ static int xio_rdma_prep_rsp_out_data(
 	 * insisted on RDMA operation and provided resources.
 	 * One sge is reserved for the header
 	 */
-	if ((ulp_imm_len == 0) ||
-	    (!enforce_write_rsp &&
-	     (tbl_nents(sgtbl_ops, sgtbl) <=
-	      (size_t)(rdma_hndl->max_sge - 1)) &&
-	     ((xio_hdr_len + ulp_hdr_len + ulp_pad_len + ulp_imm_len) <=
-	      (uint64_t)rdma_hndl->max_inline_buf_sz))) {
+	if (!enforce_write_rsp && 
+	    ((ulp_imm_len == 0) || ((xio_hdr_len + ulp_hdr_len + 
+				     ulp_pad_len + ulp_imm_len) <=
+				     (uint64_t)rdma_hndl->max_inline_buf_sz))) {
 		rdma_task->out_ib_op = XIO_IB_SEND;
 		/* write xio header to the buffer */
 		retval = xio_rdma_prep_rsp_header(
@@ -4184,11 +4180,13 @@ static int xio_sched_rdma_wr_req(struct xio_rdma_transport *rdma_hndl,
 	int			tasks_used = 0;
 	unsigned int		i;
 	int			retval = 0;
+	int			enforce_write_rsp;
 
 	sgtbl		= xio_sg_table_get(&task->omsg->out);
 	sgtbl_ops	= (struct xio_sg_table_ops *)
 				xio_sg_table_ops_get(task->omsg->out.sgl_type);
 	sg		= sge_first(sgtbl_ops, sgtbl);
+	enforce_write_rsp = !!(task->imsg_flags & XIO_MSG_FLAG_PEER_WRITE_RSP);
 
 	/* user did not provided mr */
 	if (!sge_mr(sgtbl_ops, sg)) {
@@ -4243,9 +4241,34 @@ static int xio_sched_rdma_wr_req(struct xio_rdma_transport *rdma_hndl,
 	}
 	lsg_list_len = tbl_nents(sgtbl_ops, sgtbl);
 
-	for (i = 0;  i < rdma_task->req_in_num_sge; i++)
-		rlen += rdma_task->req_in_sge[i].length;
-
+	if (enforce_write_rsp) {
+		if (rdma_task->req_in_num_sge < lsg_list_len) {
+			ERROR_LOG("peer provided too small iovec rlen:%d, llen:%d\n", 
+					rdma_task->req_in_num_sge, lsg_list_len);
+			ERROR_LOG("rdma write is ignored\n");
+			task->status = XIO_E_REM_USER_BUF_OVERFLOW;
+			goto cleanup;
+		}
+		/* override remote length so all items will be arranged in
+		 * one by one map */
+		for_each_sge(sgtbl, sgtbl_ops, sg, i) {
+			if (rdma_task->req_in_sge[i].length >= sge_length(sgtbl_ops, sg)) {
+				rdma_task->req_in_sge[i].length = sge_length(sgtbl_ops, sg);
+				rlen += rdma_task->req_in_sge[i].length;
+			} else {
+				ERROR_LOG("peer provided too small iovec [%d] - " \
+						"peer_len:%zd > local_len:%zd\n", i,
+						rdma_task->req_in_sge[i].length,
+						sge_length(sgtbl_ops, sg));
+				ERROR_LOG("tcp write is ignored\n");
+				task->status = EINVAL;
+				goto cleanup;
+			}
+		}
+	} else {
+		for (i = 0;  i < rdma_task->req_in_num_sge; i++)
+			rlen += rdma_task->req_in_sge[i].length;
+	}
 	if (rlen  < llen) {
 		ERROR_LOG("peer provided too small iovec\n");
 		ERROR_LOG("rdma write is ignored\n");
