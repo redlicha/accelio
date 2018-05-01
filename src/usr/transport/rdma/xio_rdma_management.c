@@ -3692,6 +3692,8 @@ static int xio_rdma_is_valid_in_req(struct xio_msg *msg)
 	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
+		if (i == (uint32_t)nents)
+			break;
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge)) {
@@ -3767,6 +3769,8 @@ static int xio_rdma_is_valid_out_msg(struct xio_msg *msg)
 	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
+		if (i == (uint32_t)nents)
+			break;
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge) ||
@@ -3782,7 +3786,7 @@ static int xio_rdma_is_valid_out_msg(struct xio_msg *msg)
 
 	if (mr_found != nents && mr_found){
 		ERROR_LOG(
-			"not all entries has mr (mr_found=%d, nents=%zu)\n",
+			"not all entries has mr (mr_found=%d, nents=%d)\n",
 			mr_found, nents);
 		return 0;
 	}
