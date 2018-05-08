@@ -2469,6 +2469,8 @@ static inline void xio_disconnect_timeout_handler(void *rdma_handle)
 				(struct xio_rdma_transport *)rdma_handle;
 
 	WARN_LOG("rdma_disconnect timedout. rdma_hndl:%p\n", rdma_hndl);
+		
+	rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 	
 	on_cm_disconnected(NULL, (struct xio_rdma_transport *)rdma_hndl);
 
@@ -3692,8 +3694,6 @@ static int xio_rdma_is_valid_in_req(struct xio_msg *msg)
 	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
-		if (i == (uint32_t)nents)
-			break;
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge)) {
@@ -3769,8 +3769,6 @@ static int xio_rdma_is_valid_out_msg(struct xio_msg *msg)
 	}
 
 	for_each_sge(sgtbl, sgtbl_ops, sge, i) {
-		if (i == (uint32_t)nents)
-			break;
 		if (sge_mr(sgtbl_ops, sge))
 			mr_found++;
 		if (!sge_addr(sgtbl_ops, sge) ||
