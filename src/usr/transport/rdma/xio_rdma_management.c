@@ -2473,11 +2473,10 @@ static inline void xio_disconnect_timeout_handler(void *rdma_handle)
 	rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 	
 	on_cm_disconnected(NULL, (struct xio_rdma_transport *)rdma_hndl);
-
 	xio_ctx_del_delayed_work(
 			rdma_hndl->base.ctx,
 			&rdma_hndl->timewait_timeout_work);
-	xio_set_timewait_timer(rdma_hndl);
+	on_cm_timewait_exit((struct xio_rdma_transport *)rdma_hndl);
 }
 
 /*---------------------------------------------------------------------------*/
