@@ -50,6 +50,7 @@ extern struct xio_rdma_options	rdma_options;
 extern struct list_head		dev_list;
 extern spinlock_t		dev_list_lock;
 
+#define XIO_CONNECT_TIMEOUT		30000   /* 30 seconds */
 #define XIO_DISCONNECT_TIMEOUT		10000   /* 10 seconds */
 #define XIO_TIMEWAIT_EXIT_TIMEOUT	60000   /* 1 minute */
 #define XIO_TIMEWAIT_EXIT_FAST_TIMEOUT	0       /* 0 milliseconds */
@@ -492,6 +493,7 @@ struct xio_rdma_transport {
 	xio_delayed_work_handle_t	timewait_timeout_work;
 	xio_delayed_work_handle_t	addr_change_work;
 	xio_delayed_work_handle_t	disconnect_timeout_work;
+	xio_delayed_work_handle_t	connect_timeout_work;
 	struct ibv_send_wr		beacon;
 	struct xio_task			beacon_task;
 	uint32_t			trans_attr_mask;

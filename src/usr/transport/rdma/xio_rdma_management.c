@@ -115,6 +115,8 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_hndl);
 static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl);
 static void xio_device_release(struct xio_device *dev);
 static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog);
+static void on_cm_error(struct rdma_cm_event *ev,
+			struct xio_rdma_transport *rdma_hndl);
 static void  on_cm_disconnected(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl);
 static void on_cm_timewait_exit(void *trans_hndl);
@@ -1982,6 +1984,9 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
 				 &rdma_hndl->disconnect_timeout_work);
 
+	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
+				 &rdma_hndl->connect_timeout_work);
+
 	xio_context_disable_event(&rdma_hndl->timewait_exit_event);
 
 	xio_context_disable_event(&rdma_hndl->close_event);
@@ -2022,6 +2027,43 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	ufree(rdma_hndl);
 
 	DEBUG_LOG("%s - end. rdma_hndl:%p\n", __func__, rdma_hndl);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_connect_timeout_handler						     */
+/*---------------------------------------------------------------------------*/
+static inline void xio_connect_timeout_handler(void *rdma_handle)
+{
+	struct xio_rdma_transport *rdma_hndl = 
+				(struct xio_rdma_transport *)rdma_handle;
+	struct rdma_cm_event ev = {
+		.event =  RDMA_CM_EVENT_UNREACHABLE,
+		.status = ETIMEDOUT
+	};
+	on_cm_error(&ev, rdma_hndl);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_set_connect_timer						     */
+/*---------------------------------------------------------------------------*/
+void xio_set_connect_timer(struct xio_rdma_transport *rdma_hndl)
+{
+	int retval;
+	int timeout;
+
+	/* from context shutdown */
+	timeout = XIO_CONNECT_TIMEOUT;
+
+	/* trigger the timer */
+	retval = xio_ctx_add_delayed_work(
+				rdma_hndl->base.ctx,
+				timeout, rdma_hndl,
+				xio_connect_timeout_handler,
+				&rdma_hndl->connect_timeout_work);
+	if (retval != 0) {
+		ERROR_LOG("xio_ctx_timer_add_delayed_work failed.\n");
+		return;
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2117,6 +2159,7 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 		rdma_hndl->tcq->dev->device_attr.max_qp_init_rd_atom;
 
 	/* connect to peer */
+	xio_set_connect_timer(rdma_hndl);
 	retval = rdma_connect(rdma_hndl->cm_id, &cm_params);
 	if (retval != 0) {
 		xio_set_error(ENOMEM);
@@ -2228,6 +2271,9 @@ static void  on_cm_refused(struct rdma_cm_event *ev,
 		  rdma_hndl, xio_cm_rej_reason_str(ev->status),
 		  xio_transport_state_str(rdma_hndl->state));
 
+	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
+				 &rdma_hndl->connect_timeout_work);
+
 	/* we get CM_ESTABLISHED and afterward we get cm_refused. It looks like
 	 * cm state machine error.
 	 */
@@ -2255,6 +2301,9 @@ static void  on_cm_established(struct rdma_cm_event *ev,
 	memcpy(&rdma_hndl->base.local_addr,
 	       &rdma_hndl->cm_id->route.addr.src_storage,
 	       sizeof(rdma_hndl->base.local_addr));
+
+	xio_ctx_del_delayed_work(rdma_hndl->base.ctx,
+				 &rdma_hndl->connect_timeout_work);
 
 	rdma_hndl->state = XIO_TRANSPORT_STATE_CONNECTED;
 
