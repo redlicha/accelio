@@ -650,6 +650,7 @@ static int xio_on_req_recv(struct xio_connection *connection,
 	struct xio_vmsg *vmsg = &msg->in;
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
+	enum xio_status		stat;
 
 	sgtbl		= xio_sg_table_get(&msg->in);
 	sgtbl_ops	= (struct xio_sg_table_ops *)
@@ -721,10 +722,10 @@ static int xio_on_req_recv(struct xio_connection *connection,
 
 	/* notify the upper layer */
 	if (task->status) {
-		xio_session_notify_msg_error(connection, msg,
-					     (enum xio_status)task->status,
-					     XIO_MSG_DIRECTION_IN);
+		stat = (enum xio_status)task->status;
 		task->status = 0;
+		xio_session_notify_msg_error(connection, msg,
+					     stat, XIO_MSG_DIRECTION_IN);
 	} else {
 		/* check for repeated msgs */
 		/* repeated msgs will not be delivered to the application since they were already delivered */
