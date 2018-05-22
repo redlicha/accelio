@@ -645,12 +645,12 @@ static int xio_on_req_recv(struct xio_connection *connection,
 {
 	struct xio_session_hdr	hdr;
 	struct xio_msg		*msg = &task->imsg;
+	enum xio_status         stat;
 #ifdef XIO_CFLAG_STAT_COUNTERS
 	struct xio_statistics *stats = &connection->ctx->stats;
 	struct xio_vmsg *vmsg = &msg->in;
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
-	enum xio_status		stat;
 
 	sgtbl		= xio_sg_table_get(&msg->in);
 	sgtbl_ops	= (struct xio_sg_table_ops *)
