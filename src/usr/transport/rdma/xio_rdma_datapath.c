@@ -1400,7 +1400,8 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 			  "task:%p, opcode:%s, rdma_hndl:%p, state:%s\n",
 			  task, ibv_wc_opcode_str(wc->opcode), rdma_hndl,
 			  xio_transport_state_str(rdma_hndl->state));
-		xio_tasks_pool_put(task);
+		if (opcode != IBV_WC_SEND)
+			xio_tasks_pool_put(task);
 		goto cleanup;
 	}
 
