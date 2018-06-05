@@ -18,9 +18,13 @@
 #include <linux/atomic.h>
 
 #ifndef WARN_ON
-#define WARN_ON(a) \
-	if (a)	   \
-	  fprintf(stderr, "[WARN] - %s:%d %m\n", __func__, __LINE__);
+#define WARN_ON(a, _c)									\
+	do {										\
+		if (a)	{								\
+			fprintf(stderr, "[WARN] - %s:%d %m\n", __func__, __LINE__);	\
+			_c								\
+		}									\
+	} while (0);
 #endif
 
 struct kref {
@@ -42,7 +46,7 @@ static inline void kref_init(struct kref *kref)
  */
 static inline void kref_get(struct kref *kref)
 {
-	WARN_ON(!atomic_read(&kref->refcount));
+	WARN_ON(!atomic_read(&kref->refcount), return;);
 	atomic_inc(&kref->refcount);
 }
 
@@ -67,7 +71,7 @@ static inline void kref_get(struct kref *kref)
 static inline int kref_sub(struct kref *kref, unsigned int count,
 	     void (*release)(struct kref *kref))
 {
-	WARN_ON(release == NULL);
+	WARN_ON(release == NULL, return 0;);
 
 	if (atomic_sub_and_test((int) count, &kref->refcount)) {
 		release(kref);

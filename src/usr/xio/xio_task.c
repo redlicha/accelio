@@ -207,7 +207,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	char			*buf;
 
 	/* pool */
-	buf = (char *)ucalloc(sizeof(*q) + params->pool_dd_data_sz, 1);
+	buf = (char *)ucalloc(1, sizeof(*q) + params->pool_dd_data_sz);
 	if (!buf) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("ucalloc failed\n");
