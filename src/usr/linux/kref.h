@@ -99,6 +99,7 @@ static inline int kref_sub(struct kref *kref, unsigned int count,
  */
 static inline int kref_put(struct kref *kref, void (*release)(struct kref *kref))
 {
+	WARN_ON(atomic_read(&kref->refcount) < 1, return 0;); 
 	return kref_sub(kref, 1, release);
 }
 
