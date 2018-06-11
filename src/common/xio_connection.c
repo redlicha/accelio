@@ -827,7 +827,7 @@ static inline int xio_connection_xmit_inl(
 			rc = 1;
 		} else  {
 			xio_msg_list_remove(msgq, msg, pdata);
-			rc = -1;
+			rc = retval;
 		}
 	} else {
 		*retry_cnt = 0;
@@ -1199,6 +1199,8 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 {
 	struct xio_task		*task;
+	if (msg->type != XIO_MSG_TYPE_REQ)
+		ERROR_LOG("xio_send_response_error. sending type %d", msg->type);
 
 	DEBUG_LOG("xio_send_response_error. status: %s\n", xio_strerror(result));
 	msg->hints = 0;
@@ -1208,11 +1210,8 @@ int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 	msg->out.header.iov_len = 0;
 	task	   = container_of(msg->request, struct xio_task, imsg);
 	task->status = result;
-
 	xio_send_single_rsp(msg, task);
-
-
-    return 0;
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*/

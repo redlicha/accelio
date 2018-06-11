@@ -1466,7 +1466,6 @@ static void xio_nexus_disconnected(void *nexus_)
 	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 	TRACE_LOG("nexus state changed to disconnected nexus:%p\n", nexus);
 
-	xio_nexus_flush_tx_queue(nexus);
 	if (!xio_observable_is_empty(&nexus->observable)) {
 		xio_observable_notify_all_observers(
 				&nexus->observable,
@@ -1476,6 +1475,7 @@ static void xio_nexus_disconnected(void *nexus_)
 		xio_context_add_event(nexus->transport_hndl->ctx,
 				      &nexus->destroy_event);
 	}
+	xio_nexus_flush_tx_queue(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
