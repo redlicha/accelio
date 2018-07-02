@@ -2986,10 +2986,14 @@ static void xio_rdma_close(struct xio_transport_base *transport)
 		  xio_transport_state_str(rdma_hndl->state));
 
 	switch (rdma_hndl->state) {
+	case XIO_TRANSPORT_STATE_INIT:
+	case XIO_TRANSPORT_STATE_CONNECTING:
+		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
+		on_cm_timewait_exit(transport);
+		return;
 	case XIO_TRANSPORT_STATE_LISTEN:
 		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
 		break;
-	case XIO_TRANSPORT_STATE_CONNECTING:
 	case XIO_TRANSPORT_STATE_CONNECTED:
 		TRACE_LOG("call to rdma_disconnect. rdma_hndl:%p\n",
 			  rdma_hndl);
