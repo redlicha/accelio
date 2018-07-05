@@ -50,7 +50,8 @@
 		void		*tail;
 		uint64_t	len;
 		uint32_t	type;
-		uint32_t	pad;
+		uint16_t	crc;
+		uint16_t	pad;
 		void		*val;
 	};
 
@@ -83,6 +84,8 @@ struct xio_mbuf {
 #define xio_mbuf_tlv_val_ptr(mbuf)	((mbuf)->tlv.val)
 
 #define xio_mbuf_tlv_type(mbuf)		((mbuf)->tlv.type)
+
+#define xio_mbuf_tlv_crc(mbuf)		((mbuf)->tlv.crc)
 
 #define xio_mbuf_data_length(mbuf)	((mbuf)->buf.datalen)
 
@@ -183,7 +186,7 @@ static inline int xio_mbuf_read_first_tlv(struct xio_mbuf *mbuf)
 
 	tlv->head = mbuf->buf.head;
 
-	len = xio_read_tlv(&tlv->type, &tlv->len,
+	len = xio_read_tlv(&tlv->type, &tlv->len, &tlv->crc,
 			   &tlv->val, (uint8_t *)tlv->head);
 	if (len == -1 || (sum_to_ptr(tlv->head, len) >  mbuf->buf.tail)) {
 		ERROR_LOG("xio_mbuf_first_read_tlv failed. tlv.head:%p, " \
@@ -205,7 +208,7 @@ static inline int xio_mbuf_read_next_tlv(struct xio_mbuf *mbuf)
 
 	mbuf->tlv.head	  = mbuf->tlv.tail;
 
-	len = xio_read_tlv(&mbuf->tlv.type, &mbuf->tlv.len,
+	len = xio_read_tlv(&mbuf->tlv.type, &mbuf->tlv.len, &mbuf->tlv.crc,
 			   &mbuf->tlv.val, (uint8_t *)mbuf->tlv.head);
 	if (len == -1 || (sum_to_ptr(mbuf->tlv.head, len) >  mbuf->buf.tail)) {
 		ERROR_LOG("xio_mbuf_next_read_tlv failed. tlv.head:%p, " \
@@ -223,14 +226,15 @@ static inline int xio_mbuf_read_next_tlv(struct xio_mbuf *mbuf)
 /* xio_mbuf_write_tlv							     */
 /*---------------------------------------------------------------------------*/
 static inline int xio_mbuf_write_tlv(struct xio_mbuf *mbuf, uint32_t type,
-				     uint16_t len)
+				     uint16_t len, uint16_t crc)
 {
 	int retval;
 
 	mbuf->tlv.type = type;
 	mbuf->tlv.len = len;
+	mbuf->tlv.crc = crc;
 
-	retval = xio_write_tlv(mbuf->tlv.type, mbuf->tlv.len,
+	retval = xio_write_tlv(mbuf->tlv.type, mbuf->tlv.len, mbuf->tlv.crc,
 			       (uint8_t *)mbuf->tlv.head);
 	if (retval == -1 || (sum_to_ptr(mbuf->tlv.head, retval) >
 	    mbuf->buf.tail)) {

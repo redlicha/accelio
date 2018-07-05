@@ -115,7 +115,8 @@ struct xio_sg_iovptr {
 struct xio_vmsg {
 	struct xio_iovec		header;	    /**< header's io vector  */
 	enum xio_sgl_type		sgl_type;   /**< sg list type enum   */
-	int				pad;	    /**< padding	     */
+	uint16_t			crc;	    /**< crc		     */
+	uint16_t			pad;	    /**< padding	     */
 	/**< union for different scatter gather representations		     */
 	union {
 		struct xio_sg_table	data_tbl;   /**< data table	     */

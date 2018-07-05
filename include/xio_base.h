@@ -129,7 +129,9 @@ enum xio_status {
 	XIO_E_PEER_QUEUE_SIZE_MISMATCH  = (XIO_BASE_STATUS + 38),
 	XIO_E_RSP_BUF_SIZE_MISMATCH	= (XIO_BASE_STATUS + 39),
 	XIO_E_INSUFFICIENT_RESOURCES	= (XIO_BASE_STATUS + 40),
-	XIO_E_LAST_STATUS		= (XIO_BASE_STATUS + 41)
+	XIO_E_CRC_REQ_ERROR		= (XIO_BASE_STATUS + 41),
+	XIO_E_CRC_RSP_ERROR		= (XIO_BASE_STATUS + 42),
+	XIO_E_LAST_STATUS		= (XIO_BASE_STATUS + 43)
 };
 
 /*---------------------------------------------------------------------------*/
@@ -804,7 +806,9 @@ struct xio_connection_params {
 						/**< then 0 if 0 - auto count */
 	uint8_t			enable_tos;	/**< explicitly enable tos    */
 	uint8_t			tos;		/**< type of service RFC 2474 */
-	uint16_t		pad[3];
+	uint8_t			enable_crc;	/**< crc checksum on message */
+	uint8_t			pad;
+	uint16_t		pad2[2];
 
         /**< connect timeout in seconds */
 	uint16_t		connect_timeout_secs;

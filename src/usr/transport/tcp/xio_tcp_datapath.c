@@ -247,7 +247,7 @@ static int xio_tcp_send_setup_req(struct xio_tcp_transport *tcp_hndl,
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
 		return  -1;
 
 	TRACE_LOG("tcp send setup request\n");
@@ -293,7 +293,7 @@ static int xio_tcp_send_setup_rsp(struct xio_tcp_transport *tcp_hndl,
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
 		return  -1;
 
 	TRACE_LOG("tcp send setup response\n");
@@ -1451,6 +1451,7 @@ static int xio_tcp_send_req(struct xio_tcp_transport *tcp_hndl,
 	XIO_TO_TCP_TASK(task, tcp_task);
 	size_t			retval;
 	size_t			tlv_len;
+	uint16_t		crc;
 
 	/* prepare buffer for response  */
 	retval = xio_tcp_prep_req_in_data(tcp_hndl, task);
@@ -1468,9 +1469,10 @@ static int xio_tcp_send_req(struct xio_tcp_transport *tcp_hndl,
 
 	/* set the length */
 	tlv_len = tcp_hndl->sock.ops->set_txd(task);
+	crc = task->omsg ? task->omsg->out.crc : 0;
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, tlv_len) != 0) {
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, tlv_len, crc) != 0) {
 		ERROR_LOG("write tlv failed\n");
 		xio_set_error(EOVERFLOW);
 		return -1;
@@ -1752,6 +1754,7 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	int			tlv_len = 0;
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
+	uint16_t		crc;
 
 	if (task->on_hold) {
 		/* dynamically initialize header */
@@ -1858,9 +1861,10 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 
 	/* set the length */
 	tlv_len = tcp_hndl->sock.ops->set_txd(task);
+	crc = task->omsg ? task->omsg->out.crc : 0;
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, tlv_len) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, tlv_len, crc) != 0)
 		goto cleanup;
 
 	list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
@@ -3157,7 +3161,7 @@ static int xio_tcp_send_cancel(struct xio_tcp_transport *tcp_hndl,
 	tlv_len = tcp_hndl->sock.ops->set_txd(task);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, (uint16_t)tlv_len)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, (uint16_t)tlv_len, 0)
 		!= 0)
 		return  -1;
 

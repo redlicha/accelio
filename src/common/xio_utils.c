@@ -138,13 +138,14 @@ int xio_uri_get_resource(const char *uri, char *resource, int resource_len)
 /*---------------------------------------------------------------------------*/
 /* xio_write_tlv							     */
 /*---------------------------------------------------------------------------*/
-size_t xio_write_tlv(uint32_t type, uint64_t len, uint8_t *buffer)
+size_t xio_write_tlv(uint32_t type, uint64_t len, uint16_t crc, uint8_t *buffer)
 {
 	struct xio_tlv *tlv = (struct xio_tlv *)buffer;
 
 	tlv->magic	= htonl(XIO_MAGIC);
 	tlv->type	= htonl(type);
 	tlv->len	= htonll(len);
+	tlv->crc	= htons(crc);
 
 	return sizeof(struct xio_tlv) + (size_t)len;
 }
@@ -153,7 +154,7 @@ EXPORT_SYMBOL(xio_write_tlv);
 /*---------------------------------------------------------------------------*/
 /* xio_read_tlv								     */
 /*---------------------------------------------------------------------------*/
-size_t xio_read_tlv(uint32_t *type, uint64_t *len, void **value,
+size_t xio_read_tlv(uint32_t *type, uint64_t *len, uint16_t *crc, void **value,
 		    uint8_t *buffer)
 {
 	struct xio_tlv *tlv;
@@ -164,6 +165,7 @@ size_t xio_read_tlv(uint32_t *type, uint64_t *len, void **value,
 
 	*type	= ntohl(tlv->type);
 	*len	= ntohll(tlv->len);
+	*crc	= ntohs(tlv->crc);
 	*value =  buffer + sizeof(struct xio_tlv);
 
 	return sizeof(struct xio_tlv) + (size_t)*len;

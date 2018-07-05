@@ -957,6 +957,8 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 
 		connection  = session->lead_connection;
 
+		connection->enable_crc = cparams->enable_crc;
+
 		/* get transport class routines */
 		session->validators_cls = xio_nexus_get_validators_cls(nexus);
 
@@ -976,6 +978,7 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 				session, ctx,
 				cparams->conn_idx,
 				cparams->conn_user_context);
+		connection->enable_crc = cparams->enable_crc;
 		if (session->state == XIO_SESSION_STATE_REFUSED ||
 		    session->state == XIO_SESSION_STATE_REJECTED) {
 			xio_idr_add_uobj(usr_idr, connection, "xio_connection");
@@ -1018,6 +1021,7 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 				cparams->conn_idx,
 				cparams->conn_user_context);
 
+		connection->enable_crc = cparams->enable_crc;
 		nexus = xio_nexus_open(ctx, portal, &session->observer,
 				       session->session_id,
 				       attr_mask, pattr);
@@ -1082,11 +1086,12 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 	mutex_unlock(&session->lock);
 
 	DEBUG_LOG("xio_connect: session:%p, connection:%p, " \
-		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s\n",
+		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s, crc_enabled:%d\n",
 		  session, connection, ctx,
 		  ((connection) ? connection->nexus : NULL),
 		  session->uri,
-		  cparams->out_addr ? cparams->out_addr : "default");
+		  cparams->out_addr ? cparams->out_addr : "default",
+		  cparams->enable_crc);
 
 	return connection;
 
