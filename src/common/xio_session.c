@@ -1023,6 +1023,8 @@ static int xio_on_rsp_send_comp(
 		struct xio_connection *connection,
 		struct xio_task *task)
 {
+	int internal_error_msg = (task->status == XIO_E_CRC_REQ_ERROR);
+
 	if (connection->is_flushed) {
 		xio_tasks_pool_put(task);
 		goto exit;
@@ -1043,8 +1045,10 @@ static int xio_on_rsp_send_comp(
 		/* send completion notification only to responder to
 		 * release responses
 		 */
+
 		xio_clear_ex_flags(&task->omsg->flags);
-		if (connection->ses_ops.on_msg_send_complete) {
+		if (connection->ses_ops.on_msg_send_complete &&
+		    !internal_error_msg) {
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif

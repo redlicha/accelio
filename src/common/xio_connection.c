@@ -1209,7 +1209,7 @@ int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 
 	DEBUG_LOG("xio_send_response_error. status: %s\n", xio_strerror(result));
 	msg->hints = 0;
-	msg->flags = 0;
+	msg->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
 	msg->request = msg;
 	msg->out.data_tbl.nents = 0;
 	msg->out.header.iov_len = 0;

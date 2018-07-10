@@ -176,13 +176,14 @@ static inline void xio_task_reset(struct xio_task *task)
 	task->state			= XIO_TASK_STATE_INIT;
 	xio_mbuf_reset(&task->mbuf);
 	*/
-	task->sender_task		= NULL;
-	task->tlv_type			= 0xdead;
-	task->omsg			= NULL;
-	task->status			= 0;
-	task->context			= NULL;
-	task->dd_data			= ((char *)task) + 
-						sizeof(struct xio_task);
+	task->sender_task	= NULL;
+	task->tlv_type		= 0xdead;
+	task->omsg		= NULL;
+	task->status		= 0;
+	task->context		= NULL;
+	task->dd_data		= ((char *)task) +  sizeof(struct xio_task);
+	task->imsg.in.crc	= 0;
+	task->imsg.out.crc	= 0;
 
 	if (task->imsg.user_context)
 		task->imsg.user_context	= NULL;
