@@ -193,6 +193,8 @@ int xio_tcp_single_sock_del_ev_handlers(struct xio_tcp_transport *tcp_hndl)
 	if (retval) {
 		ERROR_LOG("tcp_hndl:%p fd=%d del_ev_handler failed, %m\n",
 			  tcp_hndl, tcp_hndl->sock.cfd);
+	} else {
+		tcp_hndl->in_epoll[0] = 0;
 	}
 
 	return retval;
@@ -212,7 +214,9 @@ int xio_tcp_dual_sock_del_ev_handlers(struct xio_tcp_transport *tcp_hndl)
                 if (retval1) {
                         ERROR_LOG("tcp_hndl:%p fd=%d del_ev_handler failed, %m\n",
                                   tcp_hndl, tcp_hndl->sock.cfd);
-                }
+                } else {
+			tcp_hndl->in_epoll[0] = 0;
+		}
         }
 	/* remove from epoll */
         if (tcp_hndl->in_epoll[1]) {
@@ -222,7 +226,9 @@ int xio_tcp_dual_sock_del_ev_handlers(struct xio_tcp_transport *tcp_hndl)
                 if (retval2) {
                         ERROR_LOG("tcp_hndl:%p fd=%d del_ev_handler failed, %m\n",
                                   tcp_hndl, tcp_hndl->sock.dfd);
-                }
+                }  else {
+			tcp_hndl->in_epoll[1] = 0;
+		}
         }
 
 	return retval1 | retval2;
