@@ -2345,8 +2345,7 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 			if (retval) {
 				tcp_task->read_num_reg_mem = i;
 				ERROR_LOG("mempool is empty for %zd bytes\n",
-					  tcp_task->read_reg_mem[i].length);
-
+					  tcp_task->req_out_sge[i].length);
 				task->status = ENOMEM;
 				goto cleanup;
 			}

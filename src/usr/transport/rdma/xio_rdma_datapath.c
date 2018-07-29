@@ -4063,7 +4063,7 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 			if (unlikely(retval)) {
 				rdma_task->read_num_reg_mem = i;
 				ERROR_LOG("mempool is empty for %zd bytes\n",
-					  rdma_task->read_reg_mem[i].length);
+					  rdma_task->req_out_sge[i].length);
 
 				task->status = ENOMEM;
 				goto cleanup;
