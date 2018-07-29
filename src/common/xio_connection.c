@@ -181,7 +181,7 @@ char *xio_connection_state_str(enum xio_connection_state state)
 static inline int xio_is_connection_online(struct xio_connection *connection)
 {
 	    return connection &&
-		   connection->state == XIO_CONNECTION_STATE_ONLINE &&	   
+		   connection->state == XIO_CONNECTION_STATE_ONLINE &&
 		   connection->session &&
 		   connection->session->state == XIO_SESSION_STATE_ONLINE;
 }
@@ -1580,10 +1580,10 @@ int xio_connection_detach_of_tasks(struct xio_connection *connection)
 		return 0;
 
 	pool = connection->ctx->primary_tasks_pool[XIO_PROTO_RDMA];
-	xio_tasks_pool_detach_connection(pool, connection); 
+	xio_tasks_pool_detach_connection(pool, connection);
 
 	pool = connection->ctx->primary_tasks_pool[XIO_PROTO_TCP];
-	xio_tasks_pool_detach_connection(pool, connection); 
+	xio_tasks_pool_detach_connection(pool, connection);
 
 	return 0;
 }
@@ -1604,7 +1604,7 @@ static void xio_connection_post_close(void *_connection)
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->fin_req_timeout_work);
-	
+
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->fin_ack_timeout_work);
 
@@ -1715,7 +1715,7 @@ int xio_release_response(struct xio_msg *msg)
 		connection = task->connection;
 		if (unlikely(!connection)) {
 			ERROR_LOG("%s failed. response release after " \
-				  "connection destroy is forbidden\n", 
+				  "connection destroy is forbidden\n",
 				  __func__);
 			xio_set_error(EINVAL);
 			return -1;
@@ -1954,7 +1954,7 @@ static void xio_fin_req_timeout(void *conn)
 static void xio_fin_ack_timeout(void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
-	
+
 	ERROR_LOG("fin ack timeout. session:%p, connection:%p\n",
 		  connection->session, connection);
 
@@ -2534,7 +2534,7 @@ static void xio_connection_post_destroy(struct kref *kref)
                 }
                 tmp_connection = session->lead_connection;
 		session->lead_connection = NULL;
-	
+
 		DEBUG_LOG("xio_connection_post_destroy: lead connection is closed. " \
 			  "session:%p, connection:%p nexus:%p nr:%d\n",
 			  session, connection, connection->nexus, session->connections_nr);
@@ -2575,7 +2575,7 @@ static void xio_connection_post_destroy(struct kref *kref)
 	}
 	DEBUG_LOG("xio_connection_post_destroy init session teardown. " \
 		  "session:%p, connection:%p, nr:%d, disable_teardown:%d, " \
-		  "destroy_session:%d\n", 
+		  "destroy_session:%d\n",
 		  session, connection,
 		  session->connections_nr,
 		  session->disable_teardown,
@@ -2707,7 +2707,7 @@ int xio_connection_disconnected(struct xio_connection *connection)
 	int close = 0;
 
 	DEBUG_LOG("xio_connection_disconnected: connection:%p, state:%s\n",
-		  connection, 
+		  connection,
 		  xio_connection_state_str((enum xio_connection_state)
 					   connection->state));
 
@@ -2758,7 +2758,7 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		    connection->session->redir_connection->nexus ==
 		    connection->nexus) {
 			DEBUG_LOG("xio_connection_disconnected: null " \
-				  "the redir connection connection:%p\n", 
+				  "the redir connection connection:%p\n",
 				  connection);
 			connection->session->redir_connection = NULL;
 			close = 1;
@@ -2766,7 +2766,7 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		/* free nexus and tasks pools */
 		if (close) {
 			DEBUG_LOG("xio_connection_disconnected: nexus " \
-				  "close. connection:%p nexus:%p\n", 
+				  "close. connection:%p nexus:%p\n",
 				  connection, connection->nexus);
 			xio_connection_flush_tasks(connection);
 			xio_connection_nexus_safe_close(connection,
@@ -3576,7 +3576,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
-		
+
 	if (connection->disconnecting && (!g_options.reconnect))
 		return;
 
@@ -3597,18 +3597,24 @@ void xio_connection_keepalive_intvl(void *_connection)
 
 	connection->ka.timedout = 1;
 
-	if (++connection->ka.probes == connection->ka.options.probes) {
-		ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
-			  connection, connection->ka.probes);
-		connection->ka.probes = 0;
+    if (++connection->ka.probes == connection->ka.options.probes) {
+        ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
+                connection, connection->ka.probes);
+        connection->ka.probes = 0;
 
-		/* notify the application of connection error */
-		xio_session_notify_connection_error(
-				connection->session, connection, XIO_E_TIMEOUT);
-		if ((!connection->disconnecting) && (!g_options.reconnect))
-			xio_disconnect(connection);
-		return;
-	}
+        /* stop further processing of events immediately  */
+        if ((!connection->disconnecting) && (!g_options.reconnect)) {
+            xio_nexus_force_close(connection->nexus);
+            connection->nexus = NULL;
+        }
+        /* notify the application of connection error */
+        xio_session_notify_connection_error(
+                connection->session, connection, XIO_E_TIMEOUT);
+        /* disconnect gracefully */
+        if ((!connection->disconnecting) && (!g_options.reconnect))
+            xio_disconnect(connection);
+        return;
+    }
 	WARN_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
 		  connection, connection->ka.probes);
 	retval = xio_ctx_add_delayed_work(
