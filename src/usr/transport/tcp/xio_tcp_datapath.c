@@ -2484,7 +2484,6 @@ static int xio_tcp_on_recv_req_header(struct xio_tcp_transport *tcp_hndl,
 		tcp_hndl->sock.ops->set_rxd(task, ulp_hdr,
 				(uint32_t)req_hdr.ulp_imm_len);
 		/* handle RDMA READ equivalent. */
-		TRACE_LOG("tcp read header\n");
 		retval = xio_tcp_rd_req_header(tcp_hndl, task);
 		if (unlikely(retval)) {
 			ERROR_LOG("tcp read header failed\n");
@@ -2523,7 +2522,6 @@ static int xio_tcp_on_recv_req_data(struct xio_tcp_transport *tcp_hndl,
 		break;
 	case XIO_TCP_READ:
 		/* handle RDMA READ equivalent. */
-		TRACE_LOG("tcp read data\n");
 		break;
 	default:
 		ERROR_LOG("unexpected opcode\n");
