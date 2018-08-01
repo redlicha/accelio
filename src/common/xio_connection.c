@@ -3711,24 +3711,24 @@ int xio_connection_force_disconnect(struct xio_connection *connection,
 	connection->close_reason = reason;
 
 	xio_session_notify_connection_error(connection->session, connection,
-					    reason);
+			reason);
 
 	xio_connection_nexus_safe_close(connection,
-					&connection->session->observer);
+			&connection->session->observer);
 
-        /* flush all messages from in flight message queue to in queue */
+	/* flush all messages from in flight message queue to in queue */
 	xio_connection_flush_msgs(connection);
 
-        /* flush all messages back to user */
+	/* flush all messages back to user */
 	xio_connection_notify_msgs_flush(connection);
 
 	connection->state	 = XIO_CONNECTION_STATE_ERROR;
 
 	xio_ctx_add_work(
-			 connection->ctx,
-			 connection,
-			 xio_connection_teardown_handler,
-			 &connection->teardown_work);
+			connection->ctx,
+			connection,
+			xio_connection_teardown_handler,
+			&connection->teardown_work);
 
 	return 0;
 }

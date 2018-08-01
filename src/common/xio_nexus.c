@@ -2318,24 +2318,29 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_nexus_force_close		                                             */
+/* xio_nexus_force_close						     */
 /*---------------------------------------------------------------------------*/
 void xio_nexus_force_close(struct xio_nexus *nexus)
 {
 	TRACE_LOG("nexus: [putref] ptr:%p, refcnt:%d\n", nexus,
 		  atomic_read(&nexus->kref.refcount));
 
-	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable)) {
+	if (nexus->defered_close &&
+	    xio_observable_is_empty(&nexus->observable)) {
 		nexus->transport_hndl = NULL;
 		xio_nexus_destroy(nexus);
 		return;
 	}
-    /* unreg all observers */
-    xio_observable_unreg_all_observers(&nexus->observable);
+	xio_observable_notify_all_observers(&nexus->observable,
+			XIO_NEXUS_EVENT_CLOSED,
+			NULL);
+
+	/* unreg all observers */
+	xio_observable_unreg_all_observers(&nexus->observable);
 	/* remove all refcounts */
-    kref_init(&nexus->kref);
-    /* release */
-    xio_nexus_release(nexus);
+	kref_init(&nexus->kref);
+	/* release */
+	xio_nexus_release(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
