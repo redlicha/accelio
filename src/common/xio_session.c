@@ -1313,8 +1313,13 @@ int xio_on_nexus_closed(struct xio_session *session,
 		connection = session->lead_connection;
 	else
 		connection = xio_session_find_connection(session, nexus);
-	if (connection)
+	if (connection) {
 		connection->nexus = NULL;
+		if (connection->state == XIO_CONNECTION_STATE_ONLINE) {
+			connection->close_reason = XIO_E_TIMEOUT;
+			xio_connection_disconnected(connection);
+		}
+	}
 
 	return 0;
 }
