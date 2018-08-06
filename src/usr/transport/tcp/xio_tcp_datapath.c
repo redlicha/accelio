@@ -3186,9 +3186,13 @@ int xio_tcp_send(struct xio_transport_base *transport,
 	switch (task->tlv_type) {
 	case XIO_NEXUS_SETUP_REQ:
 		retval = xio_tcp_send_setup_req(tcp_hndl, task);
+		/* bypass send completion and release to initial pool */
+		xio_tasks_pool_put(task);
 		break;
 	case XIO_NEXUS_SETUP_RSP:
+		/* bypass send completion and release to initial pool */
 		retval = xio_tcp_send_setup_rsp(tcp_hndl, task);
+		xio_tasks_pool_put(task);
 		break;
 	default:
 		if (IS_REQUEST(task->tlv_type))
