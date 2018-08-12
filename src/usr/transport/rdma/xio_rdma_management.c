@@ -1063,35 +1063,36 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 
 	retval = rdma_create_qp(rdma_hndl->cm_id, dev->pd, &qp_init_attr);
 	if (retval) {
-        xio_set_error(errno);
-        /*
-         * You would get EINVAL in the following cases:
-         *
-         * 1. id->qp isn't NULL (already assigned).
-         * 2. the context of the id is different from the one of the optionally
-         *    given pd.
-         * 3. send_cq or receive_cq are assigned to the id, and are different
-         *    from the ones specified in qp_init_attr.
-         */
-        switch (errno) {
-        case EINVAL:
-            ERROR_LOG("rdma_create_qp failed. (errno=%d %m) id:%p, id->qp:%p, " \
-                      "id->verbs:%p, attr->pd->context:%p, "                    \
-                      "attr->cq:%p, id->recv_cq:%p, id->send_cq:%p\n",
-                      errno,
-                      rdma_hndl->cm_id, rdma_hndl->cm_id->qp,
-                      rdma_hndl->cm_id->verbs, dev->pd->context, tcq->cq,
-                      rdma_hndl->cm_id->recv_cq, rdma_hndl->cm_id->send_cq);
-            break;
-        case ENOMEM:
-            ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
-            xio_validate_ulimit_memlock();
-            break;
-        default:
-            ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
-            break;
-        };
-        goto free_slots;
+		xio_set_error(errno);
+		/*
+		 * You would get EINVAL in the following cases:
+		 *
+		 * 1. id->qp isn't NULL (already assigned).
+		 * 2. the context of the id is different from the one of the optionally
+		 *    given pd.
+		 * 3. send_cq or receive_cq are assigned to the id, and are different
+		 *    from the ones specified in qp_init_attr.
+		 */
+		switch (errno) {
+		case EINVAL:
+			ERROR_LOG("rdma_create_qp failed. (errno=%d %m) id:%p, " \
+				  "id->qp:%p, id->verbs:%p, attr->pd->context:%p, " \
+				  "attr->cq:%p, id->recv_cq:%p, id->send_cq:%p\n",
+				  errno,
+				  rdma_hndl->cm_id, rdma_hndl->cm_id->qp,
+				  rdma_hndl->cm_id->verbs, dev->pd->context, 
+				  tcq->cq,
+				  rdma_hndl->cm_id->recv_cq, rdma_hndl->cm_id->send_cq);
+			break;
+		case ENOMEM:
+			ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
+			xio_validate_ulimit_memlock();
+			break;
+		default:
+			ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
+			break;
+		};
+		goto free_slots;
 	}
 	rdma_hndl->tcq          = tcq;
 	rdma_hndl->qp           = rdma_hndl->cm_id->qp;
@@ -2264,8 +2265,14 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
+		child_hndl->cm_id	= NULL;
+		ev->id->context		= NULL;
 		ERROR_LOG("failed to create qp\n");
-		xio_rdma_reject((struct xio_transport_base *)child_hndl);
+		retval = rdma_reject(ev->id, NULL, 0);
+		if (retval) {
+			xio_set_error(errno);
+			ERROR_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
+		}
 		goto notify_err3;
 	}
 
