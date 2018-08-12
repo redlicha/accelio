@@ -513,7 +513,8 @@ int xio_rdma_rearm_rq(struct xio_rdma_transport *rdma_hndl)
 		/* get ready to receive message */
 		task = xio_rdma_primary_task_alloc(rdma_hndl);
 		if (task == 0) {
-			ERROR_LOG("primary tasks pool is empty\n");
+			if (rdma_hndl->primary_pool_cls.pool) 
+				ERROR_LOG("primary tasks pool is empty\n");
 			return -1;
 		}
 		/* initialize the rxd */

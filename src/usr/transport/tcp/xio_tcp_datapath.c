@@ -3458,8 +3458,9 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 				task_next =
 					xio_tcp_primary_task_alloc(tcp_hndl);
 				if (!task_next) {
-					ERROR_LOG(
-						"primary task pool is empty\n");
+					if (tcp_hndl->primary_pool_cls.pool)
+						ERROR_LOG(
+							"primary task pool is empty\n");
 					exit = 1;
 					continue;
 				} else {

@@ -566,6 +566,7 @@ static int xio_nexus_on_recv_setup_req(struct xio_nexus *new_nexus,
 	if (req.version != XIO_VERSION) {
 		ERROR_LOG("client invalid version.cver:0x%x, sver::0x%x\n",
 			  req.version, XIO_VERSION);
+		xio_nexus_force_close(new_nexus);
 		xio_set_error(XIO_E_INVALID_VERSION);
 		return -1;
 	}
@@ -741,10 +742,22 @@ static int xio_nexus_on_recv_setup_rsp(struct xio_nexus *nexus,
 		return 0;
 	}
 	if (rsp.version != XIO_VERSION) {
-		xio_set_error(XIO_E_INVALID_VERSION);
-		ERROR_LOG("client invalid version.cver:0x%x, sver::0x%x\n",
+		ERROR_LOG("server invalid version.cver:0x%x, sver::0x%x\n",
 			  XIO_VERSION, rsp.version);
-		return -1;
+		xio_tasks_pool_put(task->sender_task);
+		task->sender_task = NULL;
+		xio_tasks_pool_put(task);
+		{
+			union xio_nexus_event_data nexus_event_data;
+
+			nexus_event_data.error.reason =  XIO_E_INVALID_VERSION;
+			xio_observable_notify_all_observers(
+					&nexus->observable,
+					XIO_NEXUS_EVENT_ERROR,
+					&nexus_event_data);
+		}
+		xio_nexus_force_close(nexus);
+		return 0;
 	}
 	TRACE_LOG("%s: nexus:%p, trans_hndl:%p\n", __func__,
 		  nexus, nexus->transport_hndl);
