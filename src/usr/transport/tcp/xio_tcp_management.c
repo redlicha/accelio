@@ -1001,7 +1001,8 @@ void xio_tcp_handle_pending_conn(int fd,
 				if (ntohs(matching_conn->sa.sa_in.sin_port) !=
 				    pending_conn->msg.second_port) {
 					ERROR_LOG("ports mismatch\n");
-					return;
+					cfd = pending_conn->fd;
+					goto cleanup1;
 				}
 				break;
 			}
@@ -1015,7 +1016,8 @@ void xio_tcp_handle_pending_conn(int fd,
 				if (ntohs(matching_conn->sa.sa_in6.sin6_port)
 				    != pending_conn->msg.second_port) {
 					ERROR_LOG("ports mismatch\n");
-					return;
+					cfd = pending_conn->fd;
+					goto cleanup1;
 				}
 				break;
 			}
