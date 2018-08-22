@@ -95,6 +95,43 @@ struct xio_tcp_options			tcp_options = {
 };
 
 /*---------------------------------------------------------------------------*/
+/* xio_tcp_dump_tasks_queues						     */
+/*---------------------------------------------------------------------------*/
+static void xio_tcp_dump_tasks_queues(struct xio_transport_base *trans_hndl)
+{
+	struct xio_tcp_transport *tcp_hndl =
+		(struct xio_tcp_transport *)trans_hndl;
+
+	if (!list_empty(&tcp_hndl->in_flight_list)) {
+		xio_dump_task_list("tcp_hndl", tcp_hndl,
+				   &tcp_hndl->in_flight_list,
+				   "in_flight_list");
+	}
+	if (!list_empty(&tcp_hndl->tx_comp_list)) {
+		xio_dump_task_list("tcp_hndl", tcp_hndl,
+				   &tcp_hndl->tx_comp_list,
+				   "tx_comp_list");
+	}
+	if (!list_empty(&tcp_hndl->io_list)) {
+		xio_dump_task_list("tcp_hndl", tcp_hndl,
+				   &tcp_hndl->io_list,
+				   "io_list");
+	}
+
+	if (!list_empty(&tcp_hndl->tx_ready_list)) {
+		xio_dump_task_list("tcp_hndl", tcp_hndl,
+				   &tcp_hndl->tx_ready_list,
+				   "tx_ready_list");
+	}
+
+	if (!list_empty(&tcp_hndl->rx_list)) {
+		xio_dump_task_list("tcp_hndl", tcp_hndl,
+				   &tcp_hndl->rx_list,
+				   "rx_list");
+	}
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_tcp_get_max_header_size						     */
 /*---------------------------------------------------------------------------*/
 int xio_tcp_get_max_header_size(void)
@@ -2694,6 +2731,7 @@ static void init_xio_tcp_transport(void)
 	xio_tcp_transport.reject = xio_tcp_reject;
 	xio_tcp_transport.close = xio_tcp_close;
 	xio_tcp_transport.dup2 = xio_tcp_dup2;
+	xio_tcp_transport.dump_tasks_queues = xio_tcp_dump_tasks_queues;
 	/*	.update_task		= xio_tcp_update_task;*/
 	xio_tcp_transport.send = xio_tcp_send;
 	xio_tcp_transport.poll = xio_tcp_poll;

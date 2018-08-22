@@ -386,6 +386,11 @@ int xio_nexus_query(struct xio_nexus *nexus,
 		    struct xio_nexus_attr *attr,
 		    int attr_mask);
 
+/*---------------------------------------------------------------------------*/
+/* xio_nexus_dump_tasks_queues						     */
+/*---------------------------------------------------------------------------*/
+void xio_nexus_dump_tasks_queues(struct xio_nexus *nexus);
+
 #ifdef __cplusplus
 }
 #endif

@@ -321,7 +321,7 @@ int		xio_host_port_to_ss(const char *buf,
 size_t		xio_write_tlv(uint32_t type, uint64_t len, uint16_t crc,
 			      uint8_t *buffer);
 
-size_t		xio_read_tlv(uint32_t *type, uint64_t *len, uint16_t *crc, 
+size_t		xio_read_tlv(uint32_t *type, uint64_t *len, uint16_t *crc,
 			     void **value, uint8_t *buffer);
 
 size_t		memcpyv(struct xio_iovec *dst, int dsize,
@@ -338,6 +338,10 @@ unsigned int	xio_get_nodeid(unsigned int cpu_id);
 void		xio_msg_dump(struct xio_msg *xio_msg);
 
 const char	*xio_proto_str(enum xio_proto proto);
+
+int		xio_dump_task_list(const char *obj_name, void *obj,
+				   struct list_head *list,
+				   const char *list_name);
 
 /*---------------------------------------------------------------------------*/
 /* xio_options.c							     */

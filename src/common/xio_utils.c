@@ -38,8 +38,10 @@
 #include <xio_os.h>
 #include "libxio.h"
 #include "xio_log.h"
-#include "xio_common.h"
 #include "xio_protocol.h"
+#include "xio_common.h"
+#include "xio_mbuf.h"
+#include "xio_task.h"
 
 /*---------------------------------------------------------------------------*/
 /* xio_uri_get_proto							     */
@@ -471,3 +473,24 @@ const char *xio_proto_str(enum xio_proto proto)
 }
 EXPORT_SYMBOL(xio_proto_str);
 
+/*---------------------------------------------------------------------------*/
+/* xio_dump_task_list							     */
+/*---------------------------------------------------------------------------*/
+int xio_dump_task_list(const char *obj_name, void *obj,
+		       struct list_head *list, const char *list_name)
+{
+	struct xio_task *ptask;
+	int cnt = 0;
+	int st_cnt = 0;
+
+	list_for_each_entry(ptask, list, tasks_list_entry) {
+		cnt++;
+		if (ptask->sender_task)
+			st_cnt++;
+	}
+	DEBUG_LOG("%s:%p, list_name:%s, tasks:%d, sender_tasks:%d\n",
+		  obj_name, obj, list_name, cnt, st_cnt);
+
+	return 0;
+}
+EXPORT_SYMBOL(xio_dump_task_list);

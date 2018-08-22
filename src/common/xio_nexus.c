@@ -1387,7 +1387,7 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 	/* remove the nexus from table */
 	xio_nexus_cache_remove(nexus->cid);
 
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx, 
+	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
 				  &nexus->close_time_hndl);
 
 	if (xio_observable_is_empty(&nexus->observable))
@@ -2839,4 +2839,20 @@ void xio_nexus_set_server(struct xio_nexus *nexus, struct xio_server *server)
 	nexus->server = server;
 	if (server)
 		xio_server_reg_observer(server, &nexus->srv_observer);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_nexus_dump_tasks_queues						     */
+/*---------------------------------------------------------------------------*/
+void xio_nexus_dump_tasks_queues(struct xio_nexus *nexus)
+{
+
+	if (!list_empty(&nexus->tx_queue)) {
+		xio_dump_task_list("nexus", nexus,
+				   &nexus->tx_queue,
+				   "tx_queue");
+	}
+	if (nexus->transport->dump_tasks_queues) {
+		nexus->transport->dump_tasks_queues(nexus->transport_hndl);
+	}
 }

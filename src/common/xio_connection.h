@@ -290,4 +290,6 @@ void xio_connection_keepalive_start(void *_connection);
 int xio_connection_force_disconnect(struct xio_connection *connection,
                                     enum xio_status reason);
 
+void xio_connection_dump_tasks_queues(struct xio_connection *connection);
+
 #endif /*XIO_CONNECTION_H */

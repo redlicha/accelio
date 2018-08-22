@@ -349,7 +349,9 @@ int xio_connection_send(struct xio_connection *connection,
 		/* this is a receipt message */
 		task = xio_nexus_get_primary_task(connection->nexus);
 		if (!task) {
-			ERROR_LOG("tasks pool is empty\n");
+			ERROR_LOG("connection:%p, tasks pool is empty\n",
+				  connection);
+			xio_connection_dump_tasks_queues(connection);
 			return -ENOMEM;
 		}
 		req_task = container_of(msg->request, struct xio_task, imsg);
@@ -368,7 +370,9 @@ int xio_connection_send(struct xio_connection *connection,
 		if (IS_REQUEST(msg->type) || msg->type == XIO_MSG_TYPE_RDMA) {
 			task = xio_nexus_get_primary_task(connection->nexus);
 			if (!task) {
-				ERROR_LOG("tasks pool is empty\n");
+				ERROR_LOG("connection:%p, tasks pool is empty\n",
+						connection);
+				xio_connection_dump_tasks_queues(connection);
 				return -ENOMEM;
 			}
 			task->omsg	= msg;
@@ -2351,7 +2355,7 @@ int xio_modify_connection(struct xio_connection *connection,
         if (test_bits(XIO_CONNECTION_ATTR_DISCONNECT_TIMEOUT, &attr_mask)) {
                 if (attr->disconnect_timeout_secs)
 			connection->disconnect_timeout = attr->disconnect_timeout_secs * 1000;
-		else 
+		else
 			connection->disconnect_timeout = XIO_DEF_CONNECTION_TIMEOUT;
         }
 		/*
@@ -2749,7 +2753,7 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		    connection->session->lead_connection->nexus ==
 		    connection->nexus) {
 			DEBUG_LOG("xio_connection_disconnected: null " \
-				  "the lead connection. connection:%p\n", 
+				  "the lead connection. connection:%p\n",
 				  connection);
 			connection->session->lead_connection = NULL;
 			close = 1;
@@ -3802,3 +3806,29 @@ int xio_dismiss_request(struct xio_msg *req)
 	return 0;
 }
 EXPORT_SYMBOL(xio_dismiss_request);
+
+/*---------------------------------------------------------------------------*/
+/* xio_connection_dump_tasks_queues					     */
+/*---------------------------------------------------------------------------*/
+void xio_connection_dump_tasks_queues(struct xio_connection *connection)
+{
+	DEBUG_LOG("#################################################################\n");
+	if (!list_empty(&connection->io_tasks_list)) {
+		xio_dump_task_list("connection", connection,
+				   &connection->io_tasks_list,
+				   "io_tasks_list");
+	}
+	if (!list_empty(&connection->post_io_tasks_list)) {
+		xio_dump_task_list("connection", connection,
+				   &connection->post_io_tasks_list,
+				   "post_io_tasks_list");
+	}
+	if (!list_empty(&connection->pre_send_list)) {
+		xio_dump_task_list("pre_send_list", connection,
+				   &connection->pre_send_list,
+				   "pre_send_list");
+	}
+	if (connection->nexus)
+		xio_nexus_dump_tasks_queues(connection->nexus);
+	DEBUG_LOG("#################################################################\n");
+}
