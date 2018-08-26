@@ -457,6 +457,10 @@ int xio_connection_send(struct xio_connection *connection,
 		xio_session_write_header(task, &hdr);
 	}
 	/* send it */
+	if (!IS_KEEPALIVE(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p\n",
+			  __func__, task->tlv_type, connection->session, connection);
+
 	retval = xio_nexus_send(connection->nexus, task);
 	if (retval != 0) {
 		ERROR_LOG("xio_nexus_send failed with %d\n", retval);
@@ -2467,7 +2471,7 @@ int xio_connection_send_hello_rsp(struct xio_connection *connection,
 	struct xio_msg	*msg;
 	int		retval;
 
-	TRACE_LOG("send hello response. session:%p, connection:%p\n",
+	DEBUG_LOG("send hello response. session:%p, connection:%p\n",
 		  connection->session, connection);
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);

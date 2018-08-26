@@ -516,7 +516,8 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 			fill_portals = 1;
 		}
 		session->state = XIO_SESSION_STATE_ONLINE;
-		TRACE_LOG("session state is now ONLINE. session:%p\n", session);
+		DEBUG_LOG("%s - received session setup message. session:%p, connection:%p\n",
+			  __func__, session, connection);
 		/* notify the upper layer */
 		if (session->ses_ops.on_session_established) {
 #ifdef XIO_THREAD_SAFE_DEBUG
@@ -534,6 +535,8 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 		rsp->private_data = NULL;
 
 		if (fill_portals)  {
+			DEBUG_LOG("%s - simulating receive connection hello message. session:%p, connection:%p\n",
+				   __func__, session, connection);
 			xio_on_connection_hello_rsp_recv(connection, NULL);
 			/* insert the connection into list */
 			xio_session_assign_nexus(session, connection->nexus);
@@ -692,12 +695,14 @@ int xio_on_client_nexus_established(struct xio_session *session,
 			ERROR_LOG("setup request creation failed\n");
 			return -1;
 		}
-
+		DEBUG_LOG("%s - sending session hello message. session:%p, connection:%p\n",
+			  __func__, session, session->lead_connection);
 		retval = xio_connection_send(session->lead_connection,
 					     msg);
 		if (retval && retval != -EAGAIN) {
 			TRACE_LOG("failed to send session "\
-					"setup request\n");
+					"setup request. session:%p, connection:%p\n",
+					session, session->lead_connection);
 			ev_data.conn =  session->lead_connection;
 			ev_data.conn_user_context =
 				session->lead_connection->cb_user_context;
@@ -1071,7 +1076,7 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 
 	if (cparams->disconnect_timeout_secs)
 		connection->disconnect_timeout = cparams->disconnect_timeout_secs * 1000;
-	else 
+	else
                 connection->disconnect_timeout = XIO_DEF_CONNECTION_TIMEOUT;
 
 	if (cparams->ka_options.probes && cparams->ka_options.time &&

@@ -1443,6 +1443,10 @@ int xio_on_new_message(struct xio_session *s,
 	task->session		= session;
 	task->connection	= connection;
 
+	if (!IS_KEEPALIVE(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p\n",
+			  __func__, task->tlv_type, session, connection);
+
 	switch (task->tlv_type) {
 	case XIO_MSG_REQ:
 	case XIO_ONE_WAY_REQ:
