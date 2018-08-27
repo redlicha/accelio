@@ -2731,6 +2731,9 @@ int xio_connection_disconnected(struct xio_connection *connection)
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->fin_ack_timeout_work);
 
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->ka.timer);
+
 	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 
 	if (!connection->disable_notify && !connection->disconnecting) {
