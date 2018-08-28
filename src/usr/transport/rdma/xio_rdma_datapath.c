@@ -157,7 +157,8 @@ static int xio_post_send(struct xio_rdma_transport *rdma_hndl,
 	struct xio_task		*task = (struct xio_task *)
 				ptr_from_int64(xio_send->send_wr.wr_id);
 
-	if (!IS_KEEPALIVE(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+	if (!IS_KEEPALIVE(task->tlv_type) && !IS_NOP(task->tlv_type) &&
+	    !IS_APPLICATION_MSG(task->tlv_type))
 		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
 			  __func__,
 			  task->tlv_type, task->session,
@@ -1413,7 +1414,8 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 			xio_tasks_pool_put(task);
 		goto cleanup;
 	}
-	if (!IS_KEEPALIVE(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+	if (!IS_KEEPALIVE(task->tlv_type) && !IS_NOP(task->tlv_type) &&
+	    !IS_APPLICATION_MSG(task->tlv_type))
 		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
 			  __func__,
 			  task->tlv_type, task->session,
