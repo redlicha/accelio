@@ -1338,50 +1338,44 @@ static int xio_rdma_task_reinit(struct xio_task *task,
 static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl)
 {
 	if (!list_empty(&rdma_hndl->in_flight_list)) {
-		TRACE_LOG("in_flight_list not empty!\n");
-		xio_transport_flush_task_list(&rdma_hndl->in_flight_list);
-		/* for task that attached to senders with ref count = 2 */
+		TRACE_LOG("in_flight_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->in_flight_list);
 	}
 
 	if (!list_empty(&rdma_hndl->rdma_rd_req_in_flight_list)) {
-		TRACE_LOG("rdma_rd_req_in_flight_list not empty!\n");
+		TRACE_LOG("rdma_rd_req_in_flight_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(
 				&rdma_hndl->rdma_rd_req_in_flight_list);
 	}
 	if (!list_empty(&rdma_hndl->rdma_rd_req_list)) {
-		TRACE_LOG("rdma_rd_req_list not empty!\n");
+		TRACE_LOG("rdma_rd_req_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->rdma_rd_req_list);
 	}
 	if (!list_empty(&rdma_hndl->rdma_rd_rsp_in_flight_list)) {
-		TRACE_LOG("rdma_rd_rsp_in_flight_list not empty!\n");
+		TRACE_LOG("rdma_rd_rsp_in_flight_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(
 				&rdma_hndl->rdma_rd_rsp_in_flight_list);
 	}
 	if (!list_empty(&rdma_hndl->rdma_rd_rsp_list)) {
-		TRACE_LOG("rdma_rd_rsp_list not empty!\n");
+		TRACE_LOG("rdma_rd_rsp_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->rdma_rd_rsp_list);
 	}
 	if (!list_empty(&rdma_hndl->tx_comp_list)) {
-		TRACE_LOG("tx_comp_list not empty!\n");
+		TRACE_LOG("tx_comp_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->tx_comp_list);
 	}
 	if (!list_empty(&rdma_hndl->io_list)) {
-		TRACE_LOG("io_list not empty!\n");
+		TRACE_LOG("io_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->io_list);
 	}
 
 	if (!list_empty(&rdma_hndl->tx_ready_list)) {
-		TRACE_LOG("tx_ready_list not empty!\n");
-		xio_transport_flush_task_list(&rdma_hndl->tx_ready_list);
-		/* for task that attached to senders with ref count = 2 */
+		TRACE_LOG("tx_ready_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->tx_ready_list);
 	}
 
 	if (!list_empty(&rdma_hndl->rx_list)) {
-		TRACE_LOG("rx_list not empty!\n");
-		xio_transport_flush_task_list(&rdma_hndl->rx_list);
-		/* for task that attached to rx with ref count = 2 */
+		TRACE_LOG("rx_list not empty! rdma_hndl:%p\n", rdma_hndl);
 		xio_transport_flush_task_list(&rdma_hndl->rx_list);
 	}
 

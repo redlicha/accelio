@@ -108,14 +108,13 @@ struct xio_transport *xio_get_transport(const char *name)
 /*---------------------------------------------------------------------------*/
 int xio_transport_flush_task_list(struct list_head *list)
 {
-	struct xio_task *ptask, *next_ptask;
-
-	list_for_each_entry_safe(ptask, next_ptask, list,
-				 tasks_list_entry) {
+	while (!list_empty(list)) {
+		struct xio_task *ptask = list_entry(list->next, 
+				struct xio_task, tasks_list_entry);
 		/*
-		TRACE_LOG("flushing task %p type 0x%x\n",
-			  ptask, ptask->tlv_type);
-		*/
+		   DEBUG_LOG("flushing task %p type 0x%x\n",
+		   ptask, ptask->tlv_type);
+		   */
 		if (ptask->sender_task && !ptask->on_hold) {
 			xio_tasks_pool_put(ptask->sender_task);
 			ptask->sender_task = NULL;

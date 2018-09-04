@@ -163,30 +163,26 @@ int xio_tcp_get_inline_buffer_size(void)
 static int xio_tcp_flush_all_tasks(struct xio_tcp_transport *tcp_hndl)
 {
 	if (!list_empty(&tcp_hndl->in_flight_list)) {
-		TRACE_LOG("in_flight_list not empty!\n");
-		xio_transport_flush_task_list(&tcp_hndl->in_flight_list);
-		/* for task that attached to senders with ref count = 2 */
+		TRACE_LOG("in_flight_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_transport_flush_task_list(&tcp_hndl->in_flight_list);
 	}
 
 	if (!list_empty(&tcp_hndl->tx_comp_list)) {
-		TRACE_LOG("tx_comp_list not empty!\n");
+		TRACE_LOG("tx_comp_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_transport_flush_task_list(&tcp_hndl->tx_comp_list);
 	}
 	if (!list_empty(&tcp_hndl->io_list)) {
-		TRACE_LOG("io_list not empty!\n");
+		TRACE_LOG("io_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_transport_flush_task_list(&tcp_hndl->io_list);
 	}
 
 	if (!list_empty(&tcp_hndl->tx_ready_list)) {
-		TRACE_LOG("tx_ready_list not empty!\n");
-		xio_transport_flush_task_list(&tcp_hndl->tx_ready_list);
-		/* for task that attached to senders with ref count = 2 */
+		TRACE_LOG("tx_ready_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_transport_flush_task_list(&tcp_hndl->tx_ready_list);
 	}
 
 	if (!list_empty(&tcp_hndl->rx_list)) {
-		TRACE_LOG("rx_list not empty!\n");
+		TRACE_LOG("rx_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_transport_flush_task_list(&tcp_hndl->rx_list);
 	}
 
