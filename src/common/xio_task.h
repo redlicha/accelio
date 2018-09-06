@@ -160,6 +160,7 @@ struct xio_tasks_pool {
 	unsigned int			node_id; /* numa node id */
 	unsigned int			pad;
 	struct list_head		slabs_list;
+	struct list_head		on_hold_list;
 	void				*dd_data;
 };
 
@@ -323,6 +324,24 @@ static inline void xio_tasks_pool_put(struct xio_task *task)
 		    atomic_read(&task->kref.refcount) == 1))
 	       return;
 
+	kref_put(&task->kref, xio_task_release);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_tasks_pool_put_on_hold						     */
+/*---------------------------------------------------------------------------*/
+static inline void xio_tasks_pool_put_on_hold(struct xio_task *task)
+{
+	if (!task->on_hold)
+		return;
+
+	if (unlikely(atomic_read(&task->kref.refcount) == 1)) {
+		struct xio_tasks_pool *pool;
+		assert(task->pool);
+		pool = (struct xio_tasks_pool *)task->pool;
+		list_move(&task->tasks_list_entry, &pool->on_hold_list);
+		return;
+	}
 	kref_put(&task->kref, xio_task_release);
 }
 

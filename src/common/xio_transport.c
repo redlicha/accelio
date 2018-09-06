@@ -119,7 +119,10 @@ int xio_transport_flush_task_list(struct list_head *list)
 			xio_tasks_pool_put(ptask->sender_task);
 			ptask->sender_task = NULL;
 		}
-		xio_tasks_pool_put(ptask);
+		if (ptask->on_hold)
+			xio_tasks_pool_put_on_hold(ptask);
+		else
+			xio_tasks_pool_put(ptask);
 	}
 
 	return 0;

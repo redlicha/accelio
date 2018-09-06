@@ -221,6 +221,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 
 	INIT_LIST_HEAD(&q->stack);
 	INIT_LIST_HEAD(&q->slabs_list);
+	INIT_LIST_HEAD(&q->on_hold_list);
 
 	memcpy(&q->params, params, sizeof(*params));
 
