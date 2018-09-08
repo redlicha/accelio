@@ -97,7 +97,7 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 					  union xio_transport_event_data
 					  *event_data);
-static int xio_nexus_flush_tx_queue(struct xio_nexus *nexus);
+static int xio_nexus_flush_all_tasks(struct xio_nexus *nexus);
 static int xio_nexus_destroy(struct xio_nexus *nexus);
 static int xio_nexus_xmit(struct xio_nexus *nexus);
 static void xio_nexus_destroy_handler(void *nexus_);
@@ -1487,7 +1487,7 @@ static void xio_nexus_disconnected(void *nexus_)
 		xio_context_add_event(nexus->transport_hndl->ctx,
 				      &nexus->destroy_event);
 	}
-	xio_nexus_flush_tx_queue(nexus);
+	xio_nexus_flush_all_tasks(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1786,7 +1786,7 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		} else {
 			nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 			TRACE_LOG("nexus state changed to disconnected\n");
-			xio_nexus_flush_tx_queue(nexus);
+			xio_nexus_flush_all_tasks(nexus);
 			xio_observable_notify_all_observers(
 					&nexus->observable,
 					XIO_NEXUS_EVENT_REFUSED,
@@ -1853,7 +1853,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 				nexus->transport_hndl->ctx,
 				&nexus->close_time_hndl);
 
-	xio_nexus_flush_tx_queue(nexus);
+	xio_nexus_flush_all_tasks(nexus);
 
 	xio_nexus_cache_remove(nexus->cid);
 
@@ -2356,21 +2356,13 @@ void xio_nexus_force_close(struct xio_nexus *nexus)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_rdma_flush_tx_queue						     */
+/* xio_nexus_flush_all_tasks						     */
 /*---------------------------------------------------------------------------*/
-static int xio_nexus_flush_tx_queue(struct xio_nexus *nexus)
+static int xio_nexus_flush_all_tasks(struct xio_nexus *nexus)
 {
-	struct xio_task *ptask, *next_ptask;
-
-	list_for_each_entry_safe(ptask, next_ptask, &nexus->tx_queue,
-				 tasks_list_entry) {
-		TRACE_LOG("flushing task %p type 0x%x\n",
-			  ptask, ptask->tlv_type);
-		if (ptask->sender_task && !ptask->on_hold) {
-			xio_tasks_pool_put(ptask->sender_task);
-			ptask->sender_task = NULL;
-		}
-		xio_tasks_pool_put(ptask);
+	if (!list_empty(&nexus->tx_queue)) {
+		TRACE_LOG("tx_queue not empty! nexus:%p\n", nexus);
+		xio_tasks_list_flush(&nexus->tx_queue);
 	}
 
 	return 0;
@@ -2656,7 +2648,7 @@ static void xio_nexus_server_reconnect_timeout(void *data)
 	/* No reconnect within timeout */
 	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 	TRACE_LOG("nexus state changed to disconnected\n");
-	xio_nexus_flush_tx_queue(nexus);
+	xio_nexus_flush_all_tasks(nexus);
 	xio_observable_notify_all_observers(&nexus->observable,
 					    XIO_NEXUS_EVENT_DISCONNECTED,
 					    NULL);
@@ -2713,7 +2705,7 @@ static void xio_nexus_client_reconnect_timeout(void *data)
 		/* retries number exceeded */
 		nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 		TRACE_LOG("nexus state changed to disconnected\n");
-		xio_nexus_flush_tx_queue(nexus);
+		xio_nexus_flush_all_tasks(nexus);
 		xio_observable_notify_all_observers(
 				&nexus->observable,
 				XIO_NEXUS_EVENT_DISCONNECTED,
@@ -2748,7 +2740,7 @@ static void xio_nexus_client_reconnect_failed(void *data)
 		/* retries number exceeded */
 		nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 		TRACE_LOG("nexus state changed to disconnected\n");
-		xio_nexus_flush_tx_queue(nexus);
+		xio_nexus_flush_all_tasks(nexus);
 		xio_observable_notify_all_observers(
 				&nexus->observable,
 				XIO_NEXUS_EVENT_DISCONNECTED,

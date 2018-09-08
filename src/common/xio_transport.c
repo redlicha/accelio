@@ -104,32 +104,6 @@ struct xio_transport *xio_get_transport(const char *name)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_transport_flush_task_list					     */
-/*---------------------------------------------------------------------------*/
-int xio_transport_flush_task_list(struct list_head *list)
-{
-	while (!list_empty(list)) {
-		struct xio_task *ptask = list_entry(list->next, 
-				struct xio_task, tasks_list_entry);
-		/*
-		   DEBUG_LOG("flushing task %p type 0x%x\n",
-		   ptask, ptask->tlv_type);
-		   */
-		if (ptask->sender_task && !ptask->on_hold) {
-			xio_tasks_pool_put(ptask->sender_task);
-			ptask->sender_task = NULL;
-		}
-		if (ptask->on_hold)
-			xio_tasks_pool_put_on_hold(ptask);
-		else
-			xio_tasks_pool_put(ptask);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(xio_transport_flush_task_list);
-
-/*---------------------------------------------------------------------------*/
 /* xio_transport_assign_in_buf						     */
 /*---------------------------------------------------------------------------*/
 int xio_transport_assign_in_buf(struct xio_transport_base *trans_hndl,

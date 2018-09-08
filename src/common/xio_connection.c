@@ -1578,6 +1578,27 @@ int xio_connection_xmit_msgs(struct xio_connection *connection)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_nexus_flush_all_tasks						     */
+/*---------------------------------------------------------------------------*/
+static int xio_connection_flush_all_tasks(struct xio_connection *connection)
+{
+	if (!list_empty(&connection->io_tasks_list)) {
+		TRACE_LOG("io_tasks_list not empty! connection:%p\n", connection);
+		xio_tasks_list_flush(&connection->io_tasks_list);
+	}
+	if (!list_empty(&connection->post_io_tasks_list)) {
+		TRACE_LOG("post_io_tasks_list not empty! connection:%p\n", connection);
+		xio_tasks_list_flush(&connection->post_io_tasks_list);
+	}
+	if (!list_empty(&connection->pre_send_list)) {
+		TRACE_LOG("pre_send_list not empty! connection:%p\n", connection);
+		xio_tasks_list_flush(&connection->pre_send_list);
+	}
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_connection_detach_of_tasks					     */
 /*---------------------------------------------------------------------------*/
 int xio_connection_detach_of_tasks(struct xio_connection *connection)
@@ -1627,6 +1648,8 @@ static void xio_connection_post_close(void *_connection)
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
 
 	xio_connection_nexus_safe_close(connection, NULL);
+
+	xio_connection_flush_all_tasks(connection);
 
 	xio_connection_detach_of_tasks(connection);
 

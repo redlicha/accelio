@@ -33,7 +33,7 @@ EXPORTS
 	xio_reject
 	xio_reg_transport
 	xio_unreg_transport
-	xio_transport_flush_task_list
+	xio_tasks_list_flush
 	xio_transport_assign_in_buf
 	xio_write_tlv
 	xio_read_tlv
