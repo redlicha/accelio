@@ -117,7 +117,9 @@ struct xio_connection {
 	uint32_t			close_reason;
 	int32_t				tx_queued_msgs;
 	struct kref			kref;
+	uint32_t			connect_timeout;
 	uint32_t			disconnect_timeout;
+	uint32_t			pad;
 
 	struct xio_msg_list		reqs_msgq;
 	struct xio_msg_list		rsps_msgq;

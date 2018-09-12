@@ -881,6 +881,9 @@ static void xio_connect_timeout(void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
+	WARN_LOG("xio_connect timedout. connection:%p timeout:%d secs\n",
+	         connection, (connection->connect_timeout/1000));
+
 	xio_connection_force_disconnect(connection, XIO_E_TIMEOUT);
 }
 
@@ -1060,18 +1063,20 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 		connection->nexus_attr_mask = attr_mask;
 		connection->nexus_attr	    = attr;
 	}
-	if (cparams->connect_timeout_secs) {
-		int  connect_timeout = cparams->connect_timeout_secs * 1000;
-		retval = xio_ctx_add_delayed_work(
-						  connection->ctx,
-						  connect_timeout,
-						  connection,
-						  xio_connect_timeout,
-						  &connection->connect_work);
-		if (unlikely(retval)) {
-			ERROR_LOG("xio_ctx_delayed_work failed. rc:%d\n", retval);
-			/* not critical - do not exit */
-		}
+	if (cparams->connect_timeout_secs)
+		connection->connect_timeout = cparams->connect_timeout_secs * 1000;
+	else
+		connection->connect_timeout = XIO_DEF_CONNECTION_TIMEOUT;
+
+	retval = xio_ctx_add_delayed_work(
+			connection->ctx,
+			connection->connect_timeout,
+			connection,
+			xio_connect_timeout,
+			&connection->connect_work);
+	if (unlikely(retval)) {
+		ERROR_LOG("xio_ctx_delayed_work failed. rc:%d\n", retval);
+		/* not critical - do not exit */
 	}
 
 	if (cparams->disconnect_timeout_secs)

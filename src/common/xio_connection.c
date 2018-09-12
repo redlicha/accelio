@@ -2120,6 +2120,8 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 	kref_get(&connection->kref); /* for send comp */
 	kref_get(&connection->kref); /* for time wait */
 
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
+
 	/* trigger the timer */
 	connection->fin_req_timeout = 0;
 	retval = xio_ctx_add_delayed_work(
@@ -2220,12 +2222,13 @@ int xio_disconnect(struct xio_connection *connection)
 		  xio_connection_state_str((enum xio_connection_state)
 					   connection->state));
 
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
+
 	if ((connection->state != XIO_CONNECTION_STATE_ONLINE &&
 	     connection->state != XIO_CONNECTION_STATE_ESTABLISHED) ||
 	    connection->disconnecting) {
 		/* delay the disconnection to when connection become online */
 		connection->disconnecting = 1;
-
 		return 0;
 	}
 	connection->disconnecting = 1;
@@ -2696,6 +2699,7 @@ int xio_connection_destroy(struct xio_connection *connection)
 	 * users may call this function at any stage
 	 **/
 	xio_ctx_del_work(connection->ctx, &connection->hello_work);
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
 	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
 	xio_ctx_del_work(connection->ctx, &connection->teardown_work);
 
@@ -2758,6 +2762,8 @@ int xio_connection_disconnected(struct xio_connection *connection)
 				 &connection->ka.timer);
 
 	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
+
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
 
 	if (!connection->disable_notify && !connection->disconnecting) {
 		xio_session_notify_connection_disconnected(
@@ -3241,6 +3247,7 @@ int xio_on_connection_hello_rsp_recv(struct xio_connection *connection,
 		return 0;
 	}
 
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
 	/* set the new connection to ESTABLISHED */
 	xio_connection_set_state(connection,
 				 XIO_CONNECTION_STATE_ESTABLISHED);
@@ -3743,6 +3750,8 @@ int xio_connection_force_disconnect(struct xio_connection *connection,
 {
 
 	connection->close_reason = reason;
+
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
 
 	xio_session_notify_connection_error(connection->session, connection,
 			reason);
