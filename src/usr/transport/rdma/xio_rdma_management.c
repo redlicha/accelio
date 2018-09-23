@@ -2067,6 +2067,9 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 
 	xio_observable_unreg_all_observers(&rdma_hndl->base.observable);
 
+	/* last chance to flush all tasks */
+	xio_rdma_flush_all_tasks(rdma_hndl);
+
 	xio_rdma_phantom_pool_destroy(rdma_hndl);
 
 	xio_qp_release(rdma_hndl);
@@ -2094,8 +2097,6 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	}
 
 	XIO_OBSERVABLE_DESTROY(&rdma_hndl->base.observable);
-	/* last chance to flush all tasks */
-	xio_rdma_flush_all_tasks(rdma_hndl);
 
 	ufree(rdma_hndl->srv_listen_uri);
 	ufree(rdma_hndl);
