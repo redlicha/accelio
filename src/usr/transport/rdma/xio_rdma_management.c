@@ -2494,7 +2494,6 @@ int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl,
 			 rdma_hndl);
 		/* for beacon */
 		xio_set_timewait_timer(rdma_hndl);
-		kref_put(&rdma_hndl->base.kref, xio_rdma_close_cb);
 	} else if (retval) {
 		ERROR_LOG("rdma_hndl %p failed to post beacon %d %d\n",
 			  rdma_hndl, retval, errno);
@@ -2576,8 +2575,6 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 		if (retval)
 			ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
 				  rdma_hndl);
-		/*  for beacon */
-		kref_put(&rdma_hndl->base.kref, xio_rdma_close_cb);
 	break;
 	case XIO_TRANSPORT_STATE_CLOSED:
 	case XIO_TRANSPORT_STATE_INIT:
