@@ -872,6 +872,9 @@ static void xio_tcp_tx_completion_handler(void *xio_task)
 
 	XIO_TO_TCP_HNDL(task, tcp_hndl);
 
+	if (unlikely(!tcp_hndl))
+		return;
+
 	list_for_each_entry_safe(ptask, next_ptask, &tcp_hndl->in_flight_list,
 				 tasks_list_entry) {
 		list_move_tail(&ptask->tasks_list_entry,
@@ -900,13 +903,15 @@ static void xio_tcp_tx_completion_handler(void *xio_task)
 
 	tcp_hndl->tx_comp_cnt = 0;
 
-    /* after work completion - report disconnect */
-    if (tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
-        xio_context_add_event(tcp_hndl->base.ctx, &tcp_hndl->disconnect_event);
-    } else {
-        if (tcp_hndl->tx_ready_tasks_num)
-            xio_tcp_xmit(tcp_hndl);
-    }
+	/* after work completion - report disconnect */
+	if (tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
+		xio_context_add_event(tcp_hndl->base.ctx,
+				      &tcp_hndl->disconnect_event);
+	} else {
+		xio_context_disable_event(&tcp_hndl->disconnect_event);
+		if (tcp_hndl->tx_ready_tasks_num)
+			xio_tcp_xmit(tcp_hndl);
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -914,33 +919,34 @@ static void xio_tcp_tx_completion_handler(void *xio_task)
 /*---------------------------------------------------------------------------*/
 void xio_tcp_disconnect_helper(void *xio_tcp_hndl)
 {
-        struct xio_tcp_transport *tcp_hndl = (struct xio_tcp_transport *)
-                                             xio_tcp_hndl;
+	struct xio_tcp_transport *tcp_hndl = (struct xio_tcp_transport *)
+		xio_tcp_hndl;
 
-        if (tcp_hndl->state >= XIO_TRANSPORT_STATE_DISCONNECTED)
-                return;
+	if (tcp_hndl->state >= XIO_TRANSPORT_STATE_DISCONNECTED)
+		return;
 
-        tcp_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
+	tcp_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 
-        /* flush all tasks in completion */
-        if (!list_empty(&tcp_hndl->in_flight_list)) {
-                struct xio_task *task = NULL;
+	/* flush all tasks in completion */
+	if (!list_empty(&tcp_hndl->in_flight_list)) {
+		struct xio_task *task = NULL;
 
-                task = list_last_entry(&tcp_hndl->in_flight_list,
-                                       struct xio_task,
-                                       tasks_list_entry);
-                if (task) {
-                        XIO_TO_TCP_TASK(task, tcp_task);
+		xio_context_disable_event(&tcp_hndl->disconnect_event);
+		task = list_last_entry(&tcp_hndl->in_flight_list,
+				struct xio_task,
+				tasks_list_entry);
+		if (task) {
+			XIO_TO_TCP_TASK(task, tcp_task);
 
-                        xio_ctx_add_work(tcp_hndl->base.ctx, task,
-                                         xio_tcp_tx_completion_handler,
-                                         &tcp_task->comp_work);
-                }
-        } else {
-                /* call disconnect if no message to flush other wise defer */
-                xio_context_add_event(tcp_hndl->base.ctx,
-                                      &tcp_hndl->disconnect_event);
-        }
+			xio_ctx_add_work(tcp_hndl->base.ctx, task,
+					xio_tcp_tx_completion_handler,
+					&tcp_task->comp_work);
+		}
+	} else {
+		/* call disconnect if no message to flush other wise defer */
+		xio_context_add_event(tcp_hndl->base.ctx,
+				&tcp_hndl->disconnect_event);
+	}
 }
 
 /*---------------------------------------------------------------------------*/

@@ -199,6 +199,9 @@ static void on_sock_close(struct xio_tcp_transport *tcp_hndl)
 	TRACE_LOG("on_sock_close tcp_hndl:%p, state:%d\n\n",
 		  tcp_hndl, tcp_hndl->state);
 
+	if (tcp_hndl->state != XIO_TRANSPORT_STATE_CLOSED)
+		return;
+
 	xio_tcp_flush_all_tasks(tcp_hndl);
 
 	xio_transport_notify_observer(&tcp_hndl->base,
@@ -278,6 +281,8 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 
 	TRACE_LOG("on_sock_disconnected. tcp_hndl:%p, state:%d\n",
 		  tcp_hndl, tcp_hndl->state);
+	xio_context_disable_event(&tcp_hndl->disconnect_event);
+
 	if (tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
 		TRACE_LOG("call to close. tcp_hndl:%p\n",
 			  tcp_hndl);
@@ -285,7 +290,6 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 
 		xio_context_disable_event(&tcp_hndl->flush_tx_event);
 		xio_context_disable_event(&tcp_hndl->ctl_rx_event);
-		xio_context_disable_event(&tcp_hndl->disconnect_event);
 
 		if (tcp_hndl->sock.ops->del_ev_handlers)
 			tcp_hndl->sock.ops->del_ev_handlers(tcp_hndl);
