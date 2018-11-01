@@ -2420,6 +2420,7 @@ static void on_post_disconnected(void *trans_hndl)
 		xio_transport_notify_observer(&rdma_hndl->base,
 					      XIO_TRANSPORT_EVENT_DISCONNECTED,
 					      NULL);
+		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
 	}
 	xio_transport_notify_observer(
 			&rdma_hndl->base,
@@ -3079,7 +3080,7 @@ static void xio_rdma_close(struct xio_transport_base *transport)
 		TRACE_LOG("call to rdma_disconnect. rdma_hndl:%p\n",
 			  rdma_hndl);
 
-		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
+		rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 		retval = xio_rdma_disconnect(rdma_hndl, 0);
 		if (retval)
 			DEBUG_LOG("handle:%p rdma_disconnect failed, " \
