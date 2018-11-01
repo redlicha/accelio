@@ -286,6 +286,16 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 	if (tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
 		TRACE_LOG("call to close. tcp_hndl:%p\n",
 			  tcp_hndl);
+		if (passive_close) {
+			xio_transport_notify_observer(
+					&tcp_hndl->base,
+					XIO_TRANSPORT_EVENT_DISCONNECTING,
+					NULL);
+			xio_transport_notify_observer(
+					&tcp_hndl->base,
+					XIO_TRANSPORT_EVENT_DISCONNECTED,
+					NULL);
+		}
 		tcp_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
 
 		xio_context_disable_event(&tcp_hndl->flush_tx_event);
@@ -312,17 +322,6 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 			list_del(&pconn->conns_list_entry);
 			close(pconn->fd);
 			ufree(pconn);
-		}
-
-		if (passive_close) {
-			xio_transport_notify_observer(
-					&tcp_hndl->base,
-					XIO_TRANSPORT_EVENT_DISCONNECTING,
-					NULL);
-			xio_transport_notify_observer(
-					&tcp_hndl->base,
-					XIO_TRANSPORT_EVENT_DISCONNECTED,
-					NULL);
 		}
 	}
 }
