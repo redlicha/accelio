@@ -166,13 +166,13 @@ struct xio_nexus {
 	char				*out_if_addr;
 	uint32_t			trans_attr_mask;
 	struct xio_transport_init_attr	trans_attr;
-	struct xio_ev_data		destroy_event;
+	struct xio_ev_data		disconnect_event;
+	struct xio_ev_data		trans_release_event;
 	struct xio_ev_data		trans_error_event;
 	spinlock_t			nexus_obs_lock;
 	int				released:1;
-	int			        in_disconnected:1;
 	int 				defered_close:1;
-	int 				pad2:29;
+	int 				pad2:30;
 	struct mutex			lock_connect;      /* lock nexus connect */
 
 	HT_ENTRY(xio_nexus, xio_key_int32) nexus_htbl;

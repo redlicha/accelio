@@ -100,9 +100,9 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 static int xio_nexus_flush_all_tasks(struct xio_nexus *nexus);
 static int xio_nexus_destroy(struct xio_nexus *nexus);
 static int xio_nexus_xmit(struct xio_nexus *nexus);
-static void xio_nexus_destroy_handler(void *nexus_);
-static void xio_nexus_disconnected(void *nexus_);
+static void xio_nexus_trans_release_handler(void *nexus_);
 static void xio_nexus_trans_error_handler(void *ev_params_);
+static void xio_nexus_disconnect_handler(void *nexus_);
 
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_server_reconnect		                                     */
@@ -1169,7 +1169,7 @@ static void xio_on_context_close(struct xio_nexus *nexus,
 	xio_ctx_del_delayed_work(ctx, &nexus->close_time_hndl);
 
 	/* shut down the context and its dependent without waiting */
-	if (nexus->transport->context_shutdown && !nexus->in_disconnected)
+	if (nexus->transport->context_shutdown)
 		nexus->transport->context_shutdown(nexus->transport_hndl, ctx);
 
 	/* at that stage the nexus may no longer exist */
@@ -1307,8 +1307,11 @@ struct xio_nexus *xio_nexus_create(struct xio_nexus *parent_nexus,
 		ERROR_LOG("failed to setup pool\n");
 		goto cleanup;
 	}
-	nexus->destroy_event.handler		= xio_nexus_destroy_handler;
-	nexus->destroy_event.data		= nexus;
+	nexus->disconnect_event.handler		= xio_nexus_disconnect_handler;
+	nexus->disconnect_event.data		= nexus;
+
+	nexus->trans_release_event.handler	= xio_nexus_trans_release_handler;
+	nexus->trans_release_event.data		= nexus;
 
 	nexus->trans_error_event.handler	= xio_nexus_trans_error_handler;
 	nexus->trans_error_event.data		= NULL;
@@ -1442,9 +1445,9 @@ static void xio_nexus_on_transport_established(struct xio_nexus *nexus,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_nexus_destroy_handler						     */
+/* xio_nexus_trans_release_handler					     */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_destroy_handler(void *nexus_)
+static void xio_nexus_trans_release_handler(void *nexus_)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)nexus_;
 
@@ -1452,9 +1455,9 @@ static void xio_nexus_destroy_handler(void *nexus_)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_nexus_disconnected						     */
+/* xio_nexus_disconnect_handler						     */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_disconnected(void *nexus_)
+static void xio_nexus_disconnect_handler(void *nexus_)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)nexus_;
 	int ret;
@@ -1485,7 +1488,7 @@ static void xio_nexus_disconnected(void *nexus_)
 				NULL);
 	} else {
 		xio_context_add_event(nexus->transport_hndl->ctx,
-				      &nexus->destroy_event);
+				      &nexus->trans_release_event);
 	}
 	xio_nexus_flush_all_tasks(nexus);
 }
@@ -1529,14 +1532,12 @@ static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
 						union xio_transport_event_data
 						*event_data)
 {
-	nexus->in_disconnected = 1;
 	/* cancel old timers */
 	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
 				 &nexus->close_time_hndl);
 
-	xio_nexus_disconnected(nexus);
-
-	nexus->in_disconnected = 0;
+	xio_context_add_event(nexus->transport_hndl->ctx,
+			      &nexus->disconnect_event);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1830,8 +1831,9 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 {
 	DEBUG_LOG("nexus:%p - close complete\n", nexus);
 
-	xio_context_disable_event(&nexus->destroy_event);
+	xio_context_disable_event(&nexus->trans_release_event);
 	xio_context_disable_event(&nexus->trans_error_event);
+	xio_context_disable_event(&nexus->disconnect_event);
 
 	kfree(nexus->trans_error_event.data);
 	nexus->trans_error_event.data = NULL;
@@ -2027,8 +2029,11 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 		ERROR_LOG("transport does not implement \"add_observer\"\n");
 		goto cleanup;
 	}
-	nexus->destroy_event.handler	= xio_nexus_destroy_handler;
-	nexus->destroy_event.data	= nexus;
+	nexus->disconnect_event.handler		= xio_nexus_disconnect_handler;
+	nexus->disconnect_event.data		= nexus;
+
+	nexus->trans_release_event.handler	= xio_nexus_trans_release_handler;
+	nexus->trans_release_event.data		= nexus;
 
 	nexus->trans_error_event.handler	= xio_nexus_trans_error_handler;
 	nexus->trans_error_event.data		= NULL;
