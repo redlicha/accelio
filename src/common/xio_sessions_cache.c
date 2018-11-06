@@ -47,6 +47,9 @@
 #include "xio_mbuf.h"
 #include "xio_task.h"
 #include "xio_workqueue.h"
+#include "xio_ev_data.h"
+#include "xio_objpool.h"
+#include "xio_context.h"
 #include "xio_session.h"
 #include "xio_sessions_cache.h"
 

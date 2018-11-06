@@ -1214,16 +1214,16 @@ xmit:
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_on_nexus_disconnected			                             */
+/* xio_session_disconnect_handler					     */
 /*---------------------------------------------------------------------------*/
-int xio_on_nexus_disconnected(struct xio_session *session,
-			      struct xio_nexus *nexus,
-			      union xio_nexus_event_data *event_data)
+static void xio_session_disconnect_handler(void *_session)
 {
+	struct xio_session *session = (struct xio_session *)_session;
 	struct xio_connection *connection;
+	struct xio_nexus *nexus = session->disconnect_event_params.nexus;
 
-	DEBUG_LOG("xio_session_on_nexus_disconnected. session:%p, nexus:%p\n",
-		  session, nexus);
+	DEBUG_LOG("%s, session:%p, nexus:%p\n",
+		  __func__, session, nexus);
 
 	if (session->lead_connection &&
 	    session->lead_connection->nexus == nexus) {
@@ -1251,6 +1251,23 @@ int xio_on_nexus_disconnected(struct xio_session *session,
 		kfree(session->client_setup_req);
 		session->client_setup_req = NULL;
 	}
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_on_nexus_disconnected			                             */
+/*---------------------------------------------------------------------------*/
+int xio_on_nexus_disconnected(struct xio_session *session,
+			      struct xio_nexus *nexus,
+			      union xio_nexus_event_data *event_data)
+{
+	DEBUG_LOG("%s, session:%p, nexus:%p\n",
+		  __func__, session, nexus);
+
+	session->disconnect_event_params.nexus = nexus;
+
+	xio_context_add_event(nexus->transport_hndl->ctx,
+			      &session->disconnect_event);
+
 	return 0;
 }
 
@@ -1845,6 +1862,9 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 		xio_set_error(ENOMEM);
 		goto cleanup2;
 	}
+	session->disconnect_event.handler	= xio_session_disconnect_handler;
+	session->disconnect_event.data		= session;
+
 
 	/* add the session to storage */
 	retval = xio_sessions_cache_add(session, &session->session_id);
@@ -1940,7 +1960,9 @@ int xio_session_destroy(struct xio_session *session)
 		xio_ctx_debug_thread_lock(session->teardown_work_ctx);
 #endif
 
-	TRACE_LOG("xio_post_destroy_session seesion:%p\n", session);
+	TRACE_LOG("%s - seesion:%p\n", __func__, session);
+
+	xio_context_disable_event(&session->disconnect_event);
 
 	if (session->teardown_work_ctx &&
 	    xio_ctx_is_work_in_handler(session->teardown_work_ctx,
