@@ -1219,7 +1219,7 @@ xmit:
 static void xio_session_disconnect_handler(void *_session)
 {
 	struct xio_session *session = (struct xio_session *)_session;
-	struct xio_connection *connection;
+	struct xio_connection *connection = NULL;
 	struct xio_nexus *nexus = session->disconnect_event_params.nexus;
 
 	DEBUG_LOG("%s, session:%p, nexus:%p\n",
@@ -1260,13 +1260,26 @@ int xio_on_nexus_disconnected(struct xio_session *session,
 			      struct xio_nexus *nexus,
 			      union xio_nexus_event_data *event_data)
 {
+	struct xio_connection *connection = NULL;
 	DEBUG_LOG("%s, session:%p, nexus:%p\n",
 		  __func__, session, nexus);
 
-	session->disconnect_event_params.nexus = nexus;
-
-	xio_context_add_event(nexus->transport_hndl->ctx,
-			      &session->disconnect_event);
+	if (session->lead_connection &&
+	    session->lead_connection->nexus == nexus) {
+		connection = session->lead_connection;
+	} else if (session->redir_connection &&
+		session->redir_connection->nexus == nexus) {
+		connection = session->redir_connection;
+	} else {
+		spin_lock(&session->connections_list_lock);
+		connection = xio_session_find_connection(session, nexus);
+		spin_unlock(&session->connections_list_lock);
+	}
+	if (connection && connection->ctx) {
+		session->disconnect_event_params.nexus = nexus;
+		xio_context_add_event(connection->ctx,
+				      &session->disconnect_event);
+	}
 
 	return 0;
 }
