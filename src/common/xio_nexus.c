@@ -2388,6 +2388,9 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 	if (!nexus->transport->send || !nexus->transport_hndl)
 		return 0;
 
+	if (nexus->state == XIO_NEXUS_STATE_DISCONNECTED)
+		return 0;
+
 	while (1) {
 		if (list_empty(&nexus->tx_queue))
 			break;
