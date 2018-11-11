@@ -362,6 +362,13 @@ static inline void xio_nexus_state_set(struct xio_nexus *nexus,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_nexus_is_disconnected                                                 */
+/*---------------------------------------------------------------------------*/
+static inline int xio_nexus_is_disconnected(struct xio_nexus *nexus)
+{
+	return (nexus && nexus->state == XIO_NEXUS_STATE_DISCONNECTED);
+}
+/*---------------------------------------------------------------------------*/
 /* xio_nexus_update_task						     */
 /*---------------------------------------------------------------------------*/
 int xio_nexus_update_task(struct xio_nexus *nexus, struct xio_task *task);

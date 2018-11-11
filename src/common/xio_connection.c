@@ -318,6 +318,9 @@ int xio_connection_send(struct xio_connection *connection,
 	/* is control message */
 	is_control = !IS_APPLICATION_MSG(msg->type);
 
+      if (xio_nexus_is_disconnected(connection->nexus))
+	      return -EAGAIN;
+
 	/* flow control test */
 	if (!is_control && connection->enable_flow_control) {
 		if (connection->peer_credits_msgs == 0)
