@@ -121,7 +121,7 @@ static void xio_nexus_client_reconnect_failed(void *data);
 
 static void xio_nexus_cancel_dwork(struct xio_nexus *nexus)
 {
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
 }
 
@@ -514,7 +514,7 @@ static int xio_nexus_swap(struct xio_nexus *old, struct xio_nexus *_new)
 	/*
 	 * Unregister the new_nexus (it was temporary) from the context.
 	 */
-	xio_context_unreg_observer(_new->transport_hndl->ctx, &_new->ctx_observer);
+	xio_context_unreg_observer(_new->ctx, &_new->ctx_observer);
 
 	/* silently destroy new_nexus (it was temporary) but do not close
 	 * its transport handler since it was copied from _new to old,
@@ -972,7 +972,7 @@ static int xio_nexus_initial_pool_create(struct xio_nexus *nexus)
 		transport_hndl = nexus->transport_hndl;
 
 	proto		= transport_hndl->proto;
-	ctx		= transport_hndl->ctx;
+	ctx		= nexus->ctx;
 
 	retval = xio_ctx_pool_create(ctx, proto,
 				     XIO_CONTEXT_POOL_CLASS_INITIAL);
@@ -1022,7 +1022,7 @@ static int xio_nexus_primary_pool_create(struct xio_nexus *nexus)
 
 	transport_hndl  = nexus->transport_hndl;
 	proto		= transport_hndl->proto;
-	ctx		= transport_hndl->ctx;
+	ctx		= nexus->ctx;
 
 	retval = xio_ctx_pool_create(ctx, proto,
 				     XIO_CONTEXT_POOL_CLASS_PRIMARY);
@@ -1074,7 +1074,7 @@ static int xio_nexus_primary_pool_recreate(struct xio_nexus *nexus)
 	enum xio_proto			proto;
 
 	proto		= nexus->transport_hndl->proto;
-	ctx		= nexus->transport_hndl->ctx;
+	ctx		= nexus->ctx;
 	pool_ops	= ctx->primary_pool_ops[proto];
 
 	if (!pool_ops || !nexus->primary_tasks_pool)
@@ -1127,7 +1127,7 @@ static void xio_nexus_release_cb(void *data)
 		nexus->state = XIO_NEXUS_STATE_CLOSED;
 		TRACE_LOG("nexus state changed to closed\n");
 	}
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
 
 	/* now it is zero */
@@ -1149,7 +1149,7 @@ static void xio_nexus_release(void *data)
 		  nexus, xio_proto_str(nexus->transport_hndl->proto),
 		  nexus->transport_hndl);
 
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
 
 	xio_nexus_release_cb(data);
@@ -1271,6 +1271,7 @@ struct xio_nexus *xio_nexus_create(struct xio_nexus *parent_nexus,
 	kref_init(&nexus->kref);
 	nexus->state			= XIO_NEXUS_STATE_OPEN;
 	nexus->is_first_req		= 1;
+	nexus->ctx			= transport_hndl->ctx;
 	mutex_init(&nexus->lock_connect);
 
 	xio_nexus_cache_add(nexus, &nexus->cid);
@@ -1285,7 +1286,7 @@ struct xio_nexus *xio_nexus_create(struct xio_nexus *parent_nexus,
 				   &nexus->trans_observer);
 
 	if (nexus->transport->get_pools_setup_ops) {
-		struct xio_context *ctx  = nexus->transport_hndl->ctx;
+		struct xio_context *ctx  = nexus->ctx;
 		enum xio_proto proto = nexus->transport_hndl->proto;
 
 		if (!ctx->primary_pool_ops[proto] ||
@@ -1390,7 +1391,7 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 	/* remove the nexus from table */
 	xio_nexus_cache_remove(nexus->cid);
 
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+	xio_ctx_del_delayed_work(nexus->ctx,
 				  &nexus->close_time_hndl);
 
 	if (xio_observable_is_empty(&nexus->observable))
@@ -1399,7 +1400,7 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 		nexus->defered_close = 1;
 		xio_transport_unreg_observer(nexus->transport_hndl,
 					     &nexus->trans_observer);
-		xio_context_unreg_observer(nexus->transport_hndl->ctx,
+		xio_context_unreg_observer(nexus->ctx,
 					   &nexus->ctx_observer);
 	}
 }
@@ -1487,7 +1488,7 @@ static void xio_nexus_disconnect_handler(void *nexus_)
 				XIO_NEXUS_EVENT_DISCONNECTED,
 				NULL);
 	} else {
-		xio_context_add_event(nexus->transport_hndl->ctx,
+		xio_context_add_event(nexus->ctx,
 				      &nexus->trans_release_event);
 	}
 	xio_nexus_flush_all_tasks(nexus);
@@ -1533,10 +1534,10 @@ static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
 						*event_data)
 {
 	/* cancel old timers */
-	xio_ctx_del_delayed_work(nexus->transport_hndl->ctx,
+	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
 
-	xio_context_add_event(nexus->transport_hndl->ctx,
+	xio_context_add_event(nexus->ctx,
 			      &nexus->disconnect_event);
 }
 
@@ -1811,7 +1812,7 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		memcpy(&ev_params->event_data, ev_data, sizeof(*ev_data));
 		nexus->trans_error_event.data = ev_params;
 
-		xio_context_add_event(nexus->transport_hndl->ctx,
+		xio_context_add_event(nexus->ctx,
 				      &nexus->trans_error_event);
 
 		tx = 0;
@@ -1852,7 +1853,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 
 	if (nexus->transport_hndl)
 		xio_ctx_del_delayed_work(
-				nexus->transport_hndl->ctx,
+				nexus->ctx,
 				&nexus->close_time_hndl);
 
 	xio_nexus_flush_all_tasks(nexus);
@@ -1860,7 +1861,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	xio_nexus_cache_remove(nexus->cid);
 
 	if (nexus->transport_hndl)
-		xio_context_unreg_observer(nexus->transport_hndl->ctx,
+		xio_context_unreg_observer(nexus->ctx,
 					   &nexus->ctx_observer);
 
 	kfree(nexus->portal_uri);
@@ -2003,6 +2004,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 		goto cleanup;
 	}
 	nexus->transport	= transport;
+	nexus->ctx		= ctx;
 	kref_init(&nexus->kref);
 	nexus->state = XIO_NEXUS_STATE_OPEN;
 
@@ -2016,7 +2018,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 #endif
 
 	if (nexus->transport->get_pools_setup_ops) {
-		struct xio_context *ctx  = nexus->transport_hndl->ctx;
+		struct xio_context *ctx  = nexus->ctx;
 		enum xio_proto proto = nexus->transport_hndl->proto;
 
 		if (!ctx->primary_pool_ops[proto] ||
@@ -2068,7 +2070,7 @@ int xio_nexus_reconnect(struct xio_nexus *nexus)
 	}
 
 	transport = nexus->transport;
-	ctx = nexus->transport_hndl->ctx;
+	ctx = nexus->ctx;
 
 	nexus->new_transport_hndl = transport->open(nexus->transport, ctx,
 						   &nexus->trans_observer,
@@ -2177,9 +2179,9 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		work_params->observer_event.observable = &nexus->observable;
 		work_params->observer_event.event = XIO_NEXUS_EVENT_ESTABLISHED;
 		work_params->observer_event.event_data = NULL;
-		work_params->ctx = nexus->transport_hndl->ctx;
+		work_params->ctx = nexus->ctx;
 		work_params->nexus = nexus;
-		xio_ctx_add_work(nexus->transport_hndl->ctx,
+		xio_ctx_add_work(nexus->ctx,
                                  work_params,
                                  xio_nexus_notify_observer_work,
                                  &work_params->observer_work);
@@ -2301,7 +2303,7 @@ static void xio_nexus_delayed_close(struct kref *kref)
 	default:
 		/* only client shall cause disconnection */
 		retval = xio_ctx_add_delayed_work(
-				nexus->transport_hndl->ctx,
+				nexus->ctx,
 				g_options.transport_close_timeout, nexus,
 				xio_nexus_release_cb,
 				&nexus->close_time_hndl);
@@ -2679,7 +2681,7 @@ static int xio_nexus_server_reconnect(struct xio_nexus *nexus)
 					    NULL);
 
 	/* Just wait and see if some client tries to reconnect */
-	retval = xio_ctx_add_delayed_work(nexus->transport_hndl->ctx,
+	retval = xio_ctx_add_delayed_work(nexus->ctx,
 					  XIO_SERVER_TIMEOUT, nexus,
 					  xio_nexus_server_reconnect_timeout,
 					  &nexus->close_time_hndl);
@@ -2704,7 +2706,7 @@ static void xio_nexus_client_reconnect_timeout(void *data)
 	if (nexus->reconnect_retries) {
 		nexus->reconnect_retries--;
 		retval = xio_ctx_add_delayed_work(
-				nexus->transport_hndl->ctx,
+				nexus->ctx,
 				xio_msecs[nexus->reconnect_retries],
 				nexus,
 				xio_nexus_client_reconnect_timeout,
@@ -2737,7 +2739,7 @@ static void xio_nexus_client_reconnect_failed(void *data)
 	if (nexus->reconnect_retries) {
 		nexus->reconnect_retries--;
 		retval = xio_ctx_add_delayed_work(
-				nexus->transport_hndl->ctx,
+				nexus->ctx,
 				xio_msecs[nexus->reconnect_retries],
 				nexus,
 				xio_nexus_client_reconnect_timeout,
@@ -2793,7 +2795,7 @@ static int xio_nexus_client_reconnect(struct xio_nexus *nexus)
 		return 0;
 
 	nexus->reconnect_retries = 2;
-	retval = xio_ctx_add_delayed_work(nexus->transport_hndl->ctx,
+	retval = xio_ctx_add_delayed_work(nexus->ctx,
 					  xio_msecs[nexus->reconnect_retries],
 					  nexus,
 					  xio_nexus_client_reconnect_timeout,

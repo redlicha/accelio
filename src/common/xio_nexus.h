@@ -174,6 +174,7 @@ struct xio_nexus {
 	int 				defered_close:1;
 	int 				pad2:30;
 	struct mutex			lock_connect;      /* lock nexus connect */
+	struct xio_context		*ctx;
 
 	HT_ENTRY(xio_nexus, xio_key_int32) nexus_htbl;
 };

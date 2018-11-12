@@ -135,7 +135,7 @@ struct xio_connection *xio_session_assign_nexus(
 	/* find free slot */
 	list_for_each_entry(connection, &session->connections_list,
 			    connections_list_entry) {
-		if ((connection->ctx == nexus->transport_hndl->ctx)  &&
+		if ((connection->ctx == nexus->ctx)  &&
 		    (!connection->nexus ||
 		     (connection->nexus == nexus))) {
 			/* remove old observer if exist */
@@ -157,8 +157,7 @@ struct xio_connection *xio_session_find_connection(
 		struct xio_nexus *nexus)
 {
 	struct xio_connection		*connection;
-	struct xio_context		*ctx =
-		nexus->transport_hndl ? nexus->transport_hndl->ctx : NULL;
+	struct xio_context		*ctx = nexus->ctx;
 
 	if (!ctx)
 		return NULL;
