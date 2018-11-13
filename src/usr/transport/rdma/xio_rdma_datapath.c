@@ -740,7 +740,10 @@ static void xio_handle_wc_error(struct ibv_wc *wc, struct xio_srq *srq)
 					rdma_hndl->base.ctx,
 					&rdma_hndl->disconnect_timeout_work);
 			xio_set_disconnect_timer(rdma_hndl);
-			if (wc->status !=  IBV_WC_RETRY_EXC_ERR) {
+			if (wc->status ==  IBV_WC_RETRY_EXC_ERR)
+				rdma_hndl->trans_retry_counter_exceeded = 1;
+
+			if (!rdma_hndl->trans_retry_counter_exceeded) {
 				ERROR_LOG("cq error reported. calling " \
 						"rdma_disconnect. rdma_hndl:%p, status:%d\n",
 						rdma_hndl, wc->status);

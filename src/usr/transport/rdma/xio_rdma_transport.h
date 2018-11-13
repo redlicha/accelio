@@ -481,7 +481,8 @@ struct xio_rdma_transport {
 	uint32_t                        beacon_sent:1;
 	uint32_t			rdma_disconnect_called:1;
 	uint32_t			src_addr_bounded:1;
-	uint32_t			reserved:24;
+	uint32_t			trans_retry_counter_exceeded:1;
+	uint32_t			reserved:23;
 
 	/* too big to be on stack - use as temporaries */
 	union {
