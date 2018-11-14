@@ -75,7 +75,21 @@ static struct xio_transport  *transport_tbl[transport_tbl_sz];
 static volatile int32_t	ini_refcnt; /*= 0 */
 static DEFINE_MUTEX(ini_mutex);
 
+static int g_disable_rdma = 0;
+
 extern double xio_get_cpu_mhz(void);
+
+
+static void xio_test_disable_rdma(void)
+{
+	char *val = getenv("XIO_DISABLE_RDMA");
+
+	if (!val && !g_disable_rdma)
+		return;
+#ifdef HAVE_INFINIBAND_VERBS_H
+	transport_func_list_tbl[0] = NULL;
+#endif
+}
 
 /*---------------------------------------------------------------------------*/
 /* xio_dtor								     */
@@ -111,10 +125,6 @@ static void xio_ctor(void)
 	size_t i;
 
 	xio_env_startup();
-	for (i = 0; i < transport_tbl_sz; i++)
-		if (!transport_tbl[i])
-			transport_tbl[i] = transport_func_list_tbl[i]();
-
 	page_size = xio_get_page_size();
 	if (page_size < 0)
 		page_size = 4096;
@@ -136,9 +146,21 @@ static void xio_ctor(void)
 	}
 }
 
+void xio_disable_rdma()
+{
+	g_disable_rdma = 1; 
+}
+
 void xio_init(void)
 {
+	size_t i;
 	mutex_lock(&ini_mutex);
+	xio_test_disable_rdma();
+	for (i = 0; i < transport_tbl_sz; i++)
+		if (transport_func_list_tbl[i]) 
+			transport_tbl[i] = transport_func_list_tbl[i]();
+		else 
+			transport_tbl[i] = NULL;
 	if (++ini_refcnt == 1)
 		xio_ctor();
 	mutex_unlock(&ini_mutex);
