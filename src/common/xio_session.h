@@ -128,10 +128,6 @@ struct xio_session {
 	struct xio_connection           *connection_srv_first;
 	struct xio_context		*teardown_work_ctx;
 	xio_work_handle_t		teardown_work;
-	struct xio_ev_data		disconnect_event;
-	struct {
-		struct xio_nexus *nexus;
-	} disconnect_event_params;
 };
 
 /*---------------------------------------------------------------------------*/

@@ -2738,14 +2738,15 @@ static void xio_connection_teardown_handler(void *connection_)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_connection_disconnected						     */
+/* xio_connection_disconnect_handler					     */
 /*---------------------------------------------------------------------------*/
-int xio_connection_disconnected(struct xio_connection *connection)
+void xio_connection_disconnect_handler(void *_connection)
 {
 	int close = 0;
+	struct xio_connection *connection = (struct xio_connection *)_connection;
 
-	DEBUG_LOG("xio_connection_disconnected: connection:%p, state:%s\n",
-		  connection,
+	DEBUG_LOG("%s: connection:%p, state:%s\n",
+		   __func__, connection,
 		  xio_connection_state_str((enum xio_connection_state)
 					   connection->state));
 
@@ -2791,8 +2792,9 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		if (connection->session->lead_connection &&
 		    connection->session->lead_connection->nexus ==
 		    connection->nexus) {
-			DEBUG_LOG("xio_connection_disconnected: null " \
+			DEBUG_LOG("%s: null " \
 				  "the lead connection. connection:%p\n",
+				  __func__,
 				  connection);
 			connection->session->lead_connection = NULL;
 			close = 1;
@@ -2800,16 +2802,18 @@ int xio_connection_disconnected(struct xio_connection *connection)
 		if (connection->session->redir_connection &&
 		    connection->session->redir_connection->nexus ==
 		    connection->nexus) {
-			DEBUG_LOG("xio_connection_disconnected: null " \
+			DEBUG_LOG("%s: null " \
 				  "the redir connection connection:%p\n",
+				  __func__,
 				  connection);
 			connection->session->redir_connection = NULL;
 			close = 1;
 		}
 		/* free nexus and tasks pools */
 		if (close) {
-			DEBUG_LOG("xio_connection_disconnected: nexus " \
+			DEBUG_LOG("%s: nexus " \
 				  "close. connection:%p nexus:%p\n",
+				  __func__,
 				  connection, connection->nexus);
 			xio_connection_flush_tasks(connection);
 			xio_connection_nexus_safe_close(connection,
@@ -2824,7 +2828,17 @@ int xio_connection_disconnected(struct xio_connection *connection)
 				xio_connection_teardown_handler,
 				&connection->teardown_work);
 
-	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_connection_sched_disconnect_event				     */
+/*---------------------------------------------------------------------------*/
+void xio_connection_sched_disconnect_event(struct xio_connection *connection)
+{
+	connection->disconnect_event.handler = xio_connection_disconnect_handler;
+	connection->disconnect_event.data = connection;
+	xio_context_add_event(connection->ctx,
+				      &connection->disconnect_event);
 }
 
 /*---------------------------------------------------------------------------*/

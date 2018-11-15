@@ -131,6 +131,7 @@ struct xio_connection {
 	xio_delayed_work_handle_t	fin_delayed_work;
 	xio_delayed_work_handle_t	fin_req_timeout_work;
 	xio_delayed_work_handle_t	fin_ack_timeout_work;
+	struct xio_ev_data		disconnect_event;
 
 	struct list_head		managed_rkey_list;
 	struct list_head		io_tasks_list;
@@ -293,5 +294,7 @@ int xio_connection_force_disconnect(struct xio_connection *connection,
                                     enum xio_status reason);
 
 void xio_connection_dump_tasks_queues(struct xio_connection *connection);
+
+void xio_connection_sched_disconnect_event(struct xio_connection *connection);
 
 #endif /*XIO_CONNECTION_H */
