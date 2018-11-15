@@ -215,8 +215,6 @@ int xio_send_fin_ack(struct xio_connection *connection,
 int xio_disconnect_initial_connection(
 		struct xio_connection *connection);
 
-int xio_connection_disconnected(struct xio_connection *connection);
-
 int xio_connection_refused(struct xio_connection *connection);
 
 int xio_connection_error_event(struct xio_connection *connection,

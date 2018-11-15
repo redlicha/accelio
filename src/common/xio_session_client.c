@@ -278,8 +278,8 @@ int xio_on_session_rejected(struct xio_session *session)
 		pconnection->close_reason = XIO_E_SESSION_REJECTED;
 		if (pconnection->nexus)
 			xio_disconnect_initial_connection(pconnection);
-		else
-			xio_connection_disconnected(pconnection);
+		else 
+			xio_connection_sched_disconnect_event(pconnection);
 	}
 
 	return 0;
