@@ -1957,13 +1957,16 @@ static void xio_fin_msg_timeout(struct xio_connection *connection, bool is_req)
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
+	/* this should set the kref for destruction */
+	kref_init(&connection->kref);
+	kref_get(&connection->kref);
 	if (!connection->disable_notify)
 		xio_ctx_add_work(
 				connection->ctx,
 				connection,
 				xio_connection_teardown_handler,
 				&connection->teardown_work);
-	 else
+	else
 		xio_connection_destroy(connection);
 
 	kref_put(&connection->kref, xio_connection_post_destroy);
@@ -2179,7 +2182,9 @@ static void xio_pre_disconnect(void *conn)
 	}
 
 	if (expedite_disconnection) {
-		DEBUG_LOG("xio_pre_disconnect: expediting disconnection. ka.timedout:%d, ka.req_sent:%d\n",
+		DEBUG_LOG("xio_pre_disconnect: expediting disconnection. connection:%p, " \
+			  "ka.timedout:%d, ka.req_sent:%d\n",
+			  connection,
 			  connection->ka.timedout, connection->ka.req_sent);
 		xio_ctx_del_delayed_work(connection->ctx,
 					 &connection->ka.timer);
@@ -3088,7 +3093,8 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 	if (connection->fin_request_flushed) {
 		retval = xio_send_fin_req(connection);
 		if (retval) {
-			ERROR_LOG("xio_send_fin_req failed. expediting disconnection.\n");
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n", 
+				   connection);
 			xio_ctx_del_delayed_work(connection->ctx,
 					&connection->ka.timer);
 			xio_ctx_del_delayed_work(connection->ctx,
@@ -3191,7 +3197,8 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 
 
 		if (retval) {
-			ERROR_LOG("xio_send_fin_req failed. expediting disconnection\n");
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n", 
+				  connection);
 			xio_handle_last_ack(connection);
 			retval = 0;
 			goto cleanup;
