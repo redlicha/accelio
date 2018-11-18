@@ -1629,6 +1629,8 @@ static void xio_connection_post_close(void *_connection)
 
 	DEBUG_LOG("xio_connection_post_close. connection:%p\n", connection);
 
+	xio_context_disable_event(&connection->disconnect_event);
+
 	xio_ctx_del_work(connection->ctx, &connection->hello_work);
 
 	xio_ctx_del_delayed_work(connection->ctx,
@@ -2943,6 +2945,9 @@ static void xio_close_time_wait(void *data)
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
+	/* this should set the kref for destruction */
+	kref_init(&connection->kref);
+	kref_get(&connection->kref);
 	if (!connection->disable_notify)
 		xio_ctx_add_work(
 				connection->ctx,
