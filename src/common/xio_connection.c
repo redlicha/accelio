@@ -3673,7 +3673,8 @@ void xio_connection_keepalive_intvl(void *_connection)
         connection->ka.probes = 0;
 
         /* stop further processing of events immediately  */
-        if ((!connection->disconnecting) && (!g_options.reconnect)) {
+        if (!connection->disconnecting && !g_options.reconnect && 
+	    connection->nexus) {
             xio_nexus_force_close(connection->nexus);
             connection->nexus = NULL;
         }

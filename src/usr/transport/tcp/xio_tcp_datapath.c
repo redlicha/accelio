@@ -877,9 +877,13 @@ static void xio_tcp_tx_completion_handler(void *xio_task)
 
 	list_for_each_entry_safe(ptask, next_ptask, &tcp_hndl->in_flight_list,
 				 tasks_list_entry) {
+		XIO_TO_TCP_TASK(ptask, tcp_task);
+
 		list_move_tail(&ptask->tasks_list_entry,
 			       &tcp_hndl->tx_comp_list);
 		removed++;
+
+		xio_ctx_del_work(tcp_hndl->base.ctx, &tcp_task->comp_work);
 		if (IS_REQUEST(ptask->tlv_type)) {
 			xio_tcp_on_req_send_comp(tcp_hndl, ptask);
 			xio_tasks_pool_put(ptask);
