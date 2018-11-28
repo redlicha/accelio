@@ -1461,27 +1461,8 @@ static void xio_nexus_trans_release_handler(void *nexus_)
 static void xio_nexus_disconnect_handler(void *nexus_)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)nexus_;
-	int ret;
 
-	/* Try to reconnect */
-	if (g_options.reconnect) {
-		if (nexus->transport_hndl->is_client)
-			ret = xio_nexus_client_reconnect(nexus);
-		else
-			ret = xio_nexus_server_reconnect(nexus);
-
-		if (!ret) {
-			TRACE_LOG("reconnect attempt nexus:%p\n", nexus);
-			return;
-		}
-		ERROR_LOG("can't reconnect nexus:%p\n", nexus);
-	}
-
-	/* Can't reconnect */
-
-	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
-	TRACE_LOG("nexus state changed to disconnected nexus:%p\n", nexus);
-
+	TRACE_LOG("%s - nexus:%p\n", __func__, nexus);
 	if (!xio_observable_is_empty(&nexus->observable)) {
 		xio_observable_notify_all_observers(
 				&nexus->observable,
@@ -1533,9 +1514,28 @@ static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
 						union xio_transport_event_data
 						*event_data)
 {
+	int ret;
+
 	/* cancel old timers */
 	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
+	/* Try to reconnect */
+	if (g_options.reconnect) {
+		if (nexus->transport_hndl->is_client)
+			ret = xio_nexus_client_reconnect(nexus);
+		else
+			ret = xio_nexus_server_reconnect(nexus);
+
+		if (!ret) {
+			TRACE_LOG("reconnect attempt nexus:%p\n", nexus);
+			return;
+		}
+		ERROR_LOG("can't reconnect nexus:%p\n", nexus);
+	}
+
+	/* Can't reconnect */
+	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
+	TRACE_LOG("%s - nexus:%p\n", __func__, nexus);
 
 	xio_context_add_event(nexus->ctx,
 			      &nexus->disconnect_event);
@@ -2772,14 +2772,13 @@ static int xio_nexus_client_reconnect(struct xio_nexus *nexus)
 	if (!nexus->transport->dup2)
 		return -1;
 
-	if (nexus->state == XIO_NEXUS_STATE_RECONNECT){
+	if (nexus->state == XIO_NEXUS_STATE_RECONNECT)
 		return 0;
-	}
 
 	xio_nexus_state_set(nexus, XIO_NEXUS_STATE_RECONNECT);
 
 	xio_observable_notify_all_observers(&nexus->observable,
-						XIO_NEXUS_EVENT_RECONNECTING,
+					    XIO_NEXUS_EVENT_RECONNECTING,
 					    NULL);
 
 	/* All portal_uri and out_if were saved in the nexus
