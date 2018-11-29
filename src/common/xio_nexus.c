@@ -1116,9 +1116,13 @@ static void xio_nexus_release_cb(void *data)
 		return;
 	nexus->released = 1;
 
-	TRACE_LOG("physical nexus close. nexus:%p %s_hndl:%p\n",
-		  nexus, xio_proto_str(nexus->transport_hndl->proto),
-		  nexus->transport_hndl);
+	if (nexus->transport_hndl)
+		TRACE_LOG("physical nexus close. nexus:%p %s_hndl:%p\n",
+			  nexus, xio_proto_str(nexus->transport_hndl->proto),
+			  nexus->transport_hndl);
+	else
+		TRACE_LOG("physical nexus close. nexus:%p trans_hndl:NULL\n",
+			  nexus);
 
 	if (!nexus->is_listener)
 		xio_nexus_cache_remove(nexus->cid);
@@ -1131,7 +1135,8 @@ static void xio_nexus_release_cb(void *data)
 				 &nexus->close_time_hndl);
 
 	/* now it is zero */
-	if (nexus->transport && nexus->transport->close)
+	if (nexus->transport_hndl &&
+	    nexus->transport && nexus->transport->close)
 		nexus->transport->close(nexus->transport_hndl);
 }
 
@@ -1144,10 +1149,6 @@ static void xio_nexus_release(void *data)
 
 	if (nexus->released || !xio_observable_is_empty(&nexus->observable))
 		return;
-
-	TRACE_LOG("physical nexus close. nexus:%p %s_hndl:%p\n",
-		  nexus, xio_proto_str(nexus->transport_hndl->proto),
-		  nexus->transport_hndl);
 
 	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
@@ -1402,6 +1403,7 @@ static void xio_nexus_on_transport_closed(struct xio_nexus *nexus,
 					     &nexus->trans_observer);
 		xio_context_unreg_observer(nexus->ctx,
 					   &nexus->ctx_observer);
+		nexus->transport_hndl = NULL;
 	}
 }
 
@@ -1851,18 +1853,15 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	xio_observable_unreg_all_observers(&nexus->observable);
 	spin_unlock(&nexus->nexus_obs_lock);
 
-	if (nexus->transport_hndl)
-		xio_ctx_del_delayed_work(
-				nexus->ctx,
-				&nexus->close_time_hndl);
+	xio_ctx_del_delayed_work(
+			nexus->ctx,
+			&nexus->close_time_hndl);
 
 	xio_nexus_flush_all_tasks(nexus);
 
 	xio_nexus_cache_remove(nexus->cid);
 
-	if (nexus->transport_hndl)
-		xio_context_unreg_observer(nexus->ctx,
-					   &nexus->ctx_observer);
+	xio_context_unreg_observer(nexus->ctx, &nexus->ctx_observer);
 
 	kfree(nexus->portal_uri);
 	nexus->portal_uri = NULL;
@@ -2321,8 +2320,7 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 	TRACE_LOG("nexus: [putref] ptr:%p, refcnt:%d\n", nexus,
 		  atomic_read(&nexus->kref.refcount));
 
-	if ( nexus->defered_close && xio_observable_is_empty(&nexus->observable)) {
-		nexus->transport_hndl = NULL;
+	if (nexus->defered_close && xio_observable_is_empty(&nexus->observable)) {
 		xio_nexus_destroy(nexus);
 		return;
 	}
@@ -2346,7 +2344,6 @@ void xio_nexus_force_close(struct xio_nexus *nexus)
 
 	if (nexus->defered_close &&
 	    xio_observable_is_empty(&nexus->observable)) {
-		nexus->transport_hndl = NULL;
 		xio_nexus_destroy(nexus);
 		return;
 	}
