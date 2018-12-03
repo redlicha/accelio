@@ -2075,7 +2075,8 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	xio_qp_release(rdma_hndl);
 
 	if (rdma_hndl->cm_id) {
-		TRACE_LOG("call rdma_destroy_id\n");
+		TRACE_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
+			   rdma_hndl->cm_id, rdma_hndl);
 		rdma_destroy_id(rdma_hndl->cm_id);
 		rdma_hndl->cm_id = NULL;
 	}
@@ -2206,7 +2207,8 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 	}
 	retval = xio_qp_create(rdma_hndl);
 	if (unlikely(retval != 0)) {
-		ERROR_LOG("internal logic error in create_endpoint\n");
+		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n",
+			  rdma_hndl);
 		goto notify_err0;
 	}
 
@@ -2315,13 +2317,13 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
-		child_hndl->cm_id	= NULL;
 		ev->id->context		= NULL;
-		ERROR_LOG("failed to create qp\n");
+		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
 		retval = rdma_reject(ev->id, NULL, 0);
 		if (retval) {
 			xio_set_error(errno);
-			ERROR_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
+			ERROR_LOG("rdma_reject failed. rdma_hndl:%p, (errno=%d %m)\n",
+				  child_hndl, errno);
 		}
 		goto notify_err3;
 	}
@@ -3306,9 +3308,12 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 				rdma_hndl, RDMA_PS_TCP);
 	if (retval) {
 		xio_set_error(errno);
-		ERROR_LOG("rdma_create id failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("rdma_create_id failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
 		goto exit1;
 	}
+	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
 
 	if (out_if_addr) {
 		if (xio_host_port_to_ss(out_if_addr,
@@ -3413,20 +3418,29 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 	ufree(p);
 
 	rdma_destroy_id(rdma_hndl->cm_id);
+	TRACE_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
+
 	/* create cm id */
 	retval = rdma_create_id(rdma_hndl->cm_channel->cm_channel,
 			&rdma_hndl->cm_id,
 			rdma_hndl, RDMA_PS_TCP);
 	if (retval) {
 		xio_set_error(errno);
-		DEBUG_LOG("rdma_create id failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("rdma_create_id failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
 		goto exit1;
 	}
+	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
+
+
 	retval = rdma_bind_addr(rdma_hndl->cm_id, &sa.sa);
 	if (retval) {
 		xio_set_error(errno);
-		ERROR_LOG("rdma_bind_addr failed. (errno=%d %m)\n", errno);
-		goto exit2;
+		ERROR_LOG("rdma_bind_addr failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
+goto exit2;
 	}
 
 	backlog = backlog > 0 ? backlog : RDMA_DEFAULT_BACKLOG;
@@ -3468,7 +3482,7 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	rdma_hndl->srv_listen_uri = ustrdup(portal_uri);
 	if (xio_uri_to_ss(portal_uri, &sa.sa_stor) == -1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
-		DEBUG_LOG("address [%s] resolving failed\n", portal_uri);
+		ERROR_LOG("address [%s] resolving failed\n", portal_uri);
 		return -1;
 	}
 	rdma_hndl->base.is_client = 0;
@@ -3481,14 +3495,18 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 				rdma_hndl, RDMA_PS_TCP);
 	if (retval) {
 		xio_set_error(errno);
-		DEBUG_LOG("rdma_create id failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("rdma_create_id failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
 		goto exit1;
 	}
+	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
 
 	retval = rdma_bind_addr(rdma_hndl->cm_id, &sa.sa);
 	if (retval) {
 		xio_set_error(errno);
-		DEBUG_LOG("rdma_bind_addr failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("rdma_bind_addr failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
 		goto exit2;
 	}
 
@@ -3496,7 +3514,8 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	retval  = rdma_listen(rdma_hndl->cm_id, backlog);
 	if (retval) {
 		xio_set_error(errno);
-		DEBUG_LOG("rdma_listen failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("rdma_listen failed. rdma_hndl:%p, (errno=%d %m)\n",
+			  rdma_hndl, errno);
 		goto exit2;
 	}
 
@@ -3510,7 +3529,8 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	return 0;
 
 exit2:
-	TRACE_LOG("call rdma_destroy_id\n");
+	TRACE_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
 	rdma_destroy_id(rdma_hndl->cm_id);
 exit1:
 	rdma_hndl->cm_id = NULL;
