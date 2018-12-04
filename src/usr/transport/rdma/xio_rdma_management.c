@@ -2264,10 +2264,9 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	struct xio_rdma_transport	*child_hndl;
 	union xio_transport_event_data	event_data;
 	int				retval = 0;
-	struct rdma_cm_id		*cm_id = ev->id;
 	struct xio_device		*dev;
 
-	dev = xio_device_lookup_init(cm_id->verbs);
+	dev = xio_device_lookup_init(ev->id->verbs);
 	if (!dev) {
 		ERROR_LOG("failed find/init device\n");
 		retval = rdma_reject(ev->id, NULL, 0);
@@ -2291,6 +2290,8 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			xio_set_error(errno);
 			ERROR_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
 		}
+		TRACE_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
+		rdma_destroy_id(ev->id);
 
 		goto notify_err2;
 	}
@@ -3457,7 +3458,8 @@ goto exit2;
 	return 0;
 
 exit2:
-	TRACE_LOG("call rdma_destroy_id\n");
+	TRACE_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
+		   rdma_hndl->cm_id, rdma_hndl);
 	rdma_destroy_id(rdma_hndl->cm_id);
 exit1:
 	rdma_hndl->cm_id = NULL;
