@@ -2274,7 +2274,8 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			xio_set_error(errno);
 			ERROR_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
 		}
-
+		TRACE_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
+		rdma_destroy_id(ev->id);
 		goto notify_err1;
 	}
 
@@ -2318,7 +2319,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
-		ev->id->context		= NULL;
+		child_hndl->cm_id	= NULL;
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
 		retval = rdma_reject(ev->id, NULL, 0);
 		if (retval) {
@@ -2326,6 +2327,8 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			ERROR_LOG("rdma_reject failed. rdma_hndl:%p, (errno=%d %m)\n",
 				  child_hndl, errno);
 		}
+		TRACE_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
+		rdma_destroy_id(ev->id);
 		goto notify_err3;
 	}
 
