@@ -3481,6 +3481,10 @@ int xio_connection_ioctl(struct xio_connection *connection, int con_optname,
 		else
 			*((int *)optval) = 0;
 		return 0;
+	case XIO_CONNECTION_XIO_CONTEXT:
+		*optlen = sizeof(struct xio_context *);
+		*((struct xio_context **)optval) = connection->ctx;
+		return 0;
 	default:
 		break;
 	}

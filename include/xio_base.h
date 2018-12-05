@@ -897,8 +897,9 @@ enum xio_connection_optname {
 		/**< in send queue */
 	XIO_CONNECTION_FIONWRITE_MSGS,  /**< int: the number of msgs in */
 		/**< send queue */
-	XIO_CONNECTION_LEADING_CONN /**< int: check if connection is leading: */
+	XIO_CONNECTION_LEADING_CONN, /**< int: check if connection is leading: */
 		/**<1 for leading conn, 0 otherwise */
+	XIO_CONNECTION_XIO_CONTEXT /**< ptr: the connection's xio_context: */
 };
 
 /**
