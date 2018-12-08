@@ -2757,44 +2757,6 @@ void xio_connection_disconnect_handler(void *_connection)
 		  xio_connection_state_str((enum xio_connection_state)
 					   connection->state));
 
-	/* stop all pending timers */
-	xio_ctx_del_work(connection->ctx, &connection->hello_work);
-
-	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_delayed_work);
-
-	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_req_timeout_work);
-
-	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->fin_ack_timeout_work);
-
-	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->ka.timer);
-
-	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
-
-	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
-
-	if (!connection->disable_notify && !connection->disconnecting) {
-		xio_session_notify_connection_disconnected(
-				connection->session, connection,
-				(enum xio_status)connection->close_reason);
-	} else if (connection->state == XIO_CONNECTION_STATE_INIT &&
-		   connection->disconnecting) {
-		connection->disable_notify = 0;
-		xio_session_notify_connection_disconnected(
-				connection->session, connection,
-				(enum xio_status)connection->close_reason);
-	}
-	connection->state	 = XIO_CONNECTION_STATE_DISCONNECTED;
-
-	/* flush all messages from in flight message queue to in queue */
-	xio_connection_flush_msgs(connection);
-
-	/* flush all messages back to user */
-	xio_connection_notify_msgs_flush(connection);
-
 	if (connection->nexus) {
 		if (connection->session->lead_connection &&
 		    connection->session->lead_connection->nexus ==
@@ -2842,6 +2804,49 @@ void xio_connection_disconnect_handler(void *_connection)
 /*---------------------------------------------------------------------------*/
 void xio_connection_sched_disconnect_event(struct xio_connection *connection)
 {
+	DEBUG_LOG("%s: connection:%p, state:%s\n",
+		   __func__, connection,
+		  xio_connection_state_str((enum xio_connection_state)
+					   connection->state));
+
+	/* stop all pending timers */
+	xio_ctx_del_work(connection->ctx, &connection->hello_work);
+
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_delayed_work);
+
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_req_timeout_work);
+
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->fin_ack_timeout_work);
+
+	xio_ctx_del_delayed_work(connection->ctx,
+				 &connection->ka.timer);
+
+	xio_ctx_del_work(connection->ctx, &connection->disconnect_work);
+
+	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
+
+	if (!connection->disable_notify && !connection->disconnecting) {
+		xio_session_notify_connection_disconnected(
+				connection->session, connection,
+				(enum xio_status)connection->close_reason);
+	} else if (connection->state == XIO_CONNECTION_STATE_INIT &&
+		   connection->disconnecting) {
+		connection->disable_notify = 0;
+		xio_session_notify_connection_disconnected(
+				connection->session, connection,
+				(enum xio_status)connection->close_reason);
+	}
+	connection->state	 = XIO_CONNECTION_STATE_DISCONNECTED;
+
+	/* flush all messages from in flight message queue to in queue */
+	xio_connection_flush_msgs(connection);
+
+	/* flush all messages back to user */
+	xio_connection_notify_msgs_flush(connection);
+
 	connection->disconnect_event.handler = xio_connection_disconnect_handler;
 	connection->disconnect_event.data = connection;
 	xio_context_add_event(connection->ctx,
