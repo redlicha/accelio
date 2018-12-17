@@ -1426,16 +1426,18 @@ struct xio_mem_allocator {
 	/**
 	 *  allocates block of memory
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] size		        size in bytes to allocate
 	 *  @param[in] user_context		user specific context
 	 *
 	 *  @return pointer to allocated memory or NULL if allocate fails
 	 */
-	void * (*allocate)(size_t size, void *user_context);
+	void * (*allocate)(struct xio_context *ctx, size_t size, void *user_context);
 
 	/**
 	 *  allocates aligned block of memory and zero it content
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] boundary			memory size will be a multiple
 	 *					of boundary, which must be a
 	 *					power of two and a multiple of
@@ -1445,59 +1447,64 @@ struct xio_mem_allocator {
 	 *
 	 *  @return pointer to allocated memory or NULL if allocate fails
 	 */
-	void *  (*memalign)(size_t boundary, size_t size, void *user_context);
+	void *  (*memalign)(struct xio_context *ctx, size_t boundary, size_t size, void *user_context);
 
 	/**
 	 *  deallocates block of memory
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] ptr			pointer to allocated block
 	 *  @param[in] user_context		user specific context
 	 *
 	 */
-	void   (*free)(void *ptr, void *user_context);
+	void   (*free)(struct xio_context *ctx, void *ptr, void *user_context);
 
 	/**
 	 *  allocates block of memory using huge page
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] size			block size to allocate
 	 *  @param[in] user_context		user specific context
 	 *
 	 *  @return pointer to allocated memory or NULL if allocate fails
 	 */
-	void * (*malloc_huge_pages)(size_t size, void *user_context);
+	void * (*malloc_huge_pages)(struct xio_context *ctx, size_t size, void *user_context);
 
 	/**
 	 *  deallocates block of memory previously allocated by
 	 *  malloc_huge_pages
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] ptr			pointer to allocated block
 	 *  @param[in] user_context		user specific context
 	 *
 	 *  @return pointer to block or NULL if allocate fails
 	 */
-	void   (*free_huge_pages)(void *ptr, void *user_context);
+	void   (*free_huge_pages)(struct xio_context *ctx, void *ptr, void *user_context);
 
 	/**
 	 *  allocates block of memory on specific numa node
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] size			block size to allocate
 	 *  @param[in] node			the numa node
 	 *  @param[in] user_context		user specific context
 	 *
 	 *  @return pointer to allocated memory or NULL if allocate fails
 	 */
-	void * (*numa_alloc)(size_t size, int node, void *user_context);
+	void * (*numa_alloc)(struct xio_context *ctx, size_t size, int node, void *user_context);
 
 	/**
 	 *  deallocates block of memory previously allocated by
 	 *  numa_alloc
 	 *
+	 *  @param[in] ctx			pointer to the xio context handle
 	 *  @param[in] ptr			pointer to allocated block
 	 *  @param[in] user_context		user specific context
 	 *
 	 *  @return pointer to block or NULL if allocate fails
 	 */
-	void   (*numa_free)(void *ptr, void *user_context);
+	void   (*numa_free)(struct xio_context *ctx, void *ptr, void *user_context);
 };
 
 #define XIO_MAX_SLABS_NR  6

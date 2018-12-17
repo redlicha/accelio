@@ -130,6 +130,7 @@ struct xio_managed_rkey {
 	struct list_head	list_entry;
 	uint32_t		rkey;
 	uint32_t		pad;
+	struct xio_context	*ctx;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -215,7 +216,7 @@ struct xio_connection *xio_connection_create(struct xio_session *session,
 		}
 
 		connection = (struct xio_connection *)
-				kcalloc(1, sizeof(*connection), GFP_KERNEL);
+				xio_context_kcalloc(ctx, 1, sizeof(*connection), GFP_KERNEL);
 		if (!connection) {
 			xio_set_error(ENOMEM);
 			return NULL;
@@ -1662,7 +1663,7 @@ static void xio_connection_post_close(void *_connection)
 	list_del(&connection->ctx_list_entry);
 	spin_unlock(&connection->ctx->ctx_list_lock);
 
-	kfree(connection);
+	xio_context_kfree(connection->ctx, connection);
 
 }
 
@@ -3420,11 +3421,13 @@ struct xio_managed_rkey *xio_register_remote_rkey(
 	struct xio_connection *connection, uint32_t raw_rkey)
 {
 	struct xio_managed_rkey *managed_rkey = (struct xio_managed_rkey *)
-				kcalloc(1, sizeof(*managed_rkey), GFP_KERNEL);
+				xio_context_kcalloc(connection->ctx,
+						1, sizeof(*managed_rkey), GFP_KERNEL);
 	if (!managed_rkey)
 		return NULL;
 
 	managed_rkey->rkey = raw_rkey;
+	managed_rkey->ctx = connection->ctx;
 	list_add(&managed_rkey->list_entry, &connection->managed_rkey_list);
 	return managed_rkey;
 }
@@ -3436,7 +3439,7 @@ EXPORT_SYMBOL(xio_register_remote_rkey);
 void xio_unregister_remote_key(struct xio_managed_rkey *managed_rkey)
 {
 	list_del(&managed_rkey->list_entry);
-	kfree(managed_rkey);
+	xio_context_kfree(managed_rkey->ctx, managed_rkey);
 }
 EXPORT_SYMBOL(xio_unregister_remote_key);
 

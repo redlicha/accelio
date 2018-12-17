@@ -250,6 +250,7 @@ struct xio_tcp_task {
 
 struct xio_tcp_tasks_slab {
 	void				*data_pool;
+	struct xio_context		*ctx;
 	struct xio_reg_mem		reg_mem;
 	int				buf_size;
 	int				pad;

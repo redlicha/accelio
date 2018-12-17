@@ -71,7 +71,8 @@ struct xio_msg *xio_session_write_setup_req(struct xio_session *session)
 	uint16_t		len;
 
 	/* allocate message */
-	buf = kcalloc(SETUP_BUFFER_LEN + sizeof(struct xio_msg),
+	buf = xio_context_kcalloc(NULL,
+		      SETUP_BUFFER_LEN + sizeof(struct xio_msg),
 		      sizeof(uint8_t), GFP_KERNEL);
 	if (unlikely(!buf)) {
 		ERROR_LOG("message allocation failed\n");
@@ -86,7 +87,7 @@ struct xio_msg *xio_session_write_setup_req(struct xio_session *session)
 	msg->out.header.iov_len = 0;
 	msg->out.sgl_type = XIO_SGL_TYPE_IOV_PTR;
 	msg->in.sgl_type = XIO_SGL_TYPE_IOV_PTR;
-	/* All other in/out parameters are zero because of kcalloc anyway */
+	/* All other in/out parameters are zero because of xio_context_kcalloc anyway */
 
 	msg->type = (enum xio_msg_type)XIO_SESSION_SETUP_REQ;
 
@@ -140,7 +141,7 @@ struct xio_msg *xio_session_write_setup_req(struct xio_session *session)
 	if (msg->out.header.iov_len > SETUP_BUFFER_LEN)  {
 		ERROR_LOG("primary task pool is empty\n");
 		xio_set_error(XIO_E_MSG_SIZE);
-		kfree(msg);
+		xio_context_kfree(NULL, msg);
 		return NULL;
 	}
 	session->client_setup_req = msg;
@@ -243,8 +244,8 @@ int xio_session_redirect_connection(struct xio_session *session)
 		goto cleanup;
 	}
 
-	kfree(session->uri);
-	session->uri = kstrdup(service, GFP_KERNEL);
+	xio_context_kfree(NULL, session->uri);
+	session->uri = xio_context_kstrdup(NULL,service, GFP_KERNEL);
 
 	/* prep the lead connection for close */
 	session->lead_connection = xio_connection_create(
@@ -310,7 +311,7 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 	task->imsg.sn = hdr.serial_num;
 
 	/* free the outgoing message */
-	kfree(task->sender_task->omsg);
+	xio_context_kfree(NULL, task->sender_task->omsg);
 	task->sender_task->omsg = NULL;
 	session->client_setup_req = NULL;
 
@@ -353,7 +354,8 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 		ptr = ptr + len;
 
 		if (session->portals_array_len) {
-			session->portals_array = (char **)kcalloc(
+			session->portals_array = (char **)xio_context_kcalloc(
+					NULL,
 					session->portals_array_len,
 				       sizeof(char *), GFP_KERNEL);
 			if (unlikely(!session->portals_array)) {
@@ -377,7 +379,9 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 		}
 
 		if (session->new_ses_rsp.private_data_len) {
-			rsp->private_data = kcalloc(rsp->private_data_len,
+			rsp->private_data = xio_context_kcalloc(
+					NULL,
+					rsp->private_data_len,
 					sizeof(uint8_t), GFP_KERNEL);
 			if (unlikely(!rsp->private_data)) {
 				ERROR_LOG("allocation failed\n");
@@ -400,7 +404,8 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 		ptr = ptr + len;
 
 		if (session->services_array_len) {
-			session->services_array = (char **)kcalloc(
+			session->services_array = (char **)xio_context_kcalloc(
+					NULL,
 					session->services_array_len,
 					sizeof(char *), GFP_KERNEL);
 			if (unlikely(!session->services_array)) {
@@ -433,7 +438,8 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 		ptr = ptr + len;
 
 		if (session->new_ses_rsp.private_data_len) {
-			rsp->private_data = kcalloc(
+			rsp->private_data = xio_context_kcalloc(
+						NULL,
 						rsp->private_data_len,
 						sizeof(uint8_t), GFP_KERNEL);
 			if (unlikely(!rsp->private_data)) {
@@ -469,7 +475,8 @@ static int xio_session_fill_portals_array(struct xio_session *session)
 		ERROR_LOG("parsing uri failed. uri: %s\n", session->uri);
 		return -1;
 	}
-	session->portals_array = (char **)kcalloc(
+	session->portals_array = (char **)xio_context_kcalloc(
+			NULL,
 			1,
 			sizeof(char *), GFP_KERNEL);
 	if (unlikely(!session->portals_array)) {
@@ -531,7 +538,7 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 #endif
 		}
 
-		kfree(rsp->private_data);
+		xio_context_kfree(NULL, rsp->private_data);
 		rsp->private_data = NULL;
 
 		if (fill_portals)  {
@@ -627,7 +634,7 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 		if (unlikely(retval != 0))
 			ERROR_LOG("failed to reject session\n");
 
-		kfree(rsp->private_data);
+		xio_context_kfree(NULL, rsp->private_data);
 		rsp->private_data = NULL;
 
 		return retval;

@@ -45,6 +45,10 @@
 #include "get_clock.h"
 #include "xio_ev_data.h"
 #include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_observer.h"
+#include "xio_context.h"
 
 #define MAX_DELETED_EVENTS	1024
 
@@ -63,6 +67,7 @@ struct xio_ev_loop {
 	int				deleted_events_nr;
 	struct list_head		poll_events_list;
 	struct list_head		events_list;
+	struct xio_context		*ctx;
 	struct xio_ev_data		*tev_next;	
 	struct xio_ev_data		*deleted_events[MAX_DELETED_EVENTS];
 };
@@ -132,7 +137,8 @@ int xio_ev_loop_add(void *loop_hndl, int fd, int events,
 	ev.events = xio_to_epoll_poll_events(events);
 
 	if (fd != loop->wakeup_event) {
-		tev = (struct xio_ev_data *)ucalloc(1, sizeof(*tev));
+		tev = (struct xio_ev_data *)xio_context_ucalloc(loop->ctx,
+								1, sizeof(*tev));
 		if (!tev) {
 			xio_set_error(errno);
 			ERROR_LOG("calloc failed, %m\n");
@@ -156,7 +162,7 @@ int xio_ev_loop_add(void *loop_hndl, int fd, int events,
 			ERROR_LOG("epoll_ctl failed fd:%d,  %m\n", fd);
 		else
 			DEBUG_LOG("epoll_ctl already exists fd:%d,  %m\n", fd);
-		ufree(tev);
+		xio_context_ufree(loop->ctx, tev);
 	}
 
 	return err;
@@ -247,13 +253,14 @@ int xio_ev_loop_modify(void *loop_hndl, int fd, int events)
 /*---------------------------------------------------------------------------*/
 /* xio_ev_loop_create							     */
 /*---------------------------------------------------------------------------*/
-void *xio_ev_loop_create()
+void *xio_ev_loop_create(struct xio_context *ctx)
 {
 	struct xio_ev_loop	*loop;
 	int			retval;
 	eventfd_t		val = 1;
 
-	loop = (struct xio_ev_loop *)ucalloc(1, sizeof(struct xio_ev_loop));
+	loop = (struct xio_ev_loop *)xio_context_ucalloc(ctx,
+							 1, sizeof(struct xio_ev_loop));
 	if (!loop) {
 		xio_set_error(errno);
 		ERROR_LOG("calloc failed. %m\n");
@@ -263,6 +270,7 @@ void *xio_ev_loop_create()
 	INIT_LIST_HEAD(&loop->poll_events_list);
 	INIT_LIST_HEAD(&loop->events_list);
 
+	loop->ctx		= ctx;
 	loop->stop_loop		= 0;
 	loop->wakeup_armed	= 0;
 	loop->deleted_events_nr = 0;
@@ -294,7 +302,7 @@ cleanup2:
 cleanup1:
 	close(loop->efd);
 cleanup:
-	ufree(loop);
+	xio_context_ufree(loop->ctx, loop);
 	return NULL;
 }
 
@@ -334,7 +342,7 @@ void xio_ev_loop_remove_event(struct xio_ev_data *evt)
 	if (evt->scheduled) {
 		evt->scheduled = 0;
 		if (loop->tev_next == evt) {
-			loop->tev_next = list_next_entry(loop->tev_next, 
+			loop->tev_next = list_next_entry(loop->tev_next,
 							 events_list_entry);
 		}
 		list_del_init(&evt->events_list_entry);
@@ -364,7 +372,7 @@ static int xio_ev_loop_exec_scheduled(struct xio_ev_loop *loop)
 	if (!list_empty(&loop->events_list)) {
 		/* execute only work scheduled till now */
 		last_sched = loop->events_list.prev;
-		list_for_each_entry_safe(tev, loop->tev_next, 
+		list_for_each_entry_safe(tev, loop->tev_next,
 					 &loop->events_list,
 					 events_list_entry) {
 			xio_ev_loop_remove_event(tev);
@@ -425,7 +433,8 @@ retry:
 	/* free deleted event handlers */
 	if (unlikely(loop->deleted_events_nr))
 		while (loop->deleted_events_nr)
-			ufree(loop->deleted_events[--loop->deleted_events_nr]);
+			xio_context_ufree(loop->ctx,
+				loop->deleted_events[--loop->deleted_events_nr]);
 
 	nevent = epoll_wait(loop->efd, events, ARRAY_SIZE(events), tmout);
 	if (unlikely(nevent < 0)) {
@@ -499,7 +508,8 @@ retry:
 
 		/* free deleted event handlers */
 		while (loop->deleted_events_nr)
-			ufree(loop->deleted_events[--loop->deleted_events_nr]);
+			xio_context_ufree(loop->ctx,
+					  loop->deleted_events[--loop->deleted_events_nr]);
 	}
 
 	loop->stop_loop = 0;
@@ -572,7 +582,7 @@ void xio_ev_loop_destroy(void *loop_hndl)
 
 	/* free deleted event handlers */
 	while (loop->deleted_events_nr)
-		ufree(loop->deleted_events[--loop->deleted_events_nr]);
+		xio_context_ufree(loop->ctx, loop->deleted_events[--loop->deleted_events_nr]);
 
 	xio_ev_loop_del(loop, loop->wakeup_event);
 
@@ -582,7 +592,7 @@ void xio_ev_loop_destroy(void *loop_hndl)
 	close(loop->wakeup_event);
 	loop->wakeup_event = -1;
 
-	ufree(loop);
+	xio_context_ufree(loop->ctx, loop);
 }
 
 /*---------------------------------------------------------------------------*/

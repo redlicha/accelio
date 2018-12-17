@@ -1247,7 +1247,7 @@ int xio_on_nexus_disconnected(struct xio_session *session,
 		}
 	}
 	if (session->client_setup_req) {
-		kfree(session->client_setup_req);
+		xio_context_kfree(NULL, session->client_setup_req);
 		session->client_setup_req = NULL;
 	}
 	return 0;
@@ -1683,7 +1683,8 @@ int xio_on_cancel_request(struct xio_session *sess,
 	}
 	TRACE_LOG("message to cancel not found %llu\n", hdr.sn);
 
-	req = (struct xio_msg *)kcalloc(1, sizeof(*req), GFP_KERNEL);
+	req = (struct xio_msg *)xio_context_kcalloc(connection->ctx,
+						    1, sizeof(*req), GFP_KERNEL);
 	if (!req) {
 		ERROR_LOG("req allocation failed\n");
 		return -1;
@@ -1692,7 +1693,7 @@ int xio_on_cancel_request(struct xio_session *sess,
 	req->sn	= hdr.sn;
 	xio_connection_send_cancel_response(connection, req, NULL,
 					    XIO_E_MSG_NOT_FOUND);
-	kfree(req);
+	xio_context_kfree(connection->ctx, req);
 
 	return 0;
 }
@@ -1733,7 +1734,8 @@ int xio_on_cancel_response(struct xio_session *sess,
 		session = (struct xio_session *)observer->impl;
 
 		/* large object - allocate it */
-		msg = (struct xio_msg *)kcalloc(1, sizeof(*msg), GFP_KERNEL);
+		msg = (struct xio_msg *)xio_context_kcalloc(nexus->ctx,
+						 1, sizeof(*msg), GFP_KERNEL);
 		if (!msg) {
 			ERROR_LOG("msg allocation failed\n");
 			return -1;
@@ -1750,7 +1752,7 @@ int xio_on_cancel_response(struct xio_session *sess,
 	connection = xio_session_find_connection(session, nexus);
 	if (!connection) {
 		ERROR_LOG("failed to find session\n");
-		kfree(msg);
+		xio_context_kfree(nexus->ctx, msg);
 		return -1;
 	}
 
@@ -1768,7 +1770,7 @@ int xio_on_cancel_response(struct xio_session *sess,
 	else
 		ERROR_LOG("cancel is not supported\n");
 
-	kfree(msg);
+	xio_context_kfree(nexus->ctx, msg);
 
 	return 0;
 }
@@ -1793,7 +1795,8 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 	/* extract portal from uri */
 	/* create the session */
 	session = (struct xio_session *)
-			kcalloc(1, sizeof(struct xio_session), GFP_KERNEL);
+			xio_context_kcalloc(NULL,
+					    1, sizeof(struct xio_session), GFP_KERNEL);
 	if (!session) {
 		ERROR_LOG("failed to create session\n");
 		xio_set_error(ENOMEM);
@@ -1811,7 +1814,8 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 
 	/* copy private data if exist */
 	if (session->hs_private_data_len) {
-		session->hs_private_data = kmalloc(session->hs_private_data_len,
+		session->hs_private_data = xio_context_kmalloc(NULL,
+						session->hs_private_data_len,
 						GFP_KERNEL);
 		if (!session->hs_private_data) {
 			xio_set_error(ENOMEM);
@@ -1839,7 +1843,7 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 	       sizeof(*params->ses_ops));
 
 	session->uri_len = uri_len;
-	session->uri = kstrdup(params->uri, GFP_KERNEL);
+	session->uri = xio_context_kstrdup(NULL, params->uri, GFP_KERNEL);
 	if (!session->uri) {
 		xio_set_error(ENOMEM);
 		goto cleanup2;
@@ -1857,11 +1861,11 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 	return session;
 
 cleanup3:
-	kfree(session->uri);
+	xio_context_kfree(NULL, session->uri);
 cleanup2:
-	kfree(session->hs_private_data);
+	xio_context_kfree(NULL, session->hs_private_data);
 cleanup:
-	kfree(session);
+	xio_context_kfree(NULL, session);
 
 	ERROR_LOG("session creation failed\n");
 
@@ -1909,18 +1913,18 @@ void xio_session_post_destroy(void *_session)
 	/* unregister session from context */
 	xio_sessions_cache_remove(session->session_id);
 	for (i = 0; i < session->services_array_len; i++)
-		kfree(session->services_array[i]);
+		xio_context_kfree(NULL, session->services_array[i]);
 	for (i = 0; i < session->portals_array_len; i++)
-		kfree(session->portals_array[i]);
-	kfree(session->services_array);
-	kfree(session->portals_array);
-	kfree(session->hs_private_data);
-	kfree(session->uri);
+		xio_context_kfree(NULL, session->portals_array[i]);
+	xio_context_kfree(NULL, session->services_array);
+	xio_context_kfree(NULL, session->portals_array);
+	xio_context_kfree(NULL, session->hs_private_data);
+	xio_context_kfree(NULL, session->uri);
 	XIO_OBSERVER_DESTROY(&session->observer);
 	XIO_OBSERVER_DESTROY(&session->ctx_observer);
 
 	mutex_destroy(&session->lock);
-	kfree(session);
+	xio_context_kfree(NULL, session);
 
 	return;
 }

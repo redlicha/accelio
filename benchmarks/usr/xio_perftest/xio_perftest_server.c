@@ -155,10 +155,12 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	int			retval = 0;
 
 	if (!tdata->in_reg_mem.addr) {
-		retval = xio_mem_alloc(sglist[0].iov_len, &tdata->in_reg_mem);
+		retval = xio_mem_alloc(tdata->ctx,
+				       sglist[0].iov_len, &tdata->in_reg_mem);
 	} else if (tdata->in_reg_mem.length < sglist[0].iov_len) {
 		xio_mem_free(&tdata->in_reg_mem);
-		retval = xio_mem_alloc(sglist[0].iov_len, &tdata->in_reg_mem);
+		retval = xio_mem_alloc(tdata->ctx,
+				       sglist[0].iov_len, &tdata->in_reg_mem);
 	}
 
 	if (!retval){

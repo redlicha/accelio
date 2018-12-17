@@ -51,11 +51,12 @@ extern "C" {
  * msg_pool_create - creates pool for xio messages
  *
  * @msg_size:	pointer to event loop
- * @num_of_msgs: the added file descrptor
+ * @num_of_msgs: the added file descriptor
  *
  * RETURNS: pointer to the new created pool
  */
-struct msg_pool *msg_pool_create(size_t hdr_size, size_t data_size,
+struct msg_pool *msg_pool_create(struct xio_context *ctx,
+				 size_t hdr_size, size_t data_size,
 				 int num_of_msgs);
 
 /**

@@ -36,8 +36,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <xio_os.h>
+#include <libxio.h>
 #include "xio_objpool.h"
 #include <xio_env_adv.h>
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_observer.h"
+#include "xio_context.h"
+
+
 /*---------------------------------------------------------------------------*/
 /* structures								     */
 /*---------------------------------------------------------------------------*/
@@ -52,6 +61,7 @@ struct xio_mem_obj {
 };
 
 struct xio_objpool {
+	struct xio_context      *ctx;
 	struct list_head	free_list;	/* list of xio_mem_obj */
 	struct list_head	used_list;	/* list of xio_mem_obj */
 	struct list_head	chunks_list;	/* list of mem chunks */
@@ -75,7 +85,7 @@ static int xio_objpool_realloc(struct xio_objpool *p, int size, int n)
 	alloc_sz =  sizeof(*chunk) +
 			n*(sizeof(*obj) + sizeof(obj)  + size);
 
-	buf = (char *)vzalloc(alloc_sz);
+	buf = (char *)xio_context_vzalloc(p->ctx, alloc_sz);
 	if (!buf)
 		goto err;
 
@@ -104,17 +114,20 @@ err:
 /*---------------------------------------------------------------------------*/
 /* xio_objpool_realloc							     */
 /*---------------------------------------------------------------------------*/
-struct xio_objpool *xio_objpool_create(int size, int init_nr, int grow_nr)
+struct xio_objpool *xio_objpool_create(struct xio_context *ctx,
+				       int size, int init_nr, int grow_nr)
 {
 	struct xio_objpool	*p;
 	int			retval;
 
-	p = (struct xio_objpool *)kcalloc(1, sizeof(*p), GFP_KERNEL);
+	p = (struct xio_objpool *)xio_context_kcalloc(ctx,
+						1, sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
 
 	p->grow_nr	= grow_nr;
 	p->obj_size	= size;
+	p->ctx		= ctx;
 
 	INIT_LIST_HEAD(&p->free_list);
 	INIT_LIST_HEAD(&p->used_list);
@@ -138,9 +151,9 @@ void xio_objpool_destroy(struct xio_objpool *p)
 	list_for_each_entry_safe(chunk, tmp_chunk,
 				 &p->chunks_list, chunk_entry) {
 		list_del(&chunk->chunk_entry);
-		vfree(chunk);
+		xio_context_vfree(p->ctx, chunk);
 	}
-	kfree(p);
+	xio_context_kfree(p->ctx, p);
 }
 
 /*---------------------------------------------------------------------------*/

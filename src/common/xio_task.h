@@ -95,7 +95,9 @@ struct xio_task {
 
 struct xio_tasks_pool_hooks {
 	void	*context;
-	int	(*slab_pre_create)(void *context, int alloc_nr,
+	int	(*slab_pre_create)(void *context,
+				   struct xio_context *ctx,
+				   int alloc_nr,
 				   void *pool_dd_data,
 				   void *slab_dd_data);
 	int	(*slab_destroy)(void *context,
@@ -128,6 +130,7 @@ struct xio_tasks_pool_hooks {
 };
 
 struct xio_tasks_pool_params {
+	struct xio_context		*xio_context;
 	struct xio_tasks_pool_hooks	pool_hooks;
 	char				*pool_name;
 	unsigned int			start_nr;
@@ -450,6 +453,13 @@ static inline int xio_tasks_list_flush(struct list_head *list)
 	}
 
 	return 0;
+}
+
+static inline struct xio_context *xio_task_get_xio_context(struct xio_task *task)
+{
+	struct xio_tasks_pool	*pool = (struct xio_tasks_pool *)task->pool;
+
+	return pool->params.xio_context;
 }
 
 #endif

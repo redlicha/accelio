@@ -70,9 +70,9 @@ struct xio_workqueue *xio_workqueue_create(struct xio_context *ctx)
 	struct xio_workqueue *workqueue;
 	char queue_name[64];
 
-	workqueue = kmalloc(sizeof(*workqueue), GFP_KERNEL);
+	workqueue = xio_context_kmalloc(ctx, sizeof(*workqueue), GFP_KERNEL);
 	if (!workqueue) {
-		ERROR_LOG("kmalloc failed.\n");
+		ERROR_LOG("xio_context_kmalloc failed.\n");
 		return NULL;
 	}
 
@@ -97,7 +97,7 @@ struct xio_workqueue *xio_workqueue_create(struct xio_context *ctx)
 	return workqueue;
 
 cleanup1:
-	kfree(workqueue);
+	xio_context_kfree(ctx, workqueue);
 	return NULL;
 }
 
@@ -109,7 +109,7 @@ int xio_workqueue_destroy(struct xio_workqueue *work_queue)
 	flush_workqueue(work_queue->workqueue);
 	destroy_workqueue(work_queue->workqueue);
 
-	kfree(work_queue);
+	xio_context_kfree(work_queue->ctx, work_queue);
 
 	return 0;
 }

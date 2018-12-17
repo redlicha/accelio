@@ -65,6 +65,7 @@ struct xio_reg_mem {
 	void		*addr;		/**< buffer's memory address	     */
 	size_t		length;		/**< buffer's memory length	     */
 	struct xio_mr	*mr;		/**< xio specific memory region	     */
+	struct xio_context *ctx;	/**< xio context handle		     */
 	void		*priv;		/**< xio private data		     */
 };
 
@@ -255,9 +256,14 @@ struct xio_context_params {
         int                     register_internal_mempool;
 
 	/** depth of receive queue in RDMA.
-	* pass 0 if want the depth to remain default (XIO_MAX_IOV + constant) */
+	* pass 0 if want the depth to remain default (XIO_MAX_IOV + constant)   */
 	int                     rq_depth;
 
+	int			resereved;
+
+	/** per context memory allocator. if not exist use global one           */
+	int			 allocator_assigned;
+	struct xio_mem_allocator mem_allocator;
 };
 
 
@@ -444,6 +450,7 @@ int xio_shutdown(void);
 /**
  * register pre allocated memory for RDMA operations
  *
+ * @param[in] ctx	accelio context
  * @param[in] addr	buffer's memory address
  * @param[in] length	buffer's memory length
  * @param[out] reg_mem	registered memory data structure
@@ -451,7 +458,8 @@ int xio_shutdown(void);
  * @return 0 on success, or -1 on error.  If an error occurs, call
  *	    xio_errno function to get the failure reason.
  */
-int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem);
+int xio_mem_register(struct xio_context *ctx,
+		     void *addr, size_t length, struct xio_reg_mem *reg_mem);
 
 /**
  * unregister registered memory region, create by @ref xio_mem_register
@@ -490,13 +498,15 @@ uint32_t xio_lookup_rkey_by_response(const struct xio_reg_mem *reg_mem,
 /**
  * allocate and register memory for RDMA operations
  *
+ * @param[in] ctx	accelio context
  * @param[in] length	length of required buffer memory.
  * @param[out] reg_mem	registered memory data structure
  *
  * @return 0 on success, or -1 on error.  If an error occurs, call
  *	    xio_errno function to get the failure reason.
  */
-int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem);
+int xio_mem_alloc(struct xio_context *ctx,
+		  size_t length, struct xio_reg_mem *reg_mem);
 
 /**
  * free registered memory region, create by @ref xio_mem_alloc
@@ -531,13 +541,15 @@ enum xio_mempool_flag {
 /**
  * create mempool with NO (!) slabs
  *
+ * @param[in] ctx	  The xio context handle
  * @param[in] nodeid	  numa node id. -1 if don't care
  * @param[in] flags	  mask of mempool creation flags
  *			  defined (@ref xio_mempool_flag)
  *
  * @return pointer to xio_mempool object or NULL upon failure
  */
-struct xio_mempool *xio_mempool_create(int nodeid, uint32_t flags);
+struct xio_mempool *xio_mempool_create(struct xio_context *ctx,
+				       int nodeid, uint32_t flags);
 
 /**
  * add a slab to current set (setup only). This method is not thread safe.

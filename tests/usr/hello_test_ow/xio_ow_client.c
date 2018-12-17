@@ -526,8 +526,8 @@ static void print_test_config(
 	printf(" Server Address		: %s\n", test_config_p->server_addr);
 	printf(" Server Port		: %u\n", test_config_p->server_port);
 	printf(" Transport		: %s\n", test_config_p->transport);
-	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ? 
-						 test_config_p->out_addr : 
+	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ?
+						 test_config_p->out_addr :
 						 "None");
 	printf(" Header Length		: %u\n", test_config_p->hdr_len);
 	printf(" Data Length		: %u\n", test_config_p->data_len);
@@ -567,15 +567,6 @@ int main(int argc, char *argv[])
 	test_params.ask_for_receipt = ASK_FOR_RECEIPT;
 	test_params.finite_run = test_config.finite_run;
 
-	/* prepare buffers for this test */
-	if (msg_api_init(&test_params.msg_params,
-			 test_config.hdr_len, test_config.data_len, 0) != 0)
-		return -1;
-
-	test_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 0, 1);
-	if (test_params.pool == NULL)
-		goto cleanup;
-
 	test_params.ctx = xio_context_create(NULL, 0, test_config.cpu);
 	if (test_params.ctx == NULL) {
 		error = xio_errno();
@@ -583,6 +574,15 @@ int main(int argc, char *argv[])
 			error, xio_strerror(error));
 		xio_assert(test_params.ctx != NULL);
 	}
+
+	/* prepare buffers for this test */
+	if (msg_api_init(&test_params.msg_params, test_params.ctx,
+			 test_config.hdr_len, test_config.data_len, 0) != 0)
+		return -1;
+
+	test_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 0, 1);
+	if (test_params.pool == NULL)
+		goto cleanup;
 
 	sprintf(url, "%s://%s:%d",
 		test_config.transport,

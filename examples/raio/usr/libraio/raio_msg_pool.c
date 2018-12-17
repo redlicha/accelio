@@ -53,6 +53,7 @@
 				    ((x) + HUGE_PAGE_SZ - 1))
 
 struct msg_pool {
+	struct xio_context			*ctx;
 	/* pool of msgs */
 	struct xio_msg				**array;
 	/* LIFO */
@@ -141,7 +142,7 @@ static void free_mem_buf(uint8_t *pool_buf, int shmid)
 /*---------------------------------------------------------------------------*/
 /* msg_pool_alloc							     */
 /*---------------------------------------------------------------------------*/
-static struct msg_pool *msg_pool_alloc(int max,
+static struct msg_pool *msg_pool_alloc(struct xio_context *ctx, int max,
 				       size_t out_hdrlen, int out_datalen,
 				       size_t in_hdrlen, int in_datalen)
 {
@@ -176,6 +177,8 @@ static struct msg_pool *msg_pool_alloc(int max,
 
 	/* pool */
 	msg_pool =  (struct msg_pool *)buf;
+	msg_pool->ctx = ctx;
+
 	buf = buf + sizeof(struct msg_pool);
 
 	/* stack */
@@ -203,7 +206,8 @@ static struct msg_pool *msg_pool_alloc(int max,
 			exit(1);
 		}
 		memset(msg_pool->data, 0, datalen);
-		xio_mem_register(msg_pool->data, datalen, &msg_pool->reg_mem);
+		xio_mem_register(msg_pool->ctx,
+				msg_pool->data, datalen, &msg_pool->reg_mem);
 	}
 
 
@@ -267,10 +271,11 @@ static struct msg_pool *msg_pool_alloc(int max,
 /*---------------------------------------------------------------------------*/
 /* msg_pool_create							     */
 /*---------------------------------------------------------------------------*/
-struct msg_pool *msg_pool_create(size_t hdr_size, size_t data_size,
+struct msg_pool *msg_pool_create(struct xio_context *ctx,
+				 size_t hdr_size, size_t data_size,
 				 int num_of_msgs)
 {
-	return msg_pool_alloc(num_of_msgs, hdr_size,
+	return msg_pool_alloc(ctx, num_of_msgs, hdr_size,
 			       data_size, 0, 0);
 }
 

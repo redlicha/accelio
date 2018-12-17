@@ -679,7 +679,7 @@ void xio_free_frwr_pool(struct xio_rdma_transport *rdma_hndl)
 		node = llist_next(node);
 		ib_free_fast_reg_page_list(fdesc->data_frpl);
 		ib_dereg_mr(fdesc->data_mr);
-		kfree(fdesc);
+		xio_context_kfree(rdma_hndl->base.ctx, fdesc);
 		i++;
 	}
 
@@ -690,7 +690,7 @@ void xio_free_frwr_pool(struct xio_rdma_transport *rdma_hndl)
 		node = llist_next(node);
 		ib_free_fast_reg_page_list(fdesc->data_frpl);
 		ib_dereg_mr(fdesc->data_mr);
-		kfree(fdesc);
+		xio_context_kfree(rdma_hndl->base.ctx, fdesc);
 		i++;
 	}
 
@@ -718,7 +718,7 @@ int xio_create_frwr_pool(struct xio_rdma_transport *rdma_hndl)
 	 * read and write (both data form server to client may be big)
 	 */
 	for (i = 0; i < rdma_hndl->max_tx_ready_tasks_num * 2; i++) {
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = xio_context_kzalloc(rdma_hndl->base.ctx, sizeof(*desc), GFP_KERNEL);
 		if (!desc) {
 			ERROR_LOG("Failed to allocate a new fast_reg " \
 				  "descriptor\n");
@@ -732,7 +732,7 @@ int xio_create_frwr_pool(struct xio_rdma_transport *rdma_hndl)
 			ret = PTR_ERR(desc->data_frpl);
 			ERROR_LOG("Failed to allocate ib_fast_reg_page_list " \
 				  "err=%d\n", ret);
-			kfree(desc);
+			xio_context_kfree(rdma_hndl->base.ctx, desc);
 			goto err;
 		}
 		desc->data_frpl->max_page_list_len = XIO_MAX_IOV + 1;
@@ -743,7 +743,7 @@ int xio_create_frwr_pool(struct xio_rdma_transport *rdma_hndl)
 			ERROR_LOG("Failed to allocate ib_fast_reg_mr err=%d\n",
 				  ret);
 			ib_free_fast_reg_page_list(desc->data_frpl);
-			kfree(desc);
+			xio_context_kfree(rdma_hndl->base.ctx, desc);
 			goto err;
 		}
 		desc->valid = true;

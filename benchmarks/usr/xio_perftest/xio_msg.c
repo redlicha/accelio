@@ -212,7 +212,7 @@ struct perf_buf *xio_buf_alloc(size_t size)
 
 	pbuf->addr = alloc_mem_buf(ALIGNHUGEPAGE(size) , &pbuf->shmid);
 	pbuf->length = size;
-	xio_mem_register(pbuf->addr, pbuf->length, &reg_mem);
+	xio_mem_register(NULL, pbuf->addr, pbuf->length, &reg_mem);
 	pbuf->mr = reg_mem.mr;
 
 	return pbuf;

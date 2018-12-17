@@ -39,8 +39,14 @@
 #include "libxio.h"
 #include "xio_log.h"
 #include "xio_common.h"
+#include "xio_observer.h"
 #include "xio_mem.h"
 #include "xio_usr_utils.h"
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_context.h"
 
 /* Accelio's default mempool profile (don't expose it) */
 #define XIO_MEM_SLABS_NR	4
@@ -126,6 +132,7 @@ struct xio_mempool {
 	uint32_t			flags;
 	int				nodeid;
 	int				safe_mt;
+	struct xio_context		*ctx;
 	struct xio_mem_slab		*slab;
 };
 
@@ -297,14 +304,15 @@ static int xio_mem_slab_free(struct xio_mem_slab *slab)
 
 			if (test_bits(XIO_MEMPOOL_FLAG_HUGE_PAGES_ALLOC,
 				      &slab->pool->flags))
-				ufree_huge_pages(r->buf);
+				xio_context_ufree_huge_pages(slab->pool->ctx,
+							     r->buf);
 			else if (test_bits(XIO_MEMPOOL_FLAG_NUMA_ALLOC,
 					   &slab->pool->flags))
-				unuma_free(r->buf);
+				xio_context_unuma_free(slab->pool->ctx,  r->buf);
 			else if (test_bits(XIO_MEMPOOL_FLAG_REGULAR_PAGES_ALLOC,
 					   &slab->pool->flags))
-				ufree(r->buf);
-			ufree(r);
+				xio_context_ufree(slab->pool->ctx, r->buf);
+			xio_context_ufree(slab->pool->ctx, r);
 		}
 	}
 
@@ -346,7 +354,8 @@ static struct xio_mem_block *xio_mem_slab_resize(struct xio_mem_slab *slab,
 
 	region_alloc_sz = sizeof(*region) +
 		nr_blocks * sizeof(struct xio_mem_block);
-	buf = (char *)ucalloc(region_alloc_sz, sizeof(uint8_t));
+	buf = (char *)xio_context_ucalloc(slab->pool->ctx,
+					  region_alloc_sz, sizeof(uint8_t));
 	if (!buf)
 		return NULL;
 
@@ -362,36 +371,40 @@ static struct xio_mem_block *xio_mem_slab_resize(struct xio_mem_slab *slab,
 	/* allocate the buffers and register them */
 	if (test_bits(XIO_MEMPOOL_FLAG_HUGE_PAGES_ALLOC,
 		      &slab->pool->flags))
-		region->buf = umalloc_huge_pages(data_alloc_sz);
+		region->buf = xio_context_umalloc_huge_pages(slab->pool->ctx,
+							     data_alloc_sz);
 	else if (test_bits(XIO_MEMPOOL_FLAG_NUMA_ALLOC,
 			   &slab->pool->flags))
-		region->buf = unuma_alloc(data_alloc_sz, slab->pool->nodeid);
+		region->buf = xio_context_unuma_alloc(slab->pool->ctx,
+						      data_alloc_sz, slab->pool->nodeid);
 	else if (test_bits(XIO_MEMPOOL_FLAG_REGULAR_PAGES_ALLOC,
 			   &slab->pool->flags))
-		region->buf = umemalign(slab->align, data_alloc_sz);
+		region->buf = xio_context_umemalign(slab->pool->ctx,
+						    slab->align, data_alloc_sz);
 
 	if (!region->buf) {
-		ufree(region);
+		xio_context_ufree(slab->pool->ctx, region);
 		return NULL;
 	}
 
 	if (test_bits(XIO_MEMPOOL_FLAG_REG_MR, &slab->pool->flags)) {
 		struct xio_reg_mem reg_mem;
 
-		xio_mem_register(region->buf, data_alloc_sz, &reg_mem);
+		xio_mem_register(slab->pool->ctx,
+				region->buf, data_alloc_sz, &reg_mem);
 		region->omr = reg_mem.mr;
 		if (!region->omr) {
 			if (test_bits(XIO_MEMPOOL_FLAG_HUGE_PAGES_ALLOC,
 				      &slab->pool->flags))
-				ufree_huge_pages(region->buf);
+				xio_context_ufree_huge_pages(slab->pool->ctx, region->buf);
 			else if (test_bits(XIO_MEMPOOL_FLAG_NUMA_ALLOC,
 					   &slab->pool->flags))
-				unuma_free(region->buf);
+				xio_context_unuma_free(slab->pool->ctx, region->buf);
 			else if (test_bits(XIO_MEMPOOL_FLAG_REGULAR_PAGES_ALLOC,
 					   &slab->pool->flags))
-				ufree(region->buf);
+				xio_context_ufree(slab->pool->ctx, region->buf);
 
-			ufree(region);
+			xio_context_ufree(slab->pool->ctx, region);
 			return NULL;
 		}
 	}
@@ -466,8 +479,8 @@ int xio_mempool_destroy(struct xio_mempool *p)
 		}
 	}
 
-	ufree(p->slab);
-	ufree(p);
+	xio_context_ufree(p->ctx, p->slab);
+	xio_context_ufree(p->ctx, p);
 	return ret_val;
 }
 
@@ -496,7 +509,8 @@ void xio_mempool_dump(struct xio_mempool *p)
 /*---------------------------------------------------------------------------*/
 /* xio_mempool_create							     */
 /*---------------------------------------------------------------------------*/
-struct xio_mempool *xio_mempool_create(int nodeid, uint32_t flags)
+struct xio_mempool *xio_mempool_create(struct xio_context *ctx, int nodeid,
+				       uint32_t flags)
 {
 	struct xio_mempool *p;
 
@@ -526,7 +540,8 @@ struct xio_mempool *xio_mempool_create(int nodeid, uint32_t flags)
 			return NULL;
 	}
 
-	p = (struct xio_mempool *)ucalloc(1, sizeof(struct xio_mempool));
+	p = (struct xio_mempool *)xio_context_ucalloc(ctx,
+						1, sizeof(struct xio_mempool));
 	if (!p)
 		return NULL;
 
@@ -535,6 +550,7 @@ struct xio_mempool *xio_mempool_create(int nodeid, uint32_t flags)
 	p->slabs_nr = 0;
 	p->safe_mt = 1;
 	p->slab = NULL;
+	p->ctx = ctx;
 
 	return p;
 }
@@ -542,7 +558,8 @@ struct xio_mempool *xio_mempool_create(int nodeid, uint32_t flags)
 /*---------------------------------------------------------------------------*/
 /* xio_mempool_create_prv						     */
 /*---------------------------------------------------------------------------*/
-struct xio_mempool *xio_mempool_create_prv(int nodeid, uint32_t flags)
+struct xio_mempool *xio_mempool_create_prv(struct xio_context *ctx, int nodeid,
+					   uint32_t flags)
 {
 	struct xio_mempool	*p;
 	size_t			i;
@@ -554,7 +571,7 @@ struct xio_mempool *xio_mempool_create_prv(int nodeid, uint32_t flags)
 		return NULL;
 	}
 
-	p = xio_mempool_create(nodeid, flags);
+	p = xio_mempool_create(ctx, nodeid, flags);
 	if (!p)
 		return  NULL;
 
@@ -740,8 +757,9 @@ int xio_mempool_add_slab(struct xio_mempool *p,
 	}
 
 	/* expand */
-	new_slab = (struct xio_mem_slab *)ucalloc(p->slabs_nr + 2,
-						  sizeof(struct xio_mem_slab));
+	new_slab = (struct xio_mem_slab *)xio_context_ucalloc(p->ctx,
+						p->slabs_nr + 2,
+						sizeof(struct xio_mem_slab));
 	if (!new_slab) {
 		xio_set_error(ENOMEM);
 		return -1;
@@ -788,7 +806,7 @@ int xio_mempool_add_slab(struct xio_mempool *p,
 	new_slab[p->slabs_nr + 1].mb_size = SIZE_MAX;
 
 	/* swap slabs */
-	ufree(p->slab);
+	xio_context_ufree(p->ctx,  p->slab);
 	p->slab = new_slab;
 
 	/* adjust length */

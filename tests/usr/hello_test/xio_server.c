@@ -288,7 +288,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	int i;
 
 	if (test_params->reg_mem.addr == NULL)
-		xio_mem_alloc(XIO_READ_BUF_LEN, &test_params->reg_mem);
+		xio_mem_alloc(test_params->ctx,
+			      XIO_READ_BUF_LEN, &test_params->reg_mem);
 
 	for (i = 0; i < nents; i++) {
 		sglist[i].iov_base = test_params->reg_mem.addr;
@@ -487,6 +488,7 @@ int main(int argc, char *argv[])
 
 	/* prepare buffers for this test */
 	if (msg_api_init(&test_params.msg_params,
+			 test_params.ctx,
 			 test_config.hdr_len, test_config.data_len, 1) != 0)
 		return -1;
 

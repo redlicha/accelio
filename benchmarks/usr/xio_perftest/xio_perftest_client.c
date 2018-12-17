@@ -222,7 +222,8 @@ static void *worker_thread(void *data)
 	tdata->conn = xio_connect(&cparams);
 
 	if (tdata->data_len)
-		xio_mem_alloc(tdata->data_len, &tdata->reg_mem);
+		xio_mem_alloc(tdata->ctx,
+			      tdata->data_len, &tdata->reg_mem);
 
 	for (i = 0;  i < tdata->user_param->queue_depth; i++) {
 		/* create transaction */

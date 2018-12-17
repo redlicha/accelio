@@ -38,6 +38,7 @@
 #ifndef XIO_EV_LOOP_H
 #define XIO_EV_LOOP_H
 
+struct xio_context;
 /*---------------------------------------------------------------------------*/
 /* XIO default event loop API						     */
 /*									     */
@@ -50,7 +51,7 @@
  *
  * @returns event loop handle or NULL upon error
  */
-void *xio_ev_loop_create(void);
+void *xio_ev_loop_create(struct xio_context *ctx);
 
 /**
  * xio_ev_loop_run - event loop main loop

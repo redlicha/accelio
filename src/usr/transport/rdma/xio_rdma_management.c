@@ -285,7 +285,7 @@ static int xio_device_thread_init(void)
 	int ret;
 
 	/* open default event loop */
-	dev_tdata.async_loop = xio_ev_loop_create();
+	dev_tdata.async_loop = xio_ev_loop_create(NULL);
 	if (!dev_tdata.async_loop) {
 		ERROR_LOG("xio_ev_loop_init failed\n");
 		return -1;
@@ -395,10 +395,11 @@ static struct xio_srq *xio_srq_get(struct xio_rdma_transport *rdma_hndl,
 
 	if (tcq->srq)
 		return tcq->srq;
-	srq = (struct xio_srq *)ucalloc(1, sizeof(struct xio_srq));
+	srq = (struct xio_srq *)xio_context_ucalloc(rdma_hndl->base.ctx,
+						    1, sizeof(struct xio_srq));
 	if (!srq) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return NULL;
 	}
 
@@ -418,12 +419,13 @@ static struct xio_srq *xio_srq_get(struct xio_rdma_transport *rdma_hndl,
 	HT_INIT(&srq->ht_rdma_hndl, xio_int32_hash, xio_int32_cmp,
 			xio_int32_cp);
 	INIT_LIST_HEAD(&srq->rx_list);
+	srq->ctx = ctx;
 
 	tcq->srq = srq;
 	return srq;
 
 cleanup:
-	ufree(srq);
+	xio_context_ufree(rdma_hndl->base.ctx, srq);
 	return NULL;
 }
 
@@ -440,7 +442,7 @@ static int xio_srq_destroy(struct xio_srq *srq)
 		ERROR_LOG("ibv_destroy_srq failed\n");
 		return -1;
 	}
-	ufree(srq);
+	xio_context_ufree(srq->ctx, srq);
 	return 0;
 }
 #endif
@@ -494,8 +496,8 @@ static void xio_cq_down(struct kref *kref)
 
 	XIO_OBSERVER_DESTROY(&tcq->observer);
 
-	ufree(tcq->wc_array);
-	ufree(tcq);
+	xio_context_ufree(tcq->ctx, tcq->wc_array);
+	xio_context_ufree(tcq->ctx, tcq);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -546,17 +548,18 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 		}
 	}
 #endif
-	tcq = (struct xio_cq *)ucalloc(1, sizeof(struct xio_cq));
+	tcq = (struct xio_cq *)xio_context_ucalloc(ctx, 1, sizeof(struct xio_cq));
 	if (!tcq) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		goto cleanup;
 	}
 	tcq->ctx = ctx;
 
 	tcq->wc_array_len = MAX_POLL_WC;
 	/* allocate device wc array */
-	tcq->wc_array = (struct ibv_wc *)ucalloc(tcq->wc_array_len,
+	tcq->wc_array = (struct ibv_wc *)xio_context_ucalloc(ctx,
+						 tcq->wc_array_len,
 						 sizeof(struct ibv_wc));
 	if (!tcq->wc_array) {
 		xio_set_error(errno);
@@ -662,9 +665,9 @@ cleanup3:
 		ERROR_LOG("ibv_destroy_comp_channel failed. (errno=%d %m)\n",
 			  errno);
 cleanup2:
-	ufree(tcq->wc_array);
+	xio_context_ufree(tcq->ctx, tcq->wc_array);
 cleanup1:
-	ufree(tcq);
+	xio_context_ufree(tcq->ctx, tcq);
 cleanup:
 	return NULL;
 }
@@ -672,18 +675,20 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 /* xio_device_init							     */
 /*---------------------------------------------------------------------------*/
-static struct xio_device *xio_device_init(struct ibv_context *ib_ctx)
+static struct xio_device *xio_device_init(struct xio_context *ctx,
+					  struct ibv_context *ib_ctx)
 {
 	struct xio_device	*dev;
 	int			retval;
 
-	dev = (struct xio_device *)ucalloc(1, sizeof(*dev));
+	dev = (struct xio_device *)xio_context_ucalloc(ctx, 1, sizeof(*dev));
 	if (!dev) {
 		xio_set_error(errno);
-		ERROR_LOG("ucalloc failed. (errno=%d %m)\n", errno);
+		ERROR_LOG("xio_context_ucalloc failed. (errno=%d %m)\n", errno);
 		return NULL;
 	}
 	dev->verbs	= ib_ctx;
+	dev->ctx	= ctx;
 
 	dev->pd = ibv_alloc_pd(dev->verbs);
 	if (!dev->pd) {
@@ -718,7 +723,7 @@ static struct xio_device *xio_device_init(struct ibv_context *ib_ctx)
 cleanup1:
 	ibv_dealloc_pd(dev->pd);
 cleanup:
-	ufree(dev);
+	xio_context_ufree(ctx, dev);
 
 	ERROR_LOG("rdma device: [new] failed\n");
 	return NULL;
@@ -752,7 +757,8 @@ static struct xio_device *xio_device_lookup(struct ibv_context *verbs)
 /*---------------------------------------------------------------------------*/
 /* xio_device_lookup_init						     */
 /*---------------------------------------------------------------------------*/
-static struct xio_device *xio_device_lookup_init(struct ibv_context *verbs)
+static struct xio_device *xio_device_lookup_init(struct xio_context *ctx,
+						 struct ibv_context *verbs)
 {
 	struct xio_device *dev;
 
@@ -770,7 +776,7 @@ static struct xio_device *xio_device_lookup_init(struct ibv_context *verbs)
 	TRACE_LOG("Connection via new device %s\n",
 		  ibv_get_device_name(verbs->device));
 
-	dev = xio_device_init(verbs);
+	dev = xio_device_init(ctx, verbs);
 	if (!dev) {
 		ERROR_LOG("Couldn't allocate device %s\n",
 			  ibv_get_device_name(verbs->device));
@@ -821,7 +827,7 @@ void xio_device_down(struct kref *kref)
 		ERROR_LOG("ibv_dealloc_pd failed. (errno=%d %s)\n",
 			  retval, strerror(retval));
 
-	ufree(dev);
+	xio_context_ufree(dev->ctx, dev);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -907,7 +913,7 @@ static int xio_device_list_init(void)
 	rdma_num_devices = num_devices;
 
 	for (i = 0; i < num_devices; ++i) {
-		dev = xio_device_init(ctx_list[i]);
+		dev = xio_device_init(NULL, ctx_list[i]);
 		if (!dev) {
 			ERROR_LOG("Couldn't allocate device %s\n",
 				  ibv_get_device_name(ctx_list[i]->device));
@@ -955,7 +961,7 @@ void xio_cm_channel_down(struct kref *kref)
 	pthread_rwlock_unlock(&cm_lock);
 	(void)xio_context_del_ev_handler(channel->ctx, channel->cm_channel->fd);
 	rdma_destroy_event_channel(channel->cm_channel);
-	ufree(channel);
+	xio_context_ufree(channel->ctx, channel);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1395,6 +1401,7 @@ static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl)
 /*---------------------------------------------------------------------------*/
 static int xio_rdma_initial_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr, void *pool_dd_data, void *slab_dd_data)
 {
 	struct xio_rdma_tasks_slab *rdma_slab =
@@ -1403,9 +1410,11 @@ static int xio_rdma_initial_pool_slab_pre_create(
 	int	retval;
 
 	rdma_slab->buf_size = CONN_SETUP_BUF_SIZE;
+	rdma_slab->ctx = ctx;
 	pool_size = rdma_slab->buf_size * alloc_nr;
 
-	retval = xio_mem_alloc(pool_size, &rdma_slab->reg_mem);
+	retval = xio_mem_alloc(ctx,
+			       pool_size, &rdma_slab->reg_mem);
 	if (retval) {
 		ERROR_LOG("xio_mem_alloc conn_setup pool failed, %m\n");
 		if (errno == ENOMEM)
@@ -1687,6 +1696,7 @@ static int xio_rdma_phantom_pool_create(struct xio_rdma_transport *rdma_hndl)
 
 	memset(&params, 0, sizeof(params));
 
+	params.xio_context		   = rdma_hndl->base.ctx;
 	params.start_nr			   = NUM_START_PHANTOM_POOL_TASKS;
 	params.max_nr			   = NUM_MAX_PHANTOM_POOL_TASKS;
 	params.alloc_nr			   = NUM_ALLOC_PHANTOM_POOL_TASKS;
@@ -1734,6 +1744,7 @@ static int xio_rdma_phantom_pool_destroy(struct xio_rdma_transport *rdma_hndl)
 /*---------------------------------------------------------------------------*/
 static int xio_rdma_primary_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr, void *pool_dd_data, void *slab_dd_data)
 {
 	struct xio_rdma_transport *rdma_hndl =
@@ -1753,9 +1764,11 @@ static int xio_rdma_primary_pool_slab_pre_create(
 	}
 	rdma_slab->alloc_nr = alloc_nr;
 	rdma_slab->buf_size = inline_buf_sz;
+	rdma_slab->ctx = ctx;
 
 	if (disable_huge_pages) {
-		retval = xio_mem_alloc(alloc_sz, &rdma_slab->reg_mem);
+		retval = xio_mem_alloc(ctx,
+				       alloc_sz, &rdma_slab->reg_mem);
 		if (retval == -1) {
 			xio_set_error(ENOMEM);
 			ERROR_LOG("xio_alloc rdma pool sz:%zu failed\n",
@@ -1763,22 +1776,23 @@ static int xio_rdma_primary_pool_slab_pre_create(
 			return -1;
 		}
 	} else {
-		/* maybe allocation of with unuma_alloc can provide better
+		/* maybe allocation of with xio_context_unuma_alloc can provide better
 		 * performance?
 		 */
-		rdma_slab->data_pool = umalloc_huge_pages(alloc_sz);
+		rdma_slab->data_pool = xio_context_umalloc_huge_pages(ctx, alloc_sz);
 		if (!rdma_slab->data_pool) {
 			xio_set_error(ENOMEM);
 			ERROR_LOG("malloc rdma pool sz:%zu failed\n",
 				  alloc_sz);
 			return -1;
 		}
-		retval = xio_mem_register(rdma_slab->data_pool,
+		retval = xio_mem_register(ctx, rdma_slab->data_pool,
 					  alloc_sz, &rdma_slab->reg_mem);
 		if (retval == -1) {
 			ERROR_LOG("xio_mem_register rdma pool sz:%zu failed\n",
 				  alloc_sz);
-			ufree_huge_pages(rdma_slab->data_pool);
+			xio_context_ufree_huge_pages(ctx,
+						     rdma_slab->data_pool);
 			if (errno == ENOMEM)
 				xio_validate_ulimit_memlock();
 			return -1;
@@ -1786,6 +1800,7 @@ static int xio_rdma_primary_pool_slab_pre_create(
 	}
 	rdma_slab->data_pool	= rdma_slab->reg_mem.addr;
 	rdma_slab->data_mr	= rdma_slab->reg_mem.mr;
+	rdma_slab->ctx		= ctx;
 
 	DEBUG_LOG("pool buf:%p, mr:%p\n",
 		  rdma_slab->data_pool, rdma_slab->data_mr);
@@ -1823,12 +1838,14 @@ static int xio_rdma_primary_pool_slab_post_create(
 		if (retval != 0)
 			ERROR_LOG("xio_mem_dreg failed\n");
 
-		retval = xio_mem_register(rdma_slab->data_pool,
+		retval = xio_mem_register(rdma_slab->ctx,
+					  rdma_slab->data_pool,
 					  alloc_sz, &rdma_slab->reg_mem);
 		if (retval == -1) {
 			ERROR_LOG("xio_mem_register rdma pool sz:%zu failed\n",
 				  alloc_sz);
-			ufree_huge_pages(rdma_slab->data_pool);
+			xio_context_ufree_huge_pages(rdma_slab->ctx,
+						     rdma_slab->data_pool);
 			if (errno == ENOMEM)
 				xio_validate_ulimit_memlock();
 			return -1;
@@ -1884,7 +1901,8 @@ static int xio_rdma_primary_pool_slab_destroy(
 
 		if (retval != 0)
 			ERROR_LOG("xio_mem_dreg failed\n");
-		ufree_huge_pages(rdma_slab->data_pool);
+		xio_context_ufree_huge_pages(rdma_slab->ctx,
+					     rdma_slab->data_pool);
 	}
 
 	return 0;
@@ -2084,23 +2102,27 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	xio_cm_channel_release(rdma_hndl->cm_channel);
 
 	if (rdma_hndl->rkey_tbl) {
-		ufree(rdma_hndl->rkey_tbl);
+		xio_context_ufree(rdma_hndl->base.ctx,
+				  rdma_hndl->rkey_tbl);
 		rdma_hndl->rkey_tbl = NULL;
 	}
 	if (rdma_hndl->peer_rkey_tbl) {
-		ufree(rdma_hndl->peer_rkey_tbl);
+		xio_context_ufree(rdma_hndl->base.ctx,
+				  rdma_hndl->peer_rkey_tbl);
 		rdma_hndl->peer_rkey_tbl = NULL;
 	}
 
 	if (trans_base->portal_uri) {
-		ufree(trans_base->portal_uri);
+		xio_context_ufree(rdma_hndl->base.ctx,
+				  trans_base->portal_uri);
 		trans_base->portal_uri = NULL;
 	}
 
 	XIO_OBSERVABLE_DESTROY(&rdma_hndl->base.observable);
 
-	ufree(rdma_hndl->srv_listen_uri);
-	ufree(rdma_hndl);
+	xio_context_ufree(rdma_hndl->base.ctx, rdma_hndl->srv_listen_uri);
+
+	xio_context_ufree(rdma_hndl->base.ctx, rdma_hndl);
 
 	DEBUG_LOG("%s - end. rdma_hndl:%p\n", __func__, rdma_hndl);
 }
@@ -2150,7 +2172,8 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 {
 	int				retval = 0;
 
-	rdma_hndl->dev = xio_device_lookup_init(rdma_hndl->cm_id->verbs);
+	rdma_hndl->dev = xio_device_lookup_init(rdma_hndl->base.ctx ,
+						rdma_hndl->cm_id->verbs);
 	if (!rdma_hndl->dev) {
 		ERROR_LOG("failed find/init device. " \
 			  "rdma_hndl:%p, cm_id->verbs:%p\n", rdma_hndl,
@@ -2266,7 +2289,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	int				retval = 0;
 	struct xio_device		*dev;
 
-	dev = xio_device_lookup_init(ev->id->verbs);
+	dev = xio_device_lookup_init(parent_hndl->base.ctx, ev->id->verbs);
 	if (!dev) {
 		ERROR_LOG("failed find/init device\n");
 		retval = rdma_reject(ev->id, NULL, 0);
@@ -2890,7 +2913,8 @@ static struct xio_cm_channel *xio_cm_channel_get(struct xio_context *ctx)
 	pthread_rwlock_unlock(&cm_lock);
 #endif
 	channel = (struct xio_cm_channel *)
-			ucalloc(1, sizeof(struct xio_cm_channel));
+			xio_context_ucalloc(ctx,
+					1, sizeof(struct xio_cm_channel));
 	if (!channel) {
 		ERROR_LOG("rdma_create_event_channel failed " \
 				"(errno=%d %m)\n", errno);
@@ -2941,7 +2965,7 @@ static struct xio_cm_channel *xio_cm_channel_get(struct xio_context *ctx)
 cleanup:
 	rdma_destroy_event_channel(channel->cm_channel);
 free:
-	ufree(channel);
+	xio_context_ufree(ctx, channel);
 
 	return NULL;
 }
@@ -2960,10 +2984,11 @@ static struct xio_transport_base *xio_rdma_open(
 
 	/*allocate rdma handle */
 	rdma_hndl = (struct xio_rdma_transport *)
-			ucalloc(1, sizeof(struct xio_rdma_transport));
+			xio_context_ucalloc(ctx,
+					1, sizeof(struct xio_rdma_transport));
 	if (!rdma_hndl) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return NULL;
 	}
 	if (attr && trans_attr_mask) {
@@ -3033,7 +3058,7 @@ cleanup:
 	if (rdma_hndl->cm_channel)
 		xio_cm_channel_release(rdma_hndl->cm_channel);
 
-	ufree(rdma_hndl);
+	xio_context_ufree(ctx, rdma_hndl);
 
 	return NULL;
 }
@@ -3374,7 +3399,7 @@ static int xio_rdma_connect(struct xio_transport_base *trans_hndl,
 	}
 
 	/* allocate memory for portal_uri */
-	trans_hndl->portal_uri = ustrdup(portal_uri);
+	trans_hndl->portal_uri = xio_context_ustrdup(trans_hndl->ctx, portal_uri);
 	if (!trans_hndl->portal_uri) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("calloc failed. %m\n");
@@ -3387,7 +3412,7 @@ static int xio_rdma_connect(struct xio_transport_base *trans_hndl,
 	return 0;
 
 exit2:
-	ufree(trans_hndl->portal_uri);
+	xio_context_ufree(trans_hndl->ctx, trans_hndl->portal_uri);
 	trans_hndl->portal_uri = NULL;
 
 exit1:
@@ -3411,7 +3436,8 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 		return -1;
 	}
 	/* resolve the portal_uri */
-	srv_listen_uri = ustrdup(rdma_hndl->srv_listen_uri);
+	srv_listen_uri = xio_context_ustrdup(rdma_hndl->base.ctx,
+					     rdma_hndl->srv_listen_uri);
 	p = srv_listen_uri;
 	if (xio_uri_to_ss(srv_listen_uri, &sa.sa_stor) == -1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
@@ -3419,7 +3445,7 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 			  rdma_hndl->srv_listen_uri, rdma_hndl);
 		return -1;
 	}
-	ufree(p);
+	xio_context_ufree(rdma_hndl->base.ctx, p);
 
 	rdma_destroy_id(rdma_hndl->cm_id);
 	TRACE_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
@@ -3484,7 +3510,7 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	uint16_t		sport;
 
 	/* resolve the portal_uri */
-	rdma_hndl->srv_listen_uri = ustrdup(portal_uri);
+	rdma_hndl->srv_listen_uri = xio_context_ustrdup(transport->ctx, portal_uri);
 	if (xio_uri_to_ss(portal_uri, &sa.sa_stor) == -1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
 		ERROR_LOG("address [%s] resolving failed\n", portal_uri);

@@ -321,7 +321,7 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 			}
 			list_del(&pconn->conns_list_entry);
 			close(pconn->fd);
-			ufree(pconn);
+			xio_context_ufree(tcp_hndl->base.ctx, pconn);
 		}
 	}
 }
@@ -339,15 +339,15 @@ static void xio_tcp_post_close(struct xio_tcp_transport *tcp_hndl)
 	xio_observable_unreg_all_observers(&tcp_hndl->base.observable);
 
 	if (tcp_hndl->tmp_rx_buf) {
-		ufree(tcp_hndl->tmp_rx_buf);
+		xio_context_ufree(tcp_hndl->base.ctx, tcp_hndl->tmp_rx_buf);
 		tcp_hndl->tmp_rx_buf = NULL;
 	}
 
-	ufree(tcp_hndl->base.portal_uri);
+	xio_context_ufree(tcp_hndl->base.ctx, tcp_hndl->base.portal_uri);
 
 	XIO_OBSERVABLE_DESTROY(&tcp_hndl->base.observable);
 
-	ufree(tcp_hndl);
+	xio_context_ufree(tcp_hndl->base.ctx, tcp_hndl);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -871,10 +871,11 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 
 	/*allocate tcp handl */
 	tcp_hndl = (struct xio_tcp_transport *)
-			ucalloc(1, sizeof(struct xio_tcp_transport));
+			xio_context_ucalloc(ctx,
+					    1, sizeof(struct xio_tcp_transport));
 	if (!tcp_hndl) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return NULL;
 	}
 
@@ -950,7 +951,7 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 	return tcp_hndl;
 
 cleanup:
-	ufree(tcp_hndl);
+	xio_context_ufree(ctx, tcp_hndl);
 
 	return NULL;
 }
@@ -1087,7 +1088,7 @@ void xio_tcp_handle_pending_conn(int fd,
 		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
 			  xio_get_last_socket_error());
 	}
-	ufree(data_conn);
+	xio_context_ufree(parent_hndl->base.ctx, data_conn);
 
 single_sock:
 
@@ -1107,14 +1108,14 @@ single_sock:
 		ERROR_LOG("failed to create tcp child\n");
 		xio_transport_notify_observer_error(&parent_hndl->base,
 						    xio_errno());
-		ufree(ctl_conn);
+		xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
 		goto cleanup3;
 	}
 
 	memcpy(&child_hndl->base.peer_addr,
 	       &ctl_conn->sa.sa_stor,
 	       sizeof(child_hndl->base.peer_addr));
-	ufree(ctl_conn);
+	xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
 
 	if (is_single) {
 		child_hndl->sock.cfd = fd;
@@ -1128,10 +1129,12 @@ single_sock:
 		memcpy(child_hndl->sock.ops, &dual_sock_ops,
 		       sizeof(*child_hndl->sock.ops));
 
-		child_hndl->tmp_rx_buf = ucalloc(1, TMP_RX_BUF_SIZE);
+		child_hndl->tmp_rx_buf = xio_context_ucalloc(
+				parent_hndl->base.ctx,
+				1, TMP_RX_BUF_SIZE);
 		if (!child_hndl->tmp_rx_buf) {
 			xio_set_error(ENOMEM);
-			ERROR_LOG("ucalloc failed. %m\n");
+			ERROR_LOG("xio_context_ucalloc failed. %m\n");
 			goto cleanup3;
 		}
 		child_hndl->tmp_rx_buf_cur = child_hndl->tmp_rx_buf;
@@ -1159,7 +1162,7 @@ single_sock:
 
 cleanup1:
 	list_del(&pending_conn->conns_list_entry);
-	ufree(pending_conn);
+	xio_context_ufree(parent_hndl->base.ctx, pending_conn);
 cleanup2:
 	/* remove from epoll */
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx, fd);
@@ -1205,10 +1208,11 @@ void xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 
 	/*allocate pending fd struct */
 	pending_conn = (struct xio_tcp_pending_conn *)
-				ucalloc(1, sizeof(struct xio_tcp_pending_conn));
+				xio_context_ucalloc(parent_hndl->base.ctx,
+						1, sizeof(struct xio_tcp_pending_conn));
 	if (!pending_conn) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		xio_transport_notify_observer_error(&parent_hndl->base,
 						    xio_errno());
 		return;
@@ -1225,7 +1229,7 @@ void xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 		xio_set_error(xio_get_last_socket_error());
 		ERROR_LOG("tcp accept failed. (errno=%d %m)\n",
 			  xio_get_last_socket_error());
-		ufree(pending_conn);
+		xio_context_ufree(parent_hndl->base.ctx, pending_conn);
 		return;
 	}
 	pending_conn->fd = retval;
@@ -1642,10 +1646,11 @@ int xio_tcp_dual_sock_connect(struct xio_tcp_transport *tcp_hndl,
 {
 	int retval;
 
-	tcp_hndl->tmp_rx_buf = ucalloc(1, TMP_RX_BUF_SIZE);
+	tcp_hndl->tmp_rx_buf = xio_context_ucalloc(tcp_hndl->base.ctx,
+						   1, TMP_RX_BUF_SIZE);
 	if (!tcp_hndl->tmp_rx_buf) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return -1;
 	}
 	tcp_hndl->tmp_rx_buf_cur = tcp_hndl->tmp_rx_buf;
@@ -1699,7 +1704,7 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 		goto exit1;
 	}
 	/* allocate memory for portal_uri */
-	tcp_hndl->base.portal_uri = ustrdup(portal_uri);
+	tcp_hndl->base.portal_uri = xio_context_ustrdup(transport->ctx, portal_uri);
 	if (!tcp_hndl->base.portal_uri) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("strdup failed. %m\n");
@@ -1750,7 +1755,7 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 	return 0;
 
 exit:
-	ufree(tcp_hndl->base.portal_uri);
+	xio_context_ufree(tcp_hndl->base.ctx, tcp_hndl->base.portal_uri);
 exit1:
 	tcp_hndl->sock.ops->del_ev_handlers = NULL;
 	return -1;
@@ -1971,6 +1976,7 @@ static void xio_tcp_task_init(struct xio_task *task,
 /*---------------------------------------------------------------------------*/
 static int xio_tcp_initial_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr,
 		void *pool_dd_data, void *slab_dd_data)
 {
@@ -1979,12 +1985,14 @@ static int xio_tcp_initial_pool_slab_pre_create(
 	uint32_t pool_size;
 
 	tcp_slab->buf_size = CONN_SETUP_BUF_SIZE;
+	tcp_slab->ctx = ctx;
 	pool_size = tcp_slab->buf_size * alloc_nr;
 
-	tcp_slab->data_pool = ucalloc(pool_size * alloc_nr, sizeof(uint8_t));
+	tcp_slab->data_pool = xio_context_ucalloc(ctx,
+					pool_size * alloc_nr, sizeof(uint8_t));
 	if (!tcp_slab->data_pool) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc conn_setup_data_pool sz: %u failed\n",
+		ERROR_LOG("xio_context_ucalloc conn_setup_data_pool sz: %u failed\n",
 			  pool_size);
 		return -1;
 	}
@@ -2084,7 +2092,7 @@ static int xio_tcp_initial_pool_slab_destroy(
 	struct xio_tcp_tasks_slab *tcp_slab =
 		(struct xio_tcp_tasks_slab *)slab_dd_data;
 
-	ufree(tcp_slab->data_pool);
+	xio_context_ufree(tcp_slab->ctx, tcp_slab->data_pool);
 
 	return 0;
 }
@@ -2218,6 +2226,7 @@ static void init_initial_tasks_pool_ops(void)
 /*---------------------------------------------------------------------------*/
 static int xio_tcp_primary_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr, void *pool_dd_data, void *slab_dd_data)
 {
 	struct xio_tcp_tasks_slab *tcp_slab =
@@ -2229,7 +2238,8 @@ static int xio_tcp_primary_pool_slab_pre_create(
 	tcp_slab->buf_size = inline_buf_sz;
 
 	if (disable_huge_pages) {
-		retval = xio_mem_alloc(alloc_sz, &tcp_slab->reg_mem);
+		retval = xio_mem_alloc(ctx,
+				       alloc_sz, &tcp_slab->reg_mem);
 		if (retval) {
 			xio_set_error(ENOMEM);
 			ERROR_LOG("xio_alloc tcp pool sz:%zu failed\n",
@@ -2238,10 +2248,11 @@ static int xio_tcp_primary_pool_slab_pre_create(
 		}
 		tcp_slab->data_pool = tcp_slab->reg_mem.addr;
 	} else {
-		/* maybe allocation of with unuma_alloc can provide better
+		/* maybe allocation of with xio_context_unuma_alloc can provide better
 		 * performance?
 		 */
-		tcp_slab->data_pool = umalloc_huge_pages(alloc_sz);
+		tcp_slab->data_pool = xio_context_umalloc_huge_pages(
+				ctx, alloc_sz);
 		if (!tcp_slab->data_pool) {
 			xio_set_error(ENOMEM);
 			ERROR_LOG("malloc tcp pool sz:%zu failed\n",
@@ -2249,7 +2260,7 @@ static int xio_tcp_primary_pool_slab_pre_create(
 			return -1;
 		}
 	}
-
+	tcp_slab->ctx = ctx;
 	DEBUG_LOG("pool buf:%p\n", tcp_slab->data_pool);
 
 	return 0;
@@ -2301,7 +2312,7 @@ static int xio_tcp_primary_pool_slab_destroy(
 	if (tcp_slab->reg_mem.addr)
 		xio_mem_free(&tcp_slab->reg_mem);
 	else
-		ufree_huge_pages(tcp_slab->data_pool);
+		xio_context_ufree_huge_pages(tcp_slab->ctx, tcp_slab->data_pool);
 
 	return 0;
 }

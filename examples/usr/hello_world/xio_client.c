@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 		} else { /* big msgs */
 			if (data == NULL) {
 				printf("allocating xio memory...\n");
-				xio_mem_alloc(msg_size, &xbuf);
+				xio_mem_alloc(session_data.ctx, msg_size, &xbuf);
 				data = (uint8_t *)xbuf.addr;
 				memset(data, 0, msg_size);
 				sprintf((char *)data, "hello world data request");

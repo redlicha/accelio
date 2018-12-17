@@ -91,10 +91,10 @@ void *xio_ev_loop_init(unsigned long flags, struct xio_context *ctx,
 	struct xio_ev_loop *loop;
 	char queue_name[64];
 
-	loop = kzalloc(sizeof(*loop), GFP_KERNEL);
+	loop = xio_context_kzalloc(ctx, sizeof(*loop), GFP_KERNEL);
 	if (!loop) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kmalloc failed. %m\n");
+		ERROR_LOG("xio_context_kzalloc failed. %m\n");
 		goto cleanup0;
 	}
 
@@ -158,7 +158,7 @@ void *xio_ev_loop_init(unsigned long flags, struct xio_context *ctx,
 
 cleanup1:
 	clear_bit(XIO_EV_LOOP_STOP, &loop->states);
-	kfree(loop);
+	xio_context_kfree(ctx, loop);
 cleanup0:
 	ERROR_LOG("event loop creation failed.\n");
 	return NULL;
@@ -208,7 +208,7 @@ void xio_ev_loop_destroy(void *loop_hndl)
 		break;
 	}
 
-	kfree(loop);
+	xio_context_kfree(loop->ctx, loop);
 }
 
 /*---------------------------------------------------------------------------*/

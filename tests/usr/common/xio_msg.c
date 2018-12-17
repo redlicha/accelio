@@ -155,6 +155,7 @@ void msg_api_free(struct msg_params *msg_params)
 /* msg_api_init								     */
 /*---------------------------------------------------------------------------*/
 int msg_api_init(struct msg_params *msg_params,
+		 struct xio_context *ctx,
 		 size_t hdrlen, size_t datalen, int is_server)
 {
 	const char	*req_hdr = "hello world request header";
@@ -168,7 +169,7 @@ int msg_api_init(struct msg_params *msg_params,
 
 	if (pagesize < 0)
 		return -1;
-
+	msg_params->ctx = ctx;
 	msg_params->g_hdr = NULL;
 	msg_params->g_data = NULL;
 	if (hdrlen) {
@@ -197,7 +198,7 @@ int msg_api_init(struct msg_params *msg_params,
 			strncpy((char *)msg_params->g_data, ptr, len);
 		msg_params->g_data[len] = 0;
 
-		xio_mem_register(msg_params->g_data, datalen, &reg_mem);
+		xio_mem_register(ctx, msg_params->g_data, datalen, &reg_mem);
 		msg_params->g_data_mr = reg_mem.mr;
 		if (!msg_params->g_data_mr)
 			goto cleanup;

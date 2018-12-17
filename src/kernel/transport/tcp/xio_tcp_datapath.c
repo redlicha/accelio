@@ -2866,7 +2866,7 @@ static int xio_tcp_send_cancel(struct xio_tcp_transport *tcp_hndl,
 
 	ulp_hdr_len = sizeof(*cancel_hdr) + sizeof(uint16_t) + ulp_msg_sz;
 	tcp_hndl->dummy_msg.out.header.iov_base =
-			kzalloc(ulp_hdr_len, GFP_KERNEL);
+			xio_context_kzalloc(tcp_hndl->base.ctx, ulp_hdr_len, GFP_KERNEL);
 	tcp_hndl->dummy_msg.out.header.iov_len = ulp_hdr_len;
 
 	/* write the message */
@@ -2909,7 +2909,7 @@ static int xio_tcp_send_cancel(struct xio_tcp_transport *tcp_hndl,
 		return  -1;
 
 	task->omsg = NULL;
-	kfree(tcp_hndl->dummy_msg.out.header.iov_base);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl->dummy_msg.out.header.iov_base);
 
 	tcp_hndl->tx_ready_tasks_num++;
 	list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);

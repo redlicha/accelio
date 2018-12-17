@@ -245,9 +245,9 @@ struct xio_workqueue *xio_workqueue_create(struct xio_context *ctx)
 	struct xio_workqueue	*work_queue;
 	int			retval;
 
-	work_queue = (struct xio_workqueue *)ucalloc(1, sizeof(*work_queue));
+	work_queue = (struct xio_workqueue *)xio_context_ucalloc(ctx, 1, sizeof(*work_queue));
 	if (!work_queue) {
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return NULL;
 	}
 
@@ -299,7 +299,7 @@ exit2:
 exit1:
 	xio_closesocket(work_queue->timer_fd);
 exit:
-	ufree(work_queue);
+	xio_context_ufree(work_queue->ctx, work_queue);
 	return NULL;
 }
 
@@ -329,7 +329,7 @@ int xio_workqueue_destroy(struct xio_workqueue *work_queue)
 	xio_closesocket(work_queue->pipe_fd[0]);
 	xio_closesocket(work_queue->pipe_fd[1]);
 	xio_closesocket(work_queue->timer_fd);
-	ufree(work_queue);
+	xio_context_ufree(work_queue->ctx, work_queue);
 
 	return retval;
 }

@@ -138,7 +138,7 @@ void *raio_handler_init_portal_data(void *prv_session_data,
 	struct raio_io_portal_data *pd = &sd->pd[portal_nr];
 
 	pd->ctx = (struct xio_context *)ctx;
-	pd->cmds_rsp_pool = msg_pool_create(RAIO_CMD_HDR_SZ, 0,
+	pd->cmds_rsp_pool = msg_pool_create(sd->pd->ctx, RAIO_CMD_HDR_SZ, 0,
 					    RAIO_CMDS_POOL_SZ);
 
 	pd->ndevs = 0;

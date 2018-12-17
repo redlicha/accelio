@@ -408,7 +408,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	int i;
 
 	if (test_params->reg_mem.addr == NULL)
-		xio_mem_alloc(XIO_READ_BUF_LEN, &test_params->reg_mem);
+		xio_mem_alloc(test_params->ctx,
+			      XIO_READ_BUF_LEN, &test_params->reg_mem);
 
 	for (i = 0; i < nents; i++) {
 		sglist[i].iov_base = test_params->reg_mem.addr;
@@ -599,8 +600,8 @@ static void print_test_config(
 	printf(" Server Address		: %s\n", test_config_p->server_addr);
 	printf(" Server Port		: %u\n", test_config_p->server_port);
 	printf(" Transport		: %s\n", test_config_p->transport);
-	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ? 
-						 test_config_p->out_addr : 
+	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ?
+						 test_config_p->out_addr :
 						 "None");
 	printf(" Header Length		: %u\n", test_config_p->hdr_len);
 	printf(" Data Length		: %u\n", test_config_p->data_len);
@@ -767,8 +768,15 @@ int main(int argc, char *argv[])
 		    XIO_OPTLEVEL_ACCELIO, XIO_OPTNAME_MAX_OUT_IOVLEN,
 		    &test_config.out_iov_len, sizeof(int));
 
+	test_params.ctx = xio_context_create(NULL, 0, test_config.cpu);
+	if (test_params.ctx == NULL) {
+		error = xio_errno();
+		fprintf(stderr, "context creation failed. reason %d - (%s)\n",
+			error, xio_strerror(error));
+		xio_assert(test_params.ctx != NULL);
+	}
 	/* prepare buffers for this test */
-	if (msg_api_init(&test_params.msg_params,
+	if (msg_api_init(&test_params.msg_params, test_params.ctx,
 			 test_config.hdr_len, test_config.data_len, 0) != 0)
 		return -1;
 
@@ -778,13 +786,6 @@ int main(int argc, char *argv[])
 	if (test_params.pool == NULL)
 		goto cleanup;
 
-	test_params.ctx = xio_context_create(NULL, 0, test_config.cpu);
-	if (test_params.ctx == NULL) {
-		error = xio_errno();
-		fprintf(stderr, "context creation failed. reason %d - (%s)\n",
-			error, xio_strerror(error));
-		xio_assert(test_params.ctx != NULL);
-	}
 
 	sprintf(url, "%s://%s:%d",
 		test_config.transport,

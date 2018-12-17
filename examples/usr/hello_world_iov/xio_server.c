@@ -126,7 +126,7 @@ static void msg_prep_for_send(struct server_data *sdata, struct xio_msg *msg)
 	}
 	if (sdata->data == NULL) {
 		uint8_t *data;
-		xio_mem_alloc(MSG_DATA_LEN, &sdata->xbuf);
+		xio_mem_alloc(sdata->ctx, MSG_DATA_LEN, &sdata->xbuf);
 		data = (uint8_t *)sdata->xbuf.addr;
 		memset(data, 0, MSG_DATA_LEN);
 
@@ -327,7 +327,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	/* gather into one buffer */
 	if (gather) {
 		if (sdata->in_xbuf.addr == NULL)
-			xio_mem_alloc(MAX_NENTS*MSG_DATA_LEN,
+			xio_mem_alloc(sdata->ctx,
+				      MAX_NENTS*MSG_DATA_LEN,
 				      &sdata->in_xbuf);
 
 		vmsg_sglist_set_nents(&msg->in, 1);
@@ -337,7 +338,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 
 	} else {
 		if (sdata->in_xbuf.addr == NULL)
-			xio_mem_alloc(MSG_DATA_LEN, &sdata->in_xbuf);
+			xio_mem_alloc(sdata->ctx,
+				      MSG_DATA_LEN, &sdata->in_xbuf);
 
 		for (i = 0; i < nents; i++) {
 			sglist[i].iov_base	= sdata->in_xbuf.addr;

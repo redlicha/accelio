@@ -282,6 +282,10 @@ struct xio_context_params {
 	/** depth of receive queue in RDMA.
 	* pass 0 if want the depth to remain default (XIO_MAX_IOV + constant) */
 	int         rq_depth;
+
+	/** per context memory allocator. if not exist use global one           */
+	int			 allocator_assigned;
+	struct xio_mem_allocator mem_allocator;
 };
 
 /**

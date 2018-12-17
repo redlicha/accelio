@@ -43,6 +43,7 @@
 /* opaque data type							     */
 /*---------------------------------------------------------------------------*/
 struct xio_objpool;
+struct xio_context;
 
 /**
  * create dynamically growing objects pool
@@ -54,7 +55,8 @@ struct xio_objpool;
  *
  * @return pointer to object pool
  */
-struct xio_objpool	*xio_objpool_create(int size, int init_nr, int grow_nr);
+struct xio_objpool	*xio_objpool_create(struct xio_context *ctx,
+					    int size, int init_nr, int grow_nr);
 
 /**
  * destroy objects pool

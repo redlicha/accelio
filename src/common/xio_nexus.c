@@ -144,7 +144,7 @@ static void xio_nexus_free_observers_htbl(struct xio_nexus *nexus)
 				 &nexus->observers_htbl,
 				 observers_htbl_node) {
 		list_del(&node->observers_htbl_node);
-		kfree(node);
+		xio_context_kfree(nexus->ctx, node);
 	}
 }
 
@@ -158,10 +158,10 @@ static int xio_nexus_hash_observer(struct xio_nexus *nexus,
 	struct xio_observers_htbl_node	*node;
 
 	node = (struct xio_observers_htbl_node *)
-			kcalloc(1, sizeof(*node), GFP_KERNEL);
+			xio_context_kcalloc(nexus->ctx, 1, sizeof(*node), GFP_KERNEL);
 	if (!node) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kcalloc failed. %m\n");
+		ERROR_LOG("xio_context_kcalloc failed. %m\n");
 		return -1;
 	}
 	node->observer	= observer;
@@ -186,7 +186,7 @@ static int xio_nexus_delete_observer(struct xio_nexus *nexus,
 				 observers_htbl_node) {
 		if (node->observer == observer) {
 			list_del(&node->observers_htbl_node);
-			kfree(node);
+			xio_context_kfree(nexus->ctx, node);
 			return 0;
 		}
 	}
@@ -1236,10 +1236,11 @@ struct xio_nexus *xio_nexus_create(struct xio_nexus *parent_nexus,
 
 	/* allocate nexus */
 	nexus = (struct xio_nexus *)
-			kcalloc(1, sizeof(struct xio_nexus), GFP_KERNEL);
+			xio_context_kcalloc(transport_hndl->ctx,
+					1, sizeof(struct xio_nexus), GFP_KERNEL);
 	if (!nexus) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kcalloc failed. %m\n");
+		ERROR_LOG("xio_context_kcalloc failed. %m\n");
 		return NULL;
 	}
 
@@ -1495,7 +1496,7 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 		xio_nexus_on_transport_error(ev_params->nexus,
 					     &ev_params->event_data);
 
-	kfree(ev_params);
+	xio_context_kfree(ev_params->nexus->ctx, ev_params);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1805,7 +1806,8 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		if (nexus->trans_error_event.data)
 			return 0;
 		ev_params = (struct xio_event_params *)
-				kmalloc(sizeof(*ev_params), GFP_KERNEL);
+				xio_context_kmalloc(nexus->ctx,
+					sizeof(*ev_params), GFP_KERNEL);
 		if (!ev_params) {
 			ERROR_LOG("failed to allocate memory\n");
 			return -1;
@@ -1838,7 +1840,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	xio_context_disable_event(&nexus->trans_error_event);
 	xio_context_disable_event(&nexus->disconnect_event);
 
-	kfree(nexus->trans_error_event.data);
+	xio_context_kfree(nexus->ctx, nexus->trans_error_event.data);
 	nexus->trans_error_event.data = NULL;
 	if (nexus->server)
 		xio_server_unreg_observer(nexus->server,
@@ -1863,10 +1865,10 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 
 	xio_context_unreg_observer(nexus->ctx, &nexus->ctx_observer);
 
-	kfree(nexus->portal_uri);
+	xio_context_kfree(nexus->ctx, nexus->portal_uri);
 	nexus->portal_uri = NULL;
 
-	kfree(nexus->out_if_addr);
+	xio_context_kfree(nexus->ctx, nexus->out_if_addr);
 	nexus->out_if_addr = NULL;
 
 	XIO_OBSERVER_DESTROY(&nexus->trans_observer);
@@ -1877,7 +1879,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	XIO_OBSERVER_DESTROY(&nexus->srv_observer);
 	mutex_destroy(&nexus->lock_connect);
 
-	kfree(nexus);
+	xio_context_kfree(nexus->ctx, nexus);
 
 	return 0;
 }
@@ -1953,10 +1955,11 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	}
 	/* allocate nexus */
 	nexus = (struct xio_nexus *)
-			kcalloc(1, sizeof(struct xio_nexus), GFP_KERNEL);
+			xio_context_kcalloc(ctx,
+					1, sizeof(struct xio_nexus), GFP_KERNEL);
 	if (!nexus) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kcalloc failed. %m\n");
+		ERROR_LOG("xio_context_kcalloc failed. %m\n");
 		return NULL;
 	}
 	XIO_OBSERVER_INIT(&nexus->trans_observer, nexus,
@@ -2138,14 +2141,14 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 	switch (nexus->state) {
 	case XIO_NEXUS_STATE_OPEN:
 		/* for reconnect */
-		nexus->portal_uri = kstrdup(portal_uri, GFP_KERNEL);
+		nexus->portal_uri = xio_context_kstrdup(nexus->ctx, portal_uri, GFP_KERNEL);
 		if (!nexus->portal_uri) {
 			ERROR_LOG("memory alloc failed\n");
 			xio_set_error(ENOMEM);
 			goto cleanup1;
 		}
 		if (out_if) {
-			nexus->out_if_addr  = kstrdup(out_if, GFP_KERNEL);
+			nexus->out_if_addr  = xio_context_kstrdup(nexus->ctx, out_if, GFP_KERNEL);
 			if (!nexus->out_if_addr) {
 				ERROR_LOG("memory alloc failed\n");
 				xio_set_error(ENOMEM);
@@ -2167,7 +2170,8 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		 * to avoid session_setup_request from being sent on another thread
 		 */
 		work_params = (struct xio_nexus_observer_work *)
-				kmalloc(sizeof(*work_params), GFP_KERNEL);
+				xio_context_kmalloc(nexus->ctx,
+						sizeof(*work_params), GFP_KERNEL);
 		if (unlikely(!work_params)) {
 			ERROR_LOG("failed to allocate memory\n");
 			goto cleanup1;
@@ -2193,10 +2197,10 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 	return 0;
 
 cleanup3:
-	kfree(nexus->out_if_addr);
+	xio_context_kfree(nexus->ctx, nexus->out_if_addr);
 	nexus->out_if_addr = NULL;
 cleanup2:
-	kfree(nexus->portal_uri);
+	xio_context_kfree(nexus->ctx, nexus->portal_uri);
 	nexus->portal_uri = NULL;
 cleanup1:
 	ERROR_LOG("transport connect failed\n");

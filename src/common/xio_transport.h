@@ -155,6 +155,7 @@ struct xio_tasks_pool_ops {
 				   int *task_dd_size);
 
 	int	(*slab_pre_create)(struct xio_transport_base *trans_hndl,
+				   struct xio_context *ctx,
 				   int alloc_nr,
 				   void *pool_dd_data, void *slab_dd_data);
 	int	(*slab_destroy)(struct xio_transport_base *trans_hndl,

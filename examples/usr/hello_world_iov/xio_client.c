@@ -129,7 +129,7 @@ static void msg_prep_for_send(struct session_data *sdata, struct xio_msg *msg)
 	}
 	if (sdata->odata == NULL) {
 		uint8_t *data;
-		xio_mem_alloc(MSG_DATA_LEN, &sdata->xbuf);
+		xio_mem_alloc(sdata->ctx, MSG_DATA_LEN, &sdata->xbuf);
 		data = (uint8_t *)sdata->xbuf.addr;
 		memset(data, 0, MSG_DATA_LEN);
 
@@ -141,7 +141,7 @@ static void msg_prep_for_send(struct session_data *sdata, struct xio_msg *msg)
 	}
 	if (sdata->idata == NULL) {
 		uint8_t *data;
-		xio_mem_alloc(MSG_DATA_LEN, &sdata->in_xbuf);
+		xio_mem_alloc(sdata->ctx, MSG_DATA_LEN, &sdata->in_xbuf);
 		data = (uint8_t *)sdata->in_xbuf.addr;
 
 		memset(data, 0, MSG_DATA_LEN);

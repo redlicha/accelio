@@ -111,8 +111,11 @@ struct xio_context {
 	uint32_t			defered_destroy:1;
 	uint32_t			prealloc_xio_inline_bufs:1;
 	uint32_t			register_internal_mempool:1;
-	uint32_t			resereved:28;
+	uint32_t			allocator_assigned:1;
+	uint32_t			resereved:27;
 
+	/* context allocator */
+	struct xio_mem_allocator 	mem_allocator;
 	struct xio_statistics		stats;
 	void				*user_context;
 	struct xio_workqueue		*workqueue;
@@ -311,6 +314,27 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 int xio_ctx_debug_thread_lock(struct xio_context *ctx);
 int xio_ctx_debug_thread_unlock(struct xio_context *ctx);
 #endif
+
+void *xio_context_umalloc(struct xio_context *ctx, size_t size);
+void *xio_context_ucalloc(struct xio_context *ctx, size_t nmemb, size_t size);
+void *xio_context_umemalign(struct xio_context *ctx, size_t boundary, size_t size);
+void *xio_context_umalloc_huge_pages(struct xio_context *ctx, size_t size);
+void *xio_context_unuma_alloc(struct xio_context *ctx, size_t size, int node);
+void xio_context_ufree(struct xio_context *ctx, void *ptr);
+void xio_context_ufree_huge_pages(struct xio_context *ctx, void *ptr);
+void xio_context_unuma_free(struct xio_context *ctx, void *ptr);
+char *xio_context_ustrdup(struct xio_context *ctx, char const *s);
+char *xio_context_ustrndup(struct xio_context *ctx, char const *s, size_t n);
+
+void xio_context_kfree(struct xio_context *ctx, const void *ptr);
+void *xio_context_kmalloc(struct xio_context *ctx, size_t size, gfp_t flags);
+void *xio_context_kcalloc(struct xio_context *ctx, size_t n, size_t size, gfp_t flags);
+void *xio_context_kzalloc(struct xio_context *ctx, size_t size, gfp_t flags);
+void *xio_context_vmalloc(struct xio_context *ctx, unsigned long size);
+void *xio_context_vzalloc(struct xio_context *ctx, unsigned long size);
+void xio_context_vfree(struct xio_context *ctx, const void *addr);
+char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp);
+char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp);
 
 #endif /*XIO_CONTEXT_H */
 

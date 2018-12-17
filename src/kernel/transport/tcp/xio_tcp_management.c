@@ -424,16 +424,16 @@ free:
 	list_for_each_entry_safe(pconn, next_pconn,
 				 &tcp_hndl->pending_conns,
 				 conns_list_entry) {
-		kfree(pconn);
+		xio_context_kfree(tcp_hndl->base.ctx, pconn);
 	}
 
-	kfree(tcp_hndl->tmp_rx_buf);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl->tmp_rx_buf);
 	tcp_hndl->tmp_rx_buf = NULL;
 
-	kfree(tcp_hndl->base.portal_uri);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl->base.portal_uri);
 	tcp_hndl->base.portal_uri = NULL;
 
-	kfree(tcp_hndl);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl);
 
 	return 0;
 }
@@ -970,10 +970,10 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 	struct xio_tcp_transport	*tcp_hndl;
 
 	/*allocate tcp handl */
-	tcp_hndl = kzalloc(sizeof(*tcp_hndl), GFP_KERNEL);
+	tcp_hndl = xio_context_kzalloc(ctx, sizeof(*tcp_hndl), GFP_KERNEL);
 	if (!tcp_hndl) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kzalloc failed. %m\n");
+		ERROR_LOG("xio_context_kzalloc failed. %m\n");
 		return NULL;
 	}
 
@@ -1046,7 +1046,7 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 	return tcp_hndl;
 
 cleanup:
-	kfree(tcp_hndl);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl);
 
 	return NULL;
 }
@@ -1067,7 +1067,7 @@ void xio_tcp_pending_conn_remove_handler(void *user_data)
 				      &pending_conn->pending_event_data);
 	} else {
 		list_del(&pending_conn->conns_list_entry);
-		kfree(pending_conn);
+		xio_context_kfree(pending_conn->parent->base.ctx, pending_conn);
 	}
 }
 
@@ -1214,10 +1214,10 @@ single_sock:
 		memcpy(child_hndl->socket.ops, &dual_sock_ops,
 		       sizeof(*child_hndl->socket.ops));
 
-		child_hndl->tmp_rx_buf = kzalloc(TMP_RX_BUF_SIZE, GFP_KERNEL);
+		child_hndl->tmp_rx_buf = xio_context_kzalloc(child_hndl->base.ctx, TMP_RX_BUF_SIZE, GFP_KERNEL);
 		if (!child_hndl->tmp_rx_buf) {
 			xio_set_error(ENOMEM);
-			ERROR_LOG("kzalloc failed.\n");
+			ERROR_LOG("xio_context_kzalloc failed.\n");
 			goto cleanup;
 		}
 		child_hndl->tmp_rx_buf_cur = child_hndl->tmp_rx_buf;
@@ -1342,10 +1342,10 @@ int xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 	}
 
 	/*allocate pending fd struct */
-	pending_conn = kzalloc(sizeof(*pending_conn), GFP_KERNEL);
+	pending_conn = xio_context_kzalloc(parent_hndl->base.ctx, sizeof(*pending_conn), GFP_KERNEL);
 	if (!pending_conn) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kzalloc failed.\n");
+		ERROR_LOG("xio_context_kzalloc failed.\n");
 		xio_transport_notify_observer_error(&parent_hndl->base,
 						    xio_errno());
 		sock_release(new_sock);
@@ -1361,7 +1361,7 @@ int xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 	if (retval < 0) {
 		xio_set_error(-retval);
 		ERROR_LOG("tcp getpeername failed. (errno=%d)\n", -retval);
-		kfree(pending_conn);
+		xio_context_kfree(pending_conn->parent->base.ctx, pending_conn);
 		sock_release(new_sock);
 		return retval;
 	}
@@ -1769,10 +1769,11 @@ int xio_tcp_dual_sock_connect(struct xio_tcp_transport *tcp_hndl,
 {
 	int retval;
 
-	tcp_hndl->tmp_rx_buf = kzalloc(TMP_RX_BUF_SIZE, GFP_KERNEL);
+	tcp_hndl->tmp_rx_buf = xio_context_kzalloc(tcp_hndl->base.ctx, 
+					TMP_RX_BUF_SIZE, GFP_KERNEL);
 	if (!tcp_hndl->tmp_rx_buf) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed. %m\n");
+		ERROR_LOG("xio_context_kzalloc failed. %m\n");
 		return -1;
 	}
 	tcp_hndl->tmp_rx_buf_cur = tcp_hndl->tmp_rx_buf;
@@ -1867,7 +1868,7 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 	return 0;
 
 exit:
-	kfree(tcp_hndl->base.portal_uri);
+	xio_context_kfree(tcp_hndl->base.ctx, tcp_hndl->base.portal_uri);
 	tcp_hndl->base.portal_uri = NULL;
 
 	return -1;
@@ -1970,6 +1971,7 @@ static void xio_tcp_task_init(struct xio_task *task,
 /*---------------------------------------------------------------------------*/
 static int xio_tcp_initial_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr,
 		void *pool_dd_data, void *slab_dd_data)
 {
@@ -2252,6 +2254,7 @@ static struct xio_tasks_pool_ops initial_tasks_pool_ops = {
 /*---------------------------------------------------------------------------*/
 static int xio_tcp_primary_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr, void *pool_dd_data, void *slab_dd_data)
 {
 	struct xio_tcp_tasks_slab *tcp_slab =

@@ -205,8 +205,8 @@ static void xio_cq_down(struct kref *kref)
 
 	XIO_OBSERVER_DESTROY(&tcq->observer);
 
-	kfree(tcq->wc_array);
-	kfree(tcq);
+	xio_context_kfree(tcq->ctx, tcq->wc_array);
+	xio_context_kfree(tcq->ctx, tcq);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -264,9 +264,9 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 	}
 	cpu = cpu % dev->cqs_used;
 
-	tcq = kzalloc(sizeof(*tcq), GFP_KERNEL);
+	tcq = xio_context_kzalloc(ctx, sizeof(*tcq), GFP_KERNEL);
 	if (!tcq) {
-		ERROR_LOG("xio_cq_init kzalloc failed\n");
+		ERROR_LOG("%s xio_context_kzalloc failed\n", __func__);
 		goto cleanup0;
 	}
 
@@ -274,7 +274,8 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 	alloc_sz	= tcq->alloc_sz;
 
 	/* allocate device wc array */
-	tcq->wc_array = kcalloc(MAX_POLL_WC, sizeof(struct ib_wc), GFP_KERNEL);
+	tcq->wc_array = xio_context_kcalloc(ctx,
+					    MAX_POLL_WC, sizeof(struct ib_wc), GFP_KERNEL);
 	if (!tcq->wc_array) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("wc array allocation failed\n");
@@ -367,9 +368,9 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 cleanup3:
 	ib_destroy_cq(tcq->cq);
 cleanup2:
-	kfree(tcq->wc_array);
+	xio_context_kfree(ctx, tcq->wc_array);
 cleanup1:
-	kfree(tcq);
+	xio_context_kfree(ctx, tcq);
 cleanup0:
 	ERROR_LOG("xio_cq_init failed\n");
 	return NULL;
@@ -394,10 +395,10 @@ static struct xio_device *xio_device_init(struct ib_device *ib_dev, int port)
 	int			num_cores;
 	int			retval;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = xio_context_kzalloc(NULL, sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kzalloc failed.\n");
+		ERROR_LOG("%s xio_context_kzalloc failed\n", __func__);
 		goto cleanup0;
 	}
 
@@ -467,7 +468,7 @@ cleanup3:
 cleanup2:
 	ib_dealloc_pd(dev->pd);
 cleanup1:
-	kfree(dev);
+	xio_context_kfree(NULL, dev);
 cleanup0:
 	ERROR_LOG("rdma device: [new] failed\n");
 	return NULL;
@@ -483,7 +484,7 @@ void xio_device_down(struct kref *kref)
 	ib_dereg_mr(dev->mr);
 	ib_dealloc_pd(dev->pd);
 
-	kfree(dev);
+	xio_context_kfree(NULL, dev);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -919,6 +920,7 @@ static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl)
 /*---------------------------------------------------------------------------*/
 static int xio_rdma_initial_pool_slab_pre_create(
 				struct xio_transport_base *transport_hndl,
+				struct xio_context *ctx,
 				int alloc_nr,
 				void *pool_dd_data, void *slab_dd_data)
 {
@@ -1393,6 +1395,7 @@ static int xio_rdma_phantom_pool_destroy(struct xio_rdma_transport *rdma_hndl)
 /*---------------------------------------------------------------------------*/
 static int xio_rdma_primary_pool_slab_pre_create(
 		struct xio_transport_base *transport_hndl,
+		struct xio_context *ctx,
 		int alloc_nr, void *pool_dd_data, void *slab_dd_data)
 {
 	struct xio_rdma_tasks_slab *rdma_slab =
@@ -1506,7 +1509,8 @@ static int xio_rdma_primary_pool_slab_remap_task(
 
 	if (!new_hndl->rkey_tbl) {
 		/* one for each possible desc and one for device mr */
-		new_hndl->rkey_tbl = kcalloc(2 * old_hndl->num_tasks + 1,
+		new_hndl->rkey_tbl = xio_context_kcalloc(new_th->ctx, 
+					     2 * old_hndl->num_tasks + 1,
 					     sizeof(struct xio_rkey_tbl),
 					     GFP_KERNEL);
 		if (!new_hndl->rkey_tbl)
@@ -1773,20 +1777,20 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 
 	xio_context_destroy_resume(rdma_hndl->base.ctx);
 
-	kfree(rdma_hndl->rkey_tbl);
+	xio_context_kfree(rdma_hndl->base.ctx, rdma_hndl->rkey_tbl);
 	rdma_hndl->rkey_tbl = NULL;
 
-	kfree(rdma_hndl->peer_rkey_tbl);
+	xio_context_kfree(rdma_hndl->base.ctx, rdma_hndl->peer_rkey_tbl);
 	rdma_hndl->peer_rkey_tbl = NULL;
 
-	kfree(trans_base->portal_uri);
+	xio_context_kfree(rdma_hndl->base.ctx, trans_base->portal_uri);
 	trans_base->portal_uri = NULL;
 
 	XIO_OBSERVABLE_DESTROY(&rdma_hndl->base.observable);
 	/* last chance to flush all tasks */
 	xio_rdma_flush_all_tasks(rdma_hndl);
 
-	kfree(rdma_hndl);
+	xio_context_kfree(rdma_hndl->base.ctx, rdma_hndl);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2337,10 +2341,10 @@ static struct xio_transport_base *xio_rdma_open(
 	struct xio_rdma_transport *rdma_hndl;
 
 	/* allocate rdma handle */
-	rdma_hndl = kzalloc(sizeof(*rdma_hndl), GFP_KERNEL);
+	rdma_hndl = xio_context_kzalloc(ctx, sizeof(*rdma_hndl), GFP_KERNEL);
 	if (!rdma_hndl) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("calloc failed.\n");
+		ERROR_LOG("%s xio_context_kzalloc failed\n", __func__);
 		return NULL;
 	}
 	if (attr && trans_attr_mask) {
@@ -2395,7 +2399,7 @@ static struct xio_transport_base *xio_rdma_open(
 	return (struct xio_transport_base *)rdma_hndl;
 
 cleanup:
-	kfree(rdma_hndl);
+	xio_context_kfree(rdma_hndl->base.ctx, rdma_hndl);
 
 	return NULL;
 }
@@ -2721,7 +2725,7 @@ static int xio_rdma_connect(struct xio_transport_base *trans_hndl,
 	return 0;
 
 exit2:
-	kfree(trans_hndl->portal_uri);
+	xio_context_kfree(trans_hndl->ctx, trans_hndl->portal_uri);
 
 exit1:
 	return -1;
@@ -3144,7 +3148,8 @@ static void xio_add_one(struct ib_device *ib_dev)
 		e = ib_dev->phys_port_cnt;
 	}
 
-	xio_devs = kcalloc(e + 1, sizeof(struct xio_device *), GFP_KERNEL);
+	xio_devs = xio_context_kcalloc(NULL,
+			e + 1, sizeof(struct xio_device *), GFP_KERNEL);
 	if (!xio_devs) {
 		ERROR_LOG("Couldn't allocate n(%d) pointers\n", e + 1);
 		return;
@@ -3173,7 +3178,7 @@ cleanup:
 			xio_devs[p] = NULL;
 		}
 	}
-	kfree(xio_devs);
+	xio_context_kfree(NULL, xio_devs);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -3217,7 +3222,7 @@ static void xio_del_one(struct ib_device *ib_dev)
 		}
 	}
 
-	kfree(xio_devs);
+	xio_context_kfree(NULL, xio_devs);
 }
 
 static int __init xio_init_module(void)

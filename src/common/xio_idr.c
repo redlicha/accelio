@@ -43,6 +43,13 @@
 #include <sys/hashtable.h>
 #include "xio_idr.h"
 #include <xio_env_adv.h>
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_observer.h"
+#include "xio_context.h"
+
 
 struct xio_idr_entry {
 	void					*key;
@@ -79,8 +86,8 @@ int xio_idr_remove_uobj(struct xio_idr *idr, void *uobj)
 	HT_REMOVE(&idr->cache, idr_entry, xio_idr_entry, idr_ht_entry);
 	spin_unlock(&idr->lock);
 
-	kfree(idr_entry->name);
-	kfree(idr_entry);
+	xio_context_kfree(NULL, idr_entry->name);
+	xio_context_kfree(NULL, idr_entry);
 
 	return 0;
 }
@@ -118,11 +125,12 @@ int xio_idr_add_uobj(struct xio_idr *idr, void *uobj, const char *obj_name)
 		return -1;
 
 	idr_entry = (struct xio_idr_entry *)
-			kcalloc(1, sizeof(*idr_entry), GFP_KERNEL);
+			xio_context_kcalloc(NULL,
+					1, sizeof(*idr_entry), GFP_KERNEL);
 	if (!idr_entry)
 		return -1;
 
-	pname = kstrdup(obj_name, GFP_KERNEL);
+	pname = xio_context_kstrdup(NULL, obj_name, GFP_KERNEL);
 
 	spin_lock(&idr->lock);
 	key.id = uint64_from_ptr(uobj);
@@ -137,8 +145,8 @@ int xio_idr_add_uobj(struct xio_idr *idr, void *uobj, const char *obj_name)
 exit:
 	spin_unlock(&idr->lock);
 	if (retval) {
-		kfree(pname);
-		kfree(idr_entry);
+		xio_context_kfree(NULL, pname);
+		xio_context_kfree(NULL, idr_entry);
 	}
 	return retval;
 }
@@ -150,7 +158,8 @@ struct xio_idr *xio_idr_create(void)
 {
 	struct xio_idr *idr;
 
-	idr = (struct xio_idr *)kcalloc(1, sizeof(*idr), GFP_KERNEL);
+	idr = (struct xio_idr *)xio_context_kcalloc(NULL,
+						1, sizeof(*idr), GFP_KERNEL);
 	if (!idr)
 		return NULL;
 
@@ -177,11 +186,11 @@ int xio_idr_destroy(struct xio_idr *idr)
 		HT_REMOVE(&idr->cache, idr_entry, xio_idr_entry, idr_ht_entry);
 		ERROR_LOG("user object leaked: %p, type:struct %s\n",
 			  idr_entry->key, idr_entry->name);
-		kfree(idr_entry->name);
-		kfree(idr_entry);
+		xio_context_kfree(NULL, idr_entry->name);
+		xio_context_kfree(NULL, idr_entry);
 		ret = -1;
 	}
-	kfree(idr);
+	xio_context_kfree(NULL, idr);
 
 	if (ret == -1) {
 		xio_set_error(EBUSY);

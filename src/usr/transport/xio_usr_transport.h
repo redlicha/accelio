@@ -85,6 +85,7 @@ struct xio_mr {
 	int				access; /* for new devices */
 	int				addr_alloced;	/* address was
 							   allocated by xio */
+	struct	xio_context		*ctx;
 	struct list_head		dm_list;
 	struct list_head		mr_list_entry;
 };

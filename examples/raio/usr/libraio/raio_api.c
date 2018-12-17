@@ -1021,7 +1021,7 @@ __RAIO_PUBLIC int raio_reg_mr(raio_context_t ctx, void *buf,
 		printf("libraio: malloc failed. %m\n");
 		return -1;
 	}
-	xio_mem_register(buf, len, &reg_mem);
+	xio_mem_register(ctx->session_data->ctx, buf, len, &reg_mem);
 	(*mr)->omr = reg_mem.mr;
 	if ((*mr)->omr == NULL) {
 		printf("libraio: failed to register mr. %m\n");

@@ -74,7 +74,7 @@ static inline void *ucalloc(size_t nmemb, size_t size)
 	void *ptr;
 
 	if (allocator_assigned && mem_allocator->allocate) {
-		ptr = mem_allocator->allocate(nmemb*size,
+		ptr = mem_allocator->allocate(NULL, nmemb*size,
 					      mem_allocator->user_context);
 		if (ptr)
 			memset(ptr, 0, nmemb*size);
@@ -87,7 +87,7 @@ static inline void *ucalloc(size_t nmemb, size_t size)
 static inline void *umalloc(size_t size)
 {
 	if (allocator_assigned && mem_allocator->allocate)
-		return mem_allocator->allocate(size,
+		return mem_allocator->allocate(NULL, size,
 					       mem_allocator->user_context);
 	else
 		return malloc(size);
@@ -98,7 +98,7 @@ static inline void *umemalign(size_t boundary, size_t size)
 	void *ptr;
 
 	if (allocator_assigned && mem_allocator->memalign) {
-		ptr = mem_allocator->memalign(boundary, size,
+		ptr = mem_allocator->memalign(NULL, boundary, size,
 					      mem_allocator->user_context);
 	} else {
 		if (xio_memalign(&ptr, boundary, size) != 0)
@@ -112,7 +112,7 @@ static inline void *umemalign(size_t boundary, size_t size)
 static inline void ufree(void *ptr)
 {
 	if (allocator_assigned && mem_allocator->free)
-		mem_allocator->free(ptr, mem_allocator->user_context);
+		mem_allocator->free(NULL, ptr, mem_allocator->user_context);
 #ifndef WIN32
 	/*TODO: for win, sometimes 'free' and sometimes aligned_free is needed*/
 	else
@@ -126,7 +126,7 @@ static inline void *umalloc_huge_pages(size_t size)
 
 	if (allocator_assigned && mem_allocator->malloc_huge_pages) {
 		ptr = mem_allocator->malloc_huge_pages(
-				size, mem_allocator->user_context);
+				NULL, size, mem_allocator->user_context);
 		if (ptr)
 			memset(ptr, 0, size);
 	} else {
@@ -138,7 +138,7 @@ static inline void *umalloc_huge_pages(size_t size)
 static inline void ufree_huge_pages(void *ptr)
 {
 	if (allocator_assigned && mem_allocator->free_huge_pages)
-		mem_allocator->free_huge_pages(ptr,
+		mem_allocator->free_huge_pages(NULL, ptr,
 					       mem_allocator->user_context);
 	else
 		free_huge_pages(ptr);
@@ -147,7 +147,7 @@ static inline void ufree_huge_pages(void *ptr)
 static inline void *unuma_alloc(size_t size, int node)
 {
 	if (allocator_assigned && mem_allocator->numa_alloc)
-		return mem_allocator->numa_alloc(size, node,
+		return mem_allocator->numa_alloc(NULL, size, node,
 						 mem_allocator->user_context);
 	else
 		return xio_numa_alloc(size, node);
@@ -156,7 +156,7 @@ static inline void *unuma_alloc(size_t size, int node)
 static inline void unuma_free(void *ptr)
 {
 	if (allocator_assigned && mem_allocator->numa_free)
-		mem_allocator->numa_free(ptr,
+		mem_allocator->numa_free(NULL, ptr,
 					 mem_allocator->user_context);
 	else
 		xio_numa_free_ptr(ptr);

@@ -111,7 +111,7 @@ struct  thread_data {
 
 /* server private data */
 struct server_data {
-	void			*ctx;
+	struct xio_context	*ctx;
 	int			tdata_nr;
 	int			disconnected;
 	pthread_spinlock_t	lock;
@@ -290,7 +290,7 @@ int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 
 	vmsg_sglist_set_nents(&msg->in, 1);
 	if (tdata->reg_mem.addr == NULL)
-		xio_mem_alloc(XIO_READ_BUF_LEN, &tdata->reg_mem);
+		xio_mem_alloc(tdata->ctx, XIO_READ_BUF_LEN, &tdata->reg_mem);
 
 	sglist[0].iov_base = tdata->reg_mem.addr;
 	sglist[0].mr = tdata->reg_mem.mr;
@@ -648,16 +648,16 @@ int main(int argc, char *argv[])
 
 	set_cpu_affinity(test_config.cpu);
 
-	if (msg_api_init(&msg_prms,
+	/* create thread context for the client */
+	server_data.ctx = xio_context_create(NULL, test_config.poll_timeout,
+					     test_config.cpu);
+
+
+	if (msg_api_init(&msg_prms, server_data.ctx,
 			 test_config.hdr_len, test_config.data_len, 1) != 0)
 		return -1;
 
 	pthread_spin_init(&server_data.lock, 0);
-
-
-	/* create thread context for the client */
-	server_data.ctx = xio_context_create(NULL, test_config.poll_timeout,
-					     test_config.cpu);
 
 	server_data.finite_run = test_config.finite_run;
 

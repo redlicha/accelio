@@ -233,7 +233,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 
 	vmsg_sglist_set_nents(&msg->in, 1);
 	if (test_params->reg_mem.addr == NULL)
-		xio_mem_alloc(XIO_READ_BUF_LEN, &test_params->reg_mem);
+		xio_mem_alloc(test_params->ctx,
+			      XIO_READ_BUF_LEN, &test_params->reg_mem);
 
 	sglist[0].iov_base = test_params->reg_mem.addr;
 	sglist[0].mr = test_params->reg_mem.mr;

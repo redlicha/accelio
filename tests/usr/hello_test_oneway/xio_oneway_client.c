@@ -373,7 +373,8 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 
 	vmsg_sglist_set_nents(&msg->in, 1);
 	if (ow_params->reg_mem.addr == NULL)
-		xio_mem_alloc(XIO_READ_BUF_LEN, &ow_params->reg_mem);
+		xio_mem_alloc(ow_params->ctx,
+			      XIO_READ_BUF_LEN, &ow_params->reg_mem);
 
 	sglist[0].iov_base = ow_params->reg_mem.addr;
 	sglist[0].mr = ow_params->reg_mem.mr;
@@ -578,16 +579,6 @@ int main(int argc, char *argv[])
 	ow_params.tx_stat.first_time = 1;
 	ow_params.finite_run = test_config.finite_run;
 
-	/* prepare buffers for this test */
-	if (msg_api_init(&ow_params.msg_params,
-			 test_config.hdr_len, test_config.data_len, 0) != 0)
-		return -1;
-
-	ow_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 1, 1);
-	if (ow_params.pool == NULL)
-		goto cleanup;
-
-
 	/* open xio context and assign a loop */
 	ow_params.ctx = xio_context_create(NULL, 0, test_config.cpu);
 	if (ow_params.ctx == NULL) {
@@ -596,6 +587,15 @@ int main(int argc, char *argv[])
 			error, xio_strerror(error));
 		xio_assert(ow_params.ctx != NULL);
 	}
+
+	/* prepare buffers for this test */
+	if (msg_api_init(&ow_params.msg_params, ow_params.ctx,
+			 test_config.hdr_len, test_config.data_len, 0) != 0)
+		return -1;
+
+	ow_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 1, 1);
+	if (ow_params.pool == NULL)
+		goto cleanup;
 
 	/* create a url and open session */
 	sprintf(url, "%s://%s:%d",

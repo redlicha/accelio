@@ -55,6 +55,7 @@
 #include "xio_context.h"
 #include "xio_usr_utils.h"
 #include "xio_init.h"
+#include "xio_mem.h"
 
 #ifdef XIO_THREAD_SAFE_DEBUG
 #include <execinfo.h>
@@ -95,6 +96,7 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 {
 	struct xio_context		*ctx = NULL;
 	struct xio_transport		*transport;
+	struct xio_context		helper_ctx = {};
 	int				cpu;
 	size_t				msgpool_grow_nr;
 
@@ -123,15 +125,28 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 			xio_set_error(errno);
 			ERROR_LOG("could not set affinity to cpu. %m\n");
 		}
+	if (ctx_params && ctx_params->allocator_assigned) {
+		helper_ctx.allocator_assigned = 1;
 
-	/* allocate new context */
-	ctx = (struct xio_context *)ucalloc(1, sizeof(struct xio_context));
+		memcpy(&helper_ctx.mem_allocator,
+		       &ctx_params->mem_allocator,
+		       sizeof(helper_ctx.mem_allocator));
+	}
+	ctx = (struct xio_context *)xio_context_ucalloc(
+			&helper_ctx, 1, sizeof(struct xio_context));
 	if (!ctx) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("calloc failed. %m\n");
+		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		return NULL;
 	}
-	ctx->ev_loop		= xio_ev_loop_create();
+	if (ctx_params && ctx_params->allocator_assigned) {
+		ctx->allocator_assigned = 1;
+		memcpy(&ctx->mem_allocator,
+		       &ctx_params->mem_allocator,
+		       sizeof(ctx->mem_allocator));
+	}
+
+	ctx->ev_loop		= xio_ev_loop_create(ctx);
 	ctx->run_private	= 0;
 
 	ctx->cpuid		= cpu;
@@ -163,7 +178,7 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 	}
 	/* 2 messages per connection should suffice  */
 	msgpool_grow_nr = 2 * ctx->max_conns_per_ctx;
-	ctx->msg_pool = xio_objpool_create(sizeof(struct xio_msg),
+	ctx->msg_pool = xio_objpool_create(ctx, sizeof(struct xio_msg),
 					   MSGPOOL_INIT_NR, msgpool_grow_nr);
 	if (!ctx->msg_pool) {
 		xio_set_error(ENOMEM);
@@ -205,7 +220,7 @@ cleanup2:
 cleanup1:
 	xio_workqueue_destroy(ctx->workqueue);
 cleanup:
-	ufree(ctx);
+	xio_context_ufree(ctx, ctx);
 	return NULL;
 }
 EXPORT_SYMBOL(xio_context_create);
@@ -314,7 +329,7 @@ void xio_context_destroy(struct xio_context *ctx)
 #endif
 
 	XIO_OBSERVABLE_DESTROY(&ctx->observable);
-	ufree(ctx);
+	xio_context_ufree(ctx, ctx);
 }
 EXPORT_SYMBOL(xio_context_destroy);
 
@@ -688,7 +703,7 @@ EXPORT_SYMBOL(xio_context_set_poll_completions_fn);
 
 /*---------------------------------------------------------------------------*/
 /* xio_ctx_pool_create							     */
-/*---------------------------------------------------------------------------*/
+/*-------------------------------------/--------------------------------------*/
 int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 		        enum xio_context_pool_class pool_cls)
 {
@@ -757,6 +772,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 
 	/* get pool properties from the transport */
 	memset(&params, 0, sizeof(params));
+	params.xio_context = ctx;
 
 	pool_ops->pool_get_params(NULL,
 				  (int *)&params.start_nr,
@@ -771,7 +787,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 		params.alloc_nr = 0;
 	}
 	params.pool_hooks.slab_pre_create  =
-		(int (*)(void *, int, void *, void *))
+		(int (*)(void *, struct xio_context *, int, void *, void *))
 				pool_ops->slab_pre_create;
 	params.pool_hooks.slab_post_create = (int (*)(void *, void *, void *))
 				pool_ops->slab_post_create;
@@ -797,7 +813,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 	params.pool_hooks.task_post_get = (int (*)(void *, struct xio_task *))
 		pool_ops->task_post_get;
 
-	params.pool_name = kstrdup(pool_name, GFP_KERNEL);
+	params.pool_name = xio_context_kstrdup(ctx, pool_name, GFP_KERNEL);
 
 	/* initialize the tasks pool */
 	*tasks_pool = xio_tasks_pool_create(&params);
@@ -848,4 +864,178 @@ int xio_ctx_debug_thread_unlock(struct xio_context *ctx)
 }
 
 #endif
+
+void *xio_context_umalloc(struct xio_context *ctx, size_t size)
+{
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.allocate)
+		return ctx->mem_allocator.allocate(ctx, size,
+				ctx->mem_allocator.user_context);
+	else
+		return umalloc(size);
+}
+
+void *xio_context_ucalloc(struct xio_context *ctx, size_t nmemb, size_t size)
+{
+	void *ptr;
+
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.allocate) {
+		ptr = ctx->mem_allocator.allocate(ctx, nmemb*size,
+					      ctx->mem_allocator.user_context);
+		if (ptr)
+			memset(ptr, 0, nmemb*size);
+	} else {
+		ptr = ucalloc(nmemb, size);
+	}
+	return ptr;
+}
+
+void *xio_context_umemalign(struct xio_context *ctx, size_t boundary, size_t size)
+{
+	void *ptr;
+
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.memalign)
+		ptr = ctx->mem_allocator.memalign(ctx, boundary, size,
+					      ctx->mem_allocator.user_context);
+	else
+		ptr = umemalign(boundary, size);
+
+	return ptr;
+}
+
+void *xio_context_umalloc_huge_pages(struct xio_context *ctx, size_t size)
+{
+	void *ptr;
+
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.malloc_huge_pages)
+		ptr = ctx->mem_allocator.malloc_huge_pages(ctx, size,
+					      ctx->mem_allocator.user_context);
+	else
+		ptr = umalloc_huge_pages(size);
+
+	return ptr;
+}
+
+void *xio_context_unuma_alloc(struct xio_context *ctx, size_t size, int node)
+{
+	void *ptr;
+
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.numa_alloc)
+		ptr = ctx->mem_allocator.numa_alloc(ctx, size, node,
+					      ctx->mem_allocator.user_context);
+	else
+		ptr = unuma_alloc(size, node);
+
+	return ptr;
+}
+
+void xio_context_ufree(struct xio_context *ctx, void *ptr)
+{
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.free)
+		ctx->mem_allocator.free(ctx, ptr, ctx->mem_allocator.user_context);
+	else
+		ufree(ptr);
+}
+
+char *xio_context_ustrdup(struct xio_context *ctx, char const *s)
+{
+	size_t len = strlen(s) + 1;
+	char *new1 = (char*)xio_context_umalloc(ctx, len);
+
+	if (new1 == NULL)
+		return NULL;
+
+	return (char*)memcpy(new1, s, len);
+}
+
+char *xio_context_ustrndup(struct xio_context *ctx, char const *s, size_t n)
+{
+	size_t len = strnlen(s, n);
+	char *new1 = (char*)xio_context_umalloc(ctx, len + 1);
+
+	if (new1 == NULL)
+		return NULL;
+
+	new1[len] = '\0';
+	return (char*)memcpy(new1, s, len);
+}
+
+void xio_context_kfree(struct xio_context *ctx, const void *ptr)
+{
+	xio_context_ufree(ctx, (void *) ptr);
+}
+
+void *xio_context_kmalloc(struct xio_context *ctx, size_t size, gfp_t flags)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	assert(flags == GFP_KERNEL);
+	return xio_context_umalloc(ctx, size);
+}
+
+void *xio_context_kcalloc(struct xio_context *ctx, size_t n, size_t size, gfp_t flags)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	assert(flags == GFP_KERNEL);
+	return xio_context_ucalloc(ctx, n, size);
+}
+
+void *xio_context_kzalloc(struct xio_context *ctx, size_t size, gfp_t flags)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	assert(flags == GFP_KERNEL);
+	return xio_context_ucalloc(ctx, 1, size);
+}
+
+void *xio_context_vmalloc(struct xio_context *ctx, unsigned long size)
+{
+	return xio_context_umalloc(ctx, size);
+}
+
+void *xio_context_vzalloc(struct xio_context *ctx, unsigned long size)
+{
+	return xio_context_ucalloc(ctx, 1, size);
+}
+
+void xio_context_vfree(struct xio_context *ctx, const void *addr)
+{
+	xio_context_ufree(ctx, (void *) addr);
+}
+
+char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	assert(gfp == GFP_KERNEL);
+	return xio_context_ustrdup(ctx, s);
+}
+
+char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	assert(gfp == GFP_KERNEL);
+	return xio_context_ustrndup(ctx, s, len);
+}
+
+void xio_context_ufree_huge_pages(struct xio_context *ctx, void *ptr)
+{
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.free_huge_pages)
+		ctx->mem_allocator.free_huge_pages(ctx, ptr,
+					      ctx->mem_allocator.user_context);
+	else
+		ufree_huge_pages(ptr);
+}
+
+void xio_context_unuma_free(struct xio_context *ctx, void *ptr)
+{
+	if (ctx && ctx->allocator_assigned &&
+	    ctx->mem_allocator.numa_free)
+		ctx->mem_allocator.numa_free(ctx, ptr, ctx->mem_allocator.user_context);
+	else
+		unuma_free(ptr);
+}
 

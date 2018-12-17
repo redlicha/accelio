@@ -339,7 +339,8 @@ struct xio_server *xio_bind_ex(struct xio_bind_params *bind_prms,
 
 	/* create the server */
 	server = (struct xio_server *)
-			kcalloc(1, sizeof(struct xio_server), GFP_KERNEL);
+			xio_context_kcalloc(bind_prms->ctx,
+					1, sizeof(struct xio_server), GFP_KERNEL);
 	if (!server) {
 		xio_set_error(ENOMEM);
 		return NULL;
@@ -349,7 +350,7 @@ struct xio_server *xio_bind_ex(struct xio_bind_params *bind_prms,
 	/* fill server data*/
 	server->ctx = bind_prms->ctx;
 	server->cb_private_data	= bind_prms->private_data;
-	server->uri = kstrdup(bind_prms->uri, GFP_KERNEL);
+	server->uri = xio_context_kstrdup(server->ctx, bind_prms->uri, GFP_KERNEL);
 
 	server->session_flags = bind_prms->flags;
 	memcpy(&server->ops, bind_prms->ops, sizeof(*bind_prms->ops));
@@ -387,8 +388,8 @@ struct xio_server *xio_bind_ex(struct xio_bind_params *bind_prms,
 cleanup1:
 	xio_nexus_close(server->listener, NULL);
 cleanup:
-	kfree(server->uri);
-	kfree(server);
+	xio_context_kfree(server->ctx, server->uri);
+	xio_context_kfree(server->ctx, server);
 
 	return NULL;
 }
@@ -432,8 +433,8 @@ static void xio_server_destroy(struct kref *kref)
 	XIO_OBSERVER_DESTROY(&server->observer);
 	XIO_OBSERVABLE_DESTROY(&server->nexus_observable);
 
-	kfree(server->uri);
-	kfree(server);
+	xio_context_kfree(server->ctx, server->uri);
+	xio_context_kfree(server->ctx, server);
 }
 
 /*---------------------------------------------------------------------------*/

@@ -326,6 +326,7 @@ struct xio_cq  {
 struct xio_srq {
 	HT_HEAD(, rdma_hndl, HASHTABLE_PRIME_SMALL)  ht_rdma_hndl;
 	struct ibv_srq 			*srq;
+	struct xio_context		*ctx;
 	struct list_head		rx_list;
 	int				rqe_avail;  /* recv queue elements
 						       avail */
@@ -337,6 +338,7 @@ struct xio_device {
 	struct list_head		dev_list_entry;    /* list of all
 							      xio devices */
 	pthread_rwlock_t		cq_lock;
+	struct xio_context		*ctx;
 	struct ibv_context		*verbs;
 	struct ibv_pd			*pd;
 	struct ibv_xio_device_attr	device_attr;
@@ -359,6 +361,7 @@ struct xio_rdma_tasks_slab {
 	/* memory registration for data */
 	struct xio_mr			*data_mr;
 	struct xio_reg_mem		reg_mem;
+	struct xio_context		*ctx;
 	int				buf_size;
 	int				alloc_nr;
 };

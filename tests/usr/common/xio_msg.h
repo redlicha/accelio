@@ -41,6 +41,7 @@
 #include "libxio.h"
 
 struct msg_params {
+		struct xio_context *ctx;
 		uint8_t		*g_hdr;
 		uint8_t		*g_data;
 		struct xio_mr	*g_data_mr;
@@ -67,6 +68,7 @@ struct msg_pool {
 /* msg_api_init								     */
 /*---------------------------------------------------------------------------*/
 int msg_api_init(struct msg_params *msg_params,
+		struct xio_context *ctx,
 		 size_t hdrlen,
 		 size_t datalen, int is_server);
 

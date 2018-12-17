@@ -252,7 +252,7 @@ if(0)
 	test_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 0, 1);
 	xio_assert(test_params.pool != NULL);
 
-	res = xio_mem_alloc(RDMA_BUF_SIZE, &rdma_reg_mem);
+	res = xio_mem_alloc(test_params.ctx, RDMA_BUF_SIZE, &rdma_reg_mem);
 	xio_assert(!res);
 	memset(rdma_reg_mem.addr, 0, rdma_reg_mem.length);
 }

@@ -127,7 +127,7 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 
 	if (req.uri_len) {
 		req.uri =
-		  (char *)kcalloc(req.uri_len, sizeof(char), GFP_KERNEL);
+		  (char *)xio_context_kcalloc(NULL, req.uri_len, sizeof(char), GFP_KERNEL);
 		if (unlikely(!req.uri)) {
 			xio_set_error(ENOMEM);
 			ERROR_LOG("uri allocation failed. len:%d\n",
@@ -140,7 +140,7 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 		ptr = ptr + len;
 	}
 	if (req.private_data_len) {
-		req.private_data = kcalloc(req.private_data_len,
+		req.private_data = xio_context_kcalloc(NULL, req.private_data_len,
 					   sizeof(uint8_t), GFP_KERNEL);
 		if (unlikely(!req.private_data)) {
 			xio_set_error(ENOMEM);
@@ -195,16 +195,16 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 
 	xio_session_notify_new_connection(session, connection);
 
-	kfree(req.private_data);
-	kfree(req.uri);
+	xio_context_kfree(NULL, req.private_data);
+	xio_context_kfree(NULL, req.uri);
 
 	return 0;
 
 cleanup2:
-	kfree(req.private_data);
+	xio_context_kfree(NULL, req.private_data);
 
 cleanup1:
-	kfree(req.uri);
+	xio_context_kfree(NULL, req.uri);
 
 	if (session->ses_ops.on_session_event) {
 #ifdef XIO_THREAD_SAFE_DEBUG
@@ -260,7 +260,7 @@ struct xio_msg *xio_session_write_accept_rsp(struct xio_session *session,
 	}
 
 	/* allocate message */
-	buf = (uint8_t *)kcalloc(SETUP_BUFFER_LEN + sizeof(struct xio_msg),
+	buf = (uint8_t *)xio_context_kcalloc(NULL, SETUP_BUFFER_LEN + sizeof(struct xio_msg),
 		      sizeof(uint8_t), GFP_KERNEL);
 	if (unlikely(!buf)) {
 		ERROR_LOG("message allocation failed\n");
@@ -365,7 +365,8 @@ struct xio_msg *xio_session_write_reject_rsp(struct xio_session *session,
 	}
 
 	/* allocate message */
-	buf = (uint8_t *)kcalloc(SETUP_BUFFER_LEN + sizeof(struct xio_msg),
+	buf = (uint8_t *)xio_context_kcalloc(NULL,
+		      SETUP_BUFFER_LEN + sizeof(struct xio_msg),
 		      sizeof(uint8_t), GFP_KERNEL);
 	if (!buf) {
 		ERROR_LOG("message allocation failed\n");
@@ -474,7 +475,7 @@ int xio_accept(struct xio_session *session,
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message. errno:%d\n", -retval);
 		if (msg)
-			kfree(msg);
+			xio_context_kfree(NULL, msg);
 		session->setup_error = XIO_E_SESSION_ABORTED;
 		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
@@ -529,7 +530,7 @@ int xio_redirect(struct xio_session *session,
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message errno:%d\n", -retval);
 		if (msg)
-			kfree(msg);
+			xio_context_kfree(NULL, msg);
 		session->setup_error = XIO_E_SESSION_ABORTED;
 		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
@@ -575,7 +576,7 @@ int xio_reject(struct xio_session *session,
 	if (retval && retval != -EAGAIN) {
 		ERROR_LOG("failed to send message. errno:%d\n", -retval);
 		if (msg)
-			kfree(msg);
+			xio_context_kfree(NULL, msg);
 		session->setup_error = XIO_E_SESSION_ABORTED;
 		xio_set_error(XIO_E_SESSION_ABORTED);
 		return -1;
@@ -595,7 +596,7 @@ int xio_on_setup_rsp_send_comp(struct xio_connection *connection,
 		  "connection:%p\n",
 		  connection->session, connection);
 
-	kfree(task->omsg);
+	xio_context_kfree(NULL, task->omsg);
 
 	/* recycle the task */
 	xio_tasks_pool_put(task);

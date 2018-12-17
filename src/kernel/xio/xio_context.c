@@ -97,6 +97,7 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 	struct xio_context		*ctx;
 	struct xio_loop_ops		*loop_ops;
 	struct task_struct		*worker;
+	struct xio_context		helper_ctx = {};
 	struct xio_transport		*transport;
 	int				flags, cpu;
 
@@ -133,13 +134,26 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 
 	if (cpu == -1)
 		goto cleanup0;
+	if (ctx_params && ctx_params->allocator_assigned) {
+		helper_ctx.allocator_assigned = 1;
 
+		memcpy(&helper_ctx.mem_allocator,
+		       &ctx_params->mem_allocator,
+		       sizeof(helper_ctx.mem_allocator));
+	}
 	/* allocate new context */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = (struct xio_context *)xio_context_kzalloc(
+			&helper_ctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("kzalloc failed\n");
+		ERROR_LOG("xio_context_kzalloc failed. %m\n");
 		goto cleanup0;
+	}
+	if (ctx_params && ctx_params->allocator_assigned) {
+		ctx->allocator_assigned = 1;
+		memcpy(&ctx->mem_allocator,
+		       &ctx_params->mem_allocator,
+		       sizeof(ctx->mem_allocator));
 	}
 
 	if (cpu_hint < 0)
@@ -167,7 +181,7 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 		ERROR_LOG("xio_workqueue_init failed.\n");
 		goto cleanup1;
 	}
-	ctx->msg_pool = xio_objpool_create(sizeof(struct xio_msg),
+	ctx->msg_pool = xio_objpool_create(ctx, sizeof(struct xio_msg),
 					   MSGPOOL_INIT_NR, MSGPOOL_GROW_NR);
 	if (!ctx->msg_pool) {
 		xio_set_error(ENOMEM);
@@ -577,7 +591,7 @@ struct xio_mempool *xio_mempool_get(struct xio_context *ctx)
 	if (ctx->mempool)
 		return ctx->mempool;
 
-	ctx->mempool = xio_mempool_create();
+	ctx->mempool = xio_mempool_create(ctx);
 
 	if (!ctx->mempool) {
 		ERROR_LOG("xio_mempool_create failed\n");
@@ -726,7 +740,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 	}
 
 	params.pool_hooks.slab_pre_create  =
-		(int (*)(void *, int, void *, void *))
+		(int (*)(void *, struct xio_context *, int, void *, void *))
 				pool_ops->slab_pre_create;
 	params.pool_hooks.slab_post_create = (int (*)(void *, void *, void *))
 				pool_ops->slab_post_create;
@@ -764,4 +778,44 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 	return 0;
 }
 
+void xio_context_kfree(struct xio_context *ctx, const void *ptr)
+{
+	kfree((void *) ptr);
+}
+
+void *xio_context_kmalloc(struct xio_context *ctx, size_t size, gfp_t flags)
+{
+	return kmalloc(size, flags);
+}
+
+void *xio_context_kcalloc(struct xio_context *ctx, size_t n, size_t size, gfp_t flags)
+{
+	return kcalloc(n, size, flags);
+}
+
+void *xio_context_kzalloc(struct xio_context *ctx, size_t size, gfp_t flags)
+{
+	return kzalloc(size, flags);
+}
+
+void *xio_context_vmalloc(struct xio_context *ctx, unsigned long size)
+{
+	return vmalloc(size);
+}
+
+void *xio_context_vzalloc(struct xio_context *ctx, unsigned long size)
+{
+	return vzalloc(size);
+}
+
+void xio_context_vfree(struct xio_context *ctx, const void *addr)
+{
+	vfree((void *) addr);
+}
+
+char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	return kstrdup(s, gfp);
+}
 

@@ -41,6 +41,12 @@
 #include "xio_common.h"
 #include "xio_observer.h"
 #include <xio_env_adv.h>
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_context.h"
+
 
 /*---------------------------------------------------------------------------*/
 /* xio_observer_create							     */
@@ -50,7 +56,8 @@ struct xio_observer *xio_observer_create(void *impl, notify_fn_t notify)
 	struct xio_observer *observer;
 
 	observer = (struct xio_observer *)
-			kcalloc(1, sizeof(struct xio_observer), GFP_KERNEL);
+			xio_context_kcalloc(NULL,
+					1, sizeof(struct xio_observer), GFP_KERNEL);
 	if (!observer) {
 		xio_set_error(ENOMEM);
 		return NULL;
@@ -70,7 +77,7 @@ void xio_observer_destroy(struct xio_observer *observer)
 	observer->impl		= NULL;
 	observer->notify	= NULL;
 
-	kfree(observer);
+	xio_context_kfree(NULL, observer);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -81,7 +88,8 @@ struct xio_observable *xio_observable_create(void *impl)
 	struct xio_observable *observable;
 
 	observable = (struct xio_observable *)
-			kcalloc(1, sizeof(struct xio_observable), GFP_KERNEL);
+			xio_context_kcalloc(NULL,
+					1, sizeof(struct xio_observable), GFP_KERNEL);
 	if (!observable) {
 		xio_set_error(ENOMEM);
 		return NULL;
@@ -103,7 +111,7 @@ void xio_observable_destroy(struct xio_observable *observable)
 
 	observable->impl = NULL;
 
-	kfree(observable);
+	xio_context_kfree(NULL, observable);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -150,7 +158,8 @@ void xio_observable_reg_observer(struct xio_observable *observable,
 		return;
 	}
 
-	observer_node = (struct xio_observer_node *)kcalloc(1,
+	observer_node = (struct xio_observer_node *)xio_context_kcalloc(NULL,
+				1,
 				sizeof(struct xio_observer_node), GFP_KERNEL);
 	if (!observer_node) {
 		xio_set_error(ENOMEM);
@@ -184,7 +193,7 @@ void xio_observable_unreg_observer(struct xio_observable *observable,
 				observable->observer_node = NULL;
 
 			list_del(&observer_node->observers_list_node);
-			kfree(observer_node);
+			xio_context_kfree(NULL, observer_node);
 			break;
 		}
 	}
@@ -271,7 +280,7 @@ void xio_observable_unreg_all_observers(struct xio_observable *observable)
 				 &observable->observers_list,
 				 observers_list_node) {
 		list_del(&observer_node->observers_list_node);
-		kfree(observer_node);
+		xio_context_kfree(NULL, observer_node);
 	}
 	observable->observer_node = NULL;
 }

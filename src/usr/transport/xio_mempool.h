@@ -47,7 +47,8 @@
  *
  * @returns success (0), or a (negative) error value
  */
-struct xio_mempool *xio_mempool_create_prv(int nodeid, uint32_t flags);
+struct xio_mempool *xio_mempool_create_prv(struct xio_context *ctx, int nodeid,
+					   uint32_t flags);
 
 #endif
 

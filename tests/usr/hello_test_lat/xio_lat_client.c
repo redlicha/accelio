@@ -534,7 +534,7 @@ int main(int argc, char *argv[])
 		xio_assert(ctx != NULL);
 	}
 
-	if (msg_api_init(&msg_params,
+	if (msg_api_init(&msg_params, ctx,
 			 test_config.hdr_len, test_config.data_len, 0) != 0)
 		return -1;
 

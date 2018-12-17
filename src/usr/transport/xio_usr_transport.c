@@ -59,7 +59,8 @@
 /*---------------------------------------------------------------------------*/
 /* xio_mem_register							     */
 /*---------------------------------------------------------------------------*/
-int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem)
+int xio_mem_register(struct xio_context *ctx,
+		     void *addr, size_t length, struct xio_reg_mem *reg_mem)
 {
 	static struct xio_mr dummy_mr;
 
@@ -68,6 +69,7 @@ int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem)
 		return -1;
 	}
 
+	reg_mem->ctx = ctx;
 	reg_mem->addr = addr;
 	reg_mem->length = length;
 	reg_mem->mr = &dummy_mr;
@@ -87,13 +89,14 @@ int xio_mem_dereg(struct xio_reg_mem *reg_mem)
 /*---------------------------------------------------------------------------*/
 /* xio_mem_alloc							     */
 /*---------------------------------------------------------------------------*/
-int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
+int xio_mem_alloc(struct xio_context *ctx,
+		  size_t length, struct xio_reg_mem *reg_mem)
 {
 	size_t			real_size;
 	int			alloced = 0;
 
 	real_size = ALIGN(length, page_size);
-	reg_mem->addr = umemalign(page_size, real_size);
+	reg_mem->addr = xio_context_umemalign(ctx, page_size, real_size);
 	if (!reg_mem->addr) {
 		ERROR_LOG("xio_memalign failed. sz:%zu\n", real_size);
 		goto cleanup;
@@ -101,7 +104,7 @@ int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
 	/*memset(reg_mem->addr, 0, real_size);*/
 	alloced = 1;
 
-	xio_mem_register(reg_mem->addr, length, reg_mem);
+	xio_mem_register(ctx, reg_mem->addr, length, reg_mem);
 	if (!reg_mem->mr) {
 		ERROR_LOG("xio_reg_mr failed. addr:%p, length:%d\n",
 			  reg_mem->addr, length, access);
@@ -114,7 +117,7 @@ int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
 
 cleanup1:
 	if (alloced)
-		ufree(reg_mem->addr);
+		xio_context_ufree(ctx, reg_mem->addr);
 cleanup:
 	return -1;
 }
@@ -127,7 +130,7 @@ int xio_mem_free(struct xio_reg_mem *reg_mem)
 	int			retval = 0;
 
 	if (reg_mem->addr)
-		ufree(reg_mem->addr);
+		xio_context_ufree(reg_mem->ctx, reg_mem->addr);
 
 	retval = xio_mem_dereg(reg_mem);
 
@@ -150,6 +153,7 @@ struct xio_mempool *xio_transport_mempool_get(
                 reg_mr = 1;
 
 	ctx->mempool = xio_mempool_create_prv(
+			ctx,
 			ctx->nodeid,
 			(reg_mr ? XIO_MEMPOOL_FLAG_REG_MR : 0) |
 			XIO_MEMPOOL_FLAG_HUGE_PAGES_ALLOC);

@@ -4593,7 +4593,8 @@ static void xio_rdma_read_setup_msg(struct xio_rdma_transport *rdma_hndl,
 		return;
 
 	rdma_hndl->peer_rkey_tbl = (struct xio_rkey_tbl *)
-				       ucalloc(msg->rkey_tbl_size, sizeof(*tbl));
+				       xio_context_ucalloc(rdma_hndl->base.ctx,
+						       msg->rkey_tbl_size, sizeof(*tbl));
 	if (unlikely(!rdma_hndl->peer_rkey_tbl)) {
 		ERROR_LOG("calloc failed. (errno=%m)\n");
 		xio_strerror(ENOMEM);
@@ -5114,7 +5115,8 @@ static int xio_rdma_send_cancel(struct xio_rdma_transport *rdma_hndl,
 	rdma_task->read_num_reg_mem		= 0;
 
 	ulp_hdr_len = sizeof(*cancel_hdr) + sizeof(uint16_t) + ulp_msg_sz;
-	rdma_hndl->dummy_msg.out.header.iov_base = ucalloc(1, ulp_hdr_len);
+	rdma_hndl->dummy_msg.out.header.iov_base = xio_context_ucalloc(
+					rdma_hndl->base.ctx, 1, ulp_hdr_len);
 	rdma_hndl->dummy_msg.out.header.iov_len = ulp_hdr_len;
 
 	/* write the message */
@@ -5155,7 +5157,8 @@ static int xio_rdma_send_cancel(struct xio_rdma_transport *rdma_hndl,
 	rdma_task->txd.send_wr.num_sge	= 1;
 
 	task->omsg = NULL;
-	ufree(rdma_hndl->dummy_msg.out.header.iov_base);
+	xio_context_ufree(rdma_hndl->base.ctx,
+			  rdma_hndl->dummy_msg.out.header.iov_base);
 
 	rdma_hndl->tx_ready_tasks_num++;
 	list_move_tail(&task->tasks_list_entry, &rdma_hndl->tx_ready_list);

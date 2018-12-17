@@ -258,6 +258,11 @@ int main(int argc, char *argv[])
 
 	/* create "hello world" message */
 	memset(&server_data, 0, sizeof(server_data));
+
+	/* create thread context for the client */
+	server_data.ctx	= xio_context_create(NULL, 0, -1);
+
+
 	rsp = server_data.rsp_ring;
 	for (i = 0; i < QUEUE_DEPTH; i++) {
 		/* header */
@@ -277,7 +282,7 @@ int main(int argc, char *argv[])
                 } else { /* big msgs */
 			if (data == NULL) {
 				printf("allocating xio memory...\n");
-				xio_mem_alloc(msg_size, &xbuf);
+				xio_mem_alloc(server_data.ctx, msg_size, &xbuf);
 				if (xbuf.addr != NULL){
 					data = (uint8_t *)xbuf.addr;
 					memset(data, 0, msg_size);
@@ -299,9 +304,6 @@ int main(int argc, char *argv[])
 
 		rsp++;
 	}
-
-	/* create thread context for the client */
-	server_data.ctx	= xio_context_create(NULL, 0, -1);
 
 	/* create url to connect to */
 	if (argc > 3)

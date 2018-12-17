@@ -49,6 +49,12 @@
 #include "xio_log.h"
 #include "xio_common.h"
 #include "xio_mempool.h"
+#include "xio_observer.h"
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_context.h"
 
 /*---------------------------------------------------------------------------*/
 /* structures								     */
@@ -76,6 +82,7 @@ struct xio_chunks_list {
 
 struct xio_mempool {
 	struct xio_chunks_list pool[ARRAY_SIZE(sizes)];
+	struct xio_context *ctx;
 };
 
 /* currently not in use - to be supported */
@@ -103,24 +110,25 @@ void xio_mempool_destroy(struct xio_mempool *p)
 		ch++;
 	}
 
-	kfree(p);
+	xio_context_kfree(p->ctx, p);
 }
 EXPORT_SYMBOL(xio_mempool_destroy);
 
 /*---------------------------------------------------------------------------*/
 /* xio_mempol_create							     */
 /*---------------------------------------------------------------------------*/
-struct xio_mempool *xio_mempool_create(void)
+struct xio_mempool *xio_mempool_create(struct xio_context *ctx)
 {
 	struct xio_mempool *p;
 	struct xio_chunks_list *ch;
 	int real_ones, i;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = xio_context_kzalloc(ctx, sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		DEBUG_LOG("%s kzalloc failed\n", __func__);
+		DEBUG_LOG("%s xio_context_kzalloc failed\n", __func__);
 		goto cleanup0;
 	}
+	p->ctx = ctx;
 
 	real_ones = ARRAY_SIZE(sizes) - 1;
 	ch = p->pool;

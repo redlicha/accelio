@@ -141,7 +141,7 @@ static void out_reg_mem_init(void *user_context, void *obj)
 	struct xio_reg_mem	*reg_mem = (struct xio_reg_mem *)obj;
 	struct thread_data	*tdata	= (struct thread_data *)user_context;
 
-	xio_mem_alloc(tdata->server_data->server_dlen, reg_mem);
+	xio_mem_alloc(tdata->ctx, tdata->server_data->server_dlen, reg_mem);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -152,7 +152,7 @@ static void in_reg_mem_init(void *user_context, void *obj)
 	struct xio_reg_mem	*reg_mem = (struct xio_reg_mem *)obj;
 	struct thread_data	*tdata	= (struct thread_data *)user_context;
 
-	xio_mem_alloc(tdata->server_data->client_dlen, reg_mem);
+	xio_mem_alloc(tdata->ctx, tdata->server_data->client_dlen, reg_mem);
 }
 
 /*---------------------------------------------------------------------------*/

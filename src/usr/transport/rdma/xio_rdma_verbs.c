@@ -88,7 +88,8 @@ static int xio_register_transport(void)
 /*---------------------------------------------------------------------------*/
 /* xio_mem_register_no_dev						     */
 /*---------------------------------------------------------------------------*/
-static inline int xio_mem_register_no_dev(void *addr, size_t length,
+static inline int xio_mem_register_no_dev(struct xio_context *ctx,
+					  void *addr, size_t length,
 					  struct xio_reg_mem *reg_mem)
 {
 	static struct xio_mr dummy_mr;
@@ -96,6 +97,7 @@ static inline int xio_mem_register_no_dev(void *addr, size_t length,
 	reg_mem->addr = addr;
 	reg_mem->length = length;
 	reg_mem->mr = &dummy_mr;
+	reg_mem->ctx = ctx;
 
 	return 0;
 }
@@ -112,13 +114,15 @@ static inline int xio_mem_dereg_no_dev(struct xio_reg_mem *reg_mem)
 /*---------------------------------------------------------------------------*/
 /* xio_mem_alloc_no_dev							     */
 /*---------------------------------------------------------------------------*/
-static int xio_mem_alloc_no_dev(size_t length, struct xio_reg_mem *reg_mem)
+static int xio_mem_alloc_no_dev(
+		struct xio_context *ctx,
+		size_t length, struct xio_reg_mem *reg_mem)
 {
 	size_t			real_size;
 	int			alloced = 0;
 
 	real_size = ALIGN(length, page_size);
-	reg_mem->addr = umemalign(page_size, real_size);
+	reg_mem->addr = xio_context_umemalign(ctx, page_size, real_size);
 	if (!reg_mem->addr) {
 		ERROR_LOG("xio_memalign failed. sz:%zu\n", real_size);
 		goto cleanup;
@@ -126,7 +130,7 @@ static int xio_mem_alloc_no_dev(size_t length, struct xio_reg_mem *reg_mem)
 	/*memset(reg_mem->addr, 0, real_size);*/
 	alloced = 1;
 
-	xio_mem_register_no_dev(reg_mem->addr, length, reg_mem);
+	xio_mem_register_no_dev(ctx, reg_mem->addr, length, reg_mem);
 	if (!reg_mem->mr) {
 		ERROR_LOG("xio_reg_mr failed. addr:%p, length:%d\n",
 			  reg_mem->addr, length, access);
@@ -134,12 +138,13 @@ static int xio_mem_alloc_no_dev(size_t length, struct xio_reg_mem *reg_mem)
 		goto cleanup1;
 	}
 	reg_mem->length = length;
+	reg_mem->ctx = ctx;
 
 	return 0;
 
 cleanup1:
 	if (alloced)
-		ufree(reg_mem->addr);
+		xio_context_ufree(ctx, reg_mem->addr);
 cleanup:
 	return -1;
 }
@@ -152,7 +157,7 @@ static int xio_mem_free_no_dev(struct xio_reg_mem *reg_mem)
 	int			retval = 0;
 
 	if (reg_mem->addr)
-		ufree(reg_mem->addr);
+		xio_context_ufree(reg_mem->ctx, reg_mem->addr);
 
 	retval = xio_mem_dereg_no_dev(reg_mem);
 
@@ -210,11 +215,11 @@ static int xio_dereg_mr(struct xio_mr *tmr)
 				xio_set_error(errno);
 				ERROR_LOG("ibv_dereg_mr failed, %m\n");
 			}
-			ufree(tmr_elem);
+			xio_context_ufree(tmr_elem->dev->ctx, tmr_elem);
 			spin_lock(&dev_list_lock);
 		}
 		spin_unlock(&dev_list_lock);
-		ufree(tmr);
+		xio_context_ufree(tmr->ctx, tmr);
 	}
 
 	return 0;
@@ -253,7 +258,7 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 			xio_validate_ulimit_memlock();
 		return NULL;
 	}
-	mr_elem = (struct xio_mr_elem *)ucalloc(1, sizeof(*mr_elem));
+	mr_elem = (struct xio_mr_elem *)xio_context_ucalloc(dev->ctx, 1, sizeof(*mr_elem));
 	if (unlikely(!mr_elem))
 		goto  cleanup;
 
@@ -275,7 +280,8 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 /* xio_reg_mr_ex							     */
 /*---------------------------------------------------------------------------*/
-static struct xio_mr *xio_reg_mr_ex(void **addr, size_t length, uint64_t access)
+static struct xio_mr *xio_reg_mr_ex(struct xio_context *ctx,
+				    void **addr, size_t length, uint64_t access)
 {
 	struct xio_mr			*tmr;
 	struct xio_mr_elem		*tmr_elem;
@@ -310,7 +316,7 @@ static struct xio_mr *xio_reg_mr_ex(void **addr, size_t length, uint64_t access)
 	}
 	spin_unlock(&dev_list_lock);
 
-	tmr = (struct xio_mr *)ucalloc(1, sizeof(*tmr));
+	tmr = (struct xio_mr *)xio_context_ucalloc(ctx, 1, sizeof(*tmr));
 	if (unlikely(!tmr)) {
 		xio_set_error(errno);
 		ERROR_LOG("malloc failed. (errno=%d %m)\n", errno);
@@ -344,6 +350,7 @@ static struct xio_mr *xio_reg_mr_ex(void **addr, size_t length, uint64_t access)
 	tmr->addr   = *addr;
 	tmr->length = length;
 	tmr->access = access;
+	tmr->ctx = ctx;
 
 	spin_lock(&mr_list_lock);
 	mr_num++;
@@ -393,7 +400,7 @@ int xio_dereg_mr_by_dev(struct xio_device *dev)
 		}
 		/* Remove the item from the lists. */
 		list_del(&tmr_elem->xm_list_entry);
-		ufree(tmr_elem);
+		xio_context_ufree(tmr_elem->dev->ctx, tmr_elem);
 	}
 
 	return 0;
@@ -470,7 +477,8 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 /* xio_mem_register							     */
 /*---------------------------------------------------------------------------*/
-int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem)
+int xio_mem_register(struct xio_context *ctx,
+		     void *addr, size_t length, struct xio_reg_mem *reg_mem)
 {
 	if (!addr || length == 0) {
 		xio_set_error(EINVAL);
@@ -478,10 +486,10 @@ int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem)
 	}
 	if (list_empty(&dev_list)) {
 		if (!xio_register_transport() && list_empty(&dev_list))
-			return xio_mem_register_no_dev(addr, length, reg_mem);
+			return xio_mem_register_no_dev(ctx, addr, length, reg_mem);
 	}
 
-	reg_mem->mr = xio_reg_mr_ex(&addr, length,
+	reg_mem->mr = xio_reg_mr_ex(ctx, &addr, length,
 			     IBV_ACCESS_LOCAL_WRITE  |
 			     IBV_ACCESS_REMOTE_WRITE |
 			     IBV_ACCESS_REMOTE_READ);
@@ -490,6 +498,7 @@ int xio_mem_register(void *addr, size_t length, struct xio_reg_mem *reg_mem)
 
 	reg_mem->addr	= addr;
 	reg_mem->length = length;
+	reg_mem->ctx = ctx;
 
 	return 0;
 }
@@ -518,7 +527,8 @@ int xio_mem_dereg(struct xio_reg_mem *reg_mem)
 /*---------------------------------------------------------------------------*/
 /* xio_mem_alloc							     */
 /*---------------------------------------------------------------------------*/
-int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
+int xio_mem_alloc(struct xio_context *ctx,
+		  size_t length, struct xio_reg_mem *reg_mem)
 {
 	struct xio_device	*dev;
 	size_t			real_size;
@@ -531,19 +541,21 @@ int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
 	}
 	if (list_empty(&dev_list)) {
 		if (!xio_register_transport() && list_empty(&dev_list))
-			return xio_mem_alloc_no_dev(length, reg_mem);
+			return xio_mem_alloc_no_dev(ctx, length, reg_mem);
 	}
 
 	access = IBV_ACCESS_LOCAL_WRITE  |
 		 IBV_ACCESS_REMOTE_WRITE |
 		 IBV_ACCESS_REMOTE_READ;
 
+	reg_mem->ctx = ctx;
+
 	dev = list_first_entry(&dev_list, struct xio_device, dev_list_entry);
 
 	if (dev && IBV_IS_MPAGES_AVAIL(&dev->device_attr)) {
 		access |= IBV_XIO_ACCESS_ALLOCATE_MR;
 		reg_mem->addr = NULL;
-		reg_mem->mr = xio_reg_mr_ex(&reg_mem->addr, length, access);
+		reg_mem->mr = xio_reg_mr_ex(ctx, &reg_mem->addr, length, access);
 		if (reg_mem->mr) {
 			reg_mem->length			= length;
 			reg_mem->mr->addr_alloced	= 0;
@@ -554,13 +566,13 @@ int xio_mem_alloc(size_t length, struct xio_reg_mem *reg_mem)
 	}
 
 	real_size = ALIGN(length, page_size);
-	reg_mem->addr = umemalign(page_size, real_size);
+	reg_mem->addr = xio_context_umemalign(ctx, page_size, real_size);
 	if (unlikely(!reg_mem->addr)) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("memalign failed. sz:%zu\n", real_size);
 		goto cleanup;
 	}
-	reg_mem->mr = xio_reg_mr_ex(&reg_mem->addr, length, access);
+	reg_mem->mr = xio_reg_mr_ex(ctx, &reg_mem->addr, length, access);
 	if (unlikely(!reg_mem->mr)) {
 		ERROR_LOG("xio_reg_mr_ex failed. " \
 			  "addr:%p, length:%d, access:0x%x\n",
@@ -576,7 +588,7 @@ exit:
 	return 0;
 
 cleanup1:
-	ufree(reg_mem->addr);
+	xio_context_ufree(reg_mem->ctx,  reg_mem->addr);
 cleanup:
 	return -1;
 }
@@ -596,7 +608,7 @@ int xio_mem_free(struct xio_reg_mem *reg_mem)
 		return xio_mem_free_no_dev(reg_mem);
 
 	if (reg_mem->mr->addr_alloced) {
-		ufree(reg_mem->addr);
+		xio_context_ufree(reg_mem->ctx, reg_mem->addr);
 		reg_mem->addr			= NULL;
 		reg_mem->mr->addr_alloced	= 0;
 	}
@@ -649,7 +661,7 @@ int xio_rkey_table_create(struct xio_device *old, struct xio_device *_new,
 		return 0;
 	}
 
-	tbl = (struct xio_rkey_tbl *)ucalloc(mr_num, sizeof(*tbl));
+	tbl = (struct xio_rkey_tbl *)xio_context_ucalloc(NULL, mr_num, sizeof(*tbl));
 	if (!tbl) {
 		*len = 0;
 		xio_set_error(ENOMEM);
@@ -686,7 +698,7 @@ int xio_rkey_table_create(struct xio_device *old, struct xio_device *_new,
 	return 0;
 
 cleanup:
-	ufree(tbl);
+	xio_context_ufree(NULL, tbl);
 	*len = 0;
 	return -1;
 }

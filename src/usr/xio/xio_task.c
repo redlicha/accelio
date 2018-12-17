@@ -44,6 +44,12 @@
 #include "xio_task.h"
 #include "xio_mem.h"
 #include <xio_env_adv.h>
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_observer.h"
+#include "xio_context.h"
 
 #define XIO_TASK_MAGIC   0x58494f54 /* Hex of 'XIOT' */
 
@@ -93,14 +99,14 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context)
 	tot_sz = slab_alloc_sz + tasks_alloc_sz;
 
 	if (tot_sz > 1 << 20) {
-		buf = umalloc_huge_pages(tot_sz);
+		buf = xio_context_umalloc_huge_pages(q->params.xio_context, tot_sz);
 		huge_alloc = 1;
 	} else {
-		buf = umemalign(64, tot_sz);
+		buf = xio_context_umemalign(q->params.xio_context, 64, tot_sz);
 	}
 	if (!buf) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed\n");
+		ERROR_LOG("allocation failed\n");
 		return -1;
 	}
 	data = buf;
@@ -124,6 +130,7 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context)
 	if (q->params.pool_hooks.slab_pre_create) {
 		retval = q->params.pool_hooks.slab_pre_create(
 				context,
+				q->params.xio_context,
 				alloc_nr,
 				q->dd_data,
 				s->dd_data);
@@ -189,9 +196,9 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context)
 
 cleanup:
 	if (huge_alloc)
-		ufree_huge_pages(ptr);
+		xio_context_ufree_huge_pages(q->params.xio_context, ptr);
 	else
-		ufree(ptr);
+		xio_context_ufree(q->params.xio_context, ptr);
 
 	return -1;
 }
@@ -207,10 +214,11 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	char			*buf;
 
 	/* pool */
-	buf = (char *)ucalloc(1, sizeof(*q) + params->pool_dd_data_sz);
+	buf = (char *)xio_context_ucalloc(params->xio_context,
+					  1, sizeof(*q) + params->pool_dd_data_sz);
 	if (!buf) {
 		xio_set_error(ENOMEM);
-		ERROR_LOG("ucalloc failed\n");
+		ERROR_LOG("xio_context_ucalloc failed\n");
 		return NULL;
 	}
 	q		= (struct xio_tasks_pool *)buf;
@@ -232,7 +240,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	if (q->params.start_nr) {
 		xio_tasks_pool_alloc_slab(q, q->params.pool_hooks.context);
 		if (list_empty(&q->stack)) {
-			ufree(q);
+			xio_context_ufree(q->params.xio_context, q);
 			return NULL;
 		}
 	}
@@ -274,9 +282,10 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 		/* the tmp tasks are returned back to pool */
 
 		if (pslab->huge_alloc)
-			ufree_huge_pages(pslab->array[0]);
+			xio_context_ufree_huge_pages(q->params.xio_context,
+						     pslab->array[0]);
 		else
-			ufree(pslab->array[0]);
+			xio_context_ufree(q->params.xio_context, pslab->array[0]);
 	}
 
 	if (q->params.pool_hooks.pool_destroy)
@@ -286,7 +295,7 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 
 	kfree(q->params.pool_name);
 
-	ufree(q);
+	xio_context_ufree(q->params.xio_context, q);
 }
 EXPORT_SYMBOL(xio_tasks_pool_destroy);
 

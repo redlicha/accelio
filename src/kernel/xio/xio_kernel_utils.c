@@ -45,6 +45,13 @@
 #include "xio_common.h"
 #include "xio_protocol.h"
 #include "xio_sg_table.h"
+#include "xio_observer.h"
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_context.h"
+
 
 #ifndef IN6ADDR_ANY_INIT
 #define IN6ADDR_ANY_INIT \
@@ -133,7 +140,8 @@ int xio_uri_to_ss(const char *uri, struct sockaddr_storage *ss)
 			return -1;
 
 		len = p1-(start+4);
-		host = kstrndup((char *)(start + 4), len, GFP_KERNEL);
+		host = xio_context_kstrndup(NULL,
+				(char *)(start + 4), len, GFP_KERNEL);
 		if (host)
 			host[len] = 0;
 
@@ -230,11 +238,11 @@ int xio_uri_to_ss(const char *uri, struct sockaddr_storage *ss)
 		}
 	}
 
-	kfree(host);
+	xio_context_kfree(NULL, host);
 	return ss_len;
 
 cleanup:
-	kfree(host);
+	xio_context_kfree(NULL, host);
 	return -1;
 }
 EXPORT_SYMBOL(xio_uri_to_ss);

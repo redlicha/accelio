@@ -45,6 +45,13 @@
 #include "xio_task.h"
 #include "xio_observer.h"
 #include "xio_transport.h"
+#include "xio_observer.h"
+#include "xio_ev_data.h"
+#include "xio_ev_loop.h"
+#include "xio_objpool.h"
+#include "xio_workqueue.h"
+#include "xio_context.h"
+
 
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -94,7 +101,7 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context)
 				     q->params.task_dd_data_sz);
 
 	tot_len = PAGE_ALIGN(slab_alloc_sz + tasks_alloc_sz);
-	buf = vmalloc(tot_len);
+	buf = xio_context_vmalloc(q->params.xio_context, tot_len);
 	if (!buf) {
 		xio_set_error(ENOMEM);
 		return -1;
@@ -122,6 +129,7 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context)
 	if (q->params.pool_hooks.slab_pre_create) {
 		retval = q->params.pool_hooks.slab_pre_create(
 				context,
+				q->params.xio_context,
 				alloc_nr,
 				q->dd_data,
 				s->dd_data);
@@ -222,7 +230,8 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	char			*buf;
 
 	/* pool */
-	buf = kzalloc(sizeof(*q) + params->pool_dd_data_sz, GFP_KERNEL);
+	buf = xio_context_kzalloc(params->xio_context,
+			sizeof(*q) + params->pool_dd_data_sz, GFP_KERNEL);
 	if (!buf) {
 		xio_set_error(ENOMEM);
 		return NULL;
@@ -245,7 +254,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	if (q->params.start_nr) {
 		xio_tasks_pool_alloc_slab(q, q->params.pool_hooks.context);
 		if (list_empty(&q->stack)) {
-			kfree(q);
+			xio_context_kfree(q->params.xio_context, q);
 			return NULL;
 		}
 	}
@@ -301,7 +310,7 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 				q->params.pool_hooks.context,
 				q, q->dd_data);
 
-	kfree(q);
+	xio_context_kfree(q->params.xio_context, q);
 }
 EXPORT_SYMBOL(xio_tasks_pool_destroy);
 

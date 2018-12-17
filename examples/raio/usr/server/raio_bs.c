@@ -158,7 +158,8 @@ int raio_bs_open(struct raio_bs *dev, int fd, int io_u_free_nr)
 		dev->io_u_free_nr = io_u_free_nr;
 		dev->io_us_free = (struct raio_io_u *)calloc(io_u_free_nr,
 						 sizeof(struct raio_io_u));
-		dev->rsp_pool = msg_pool_create(RAIO_CMD_HDR_SZ, MAXBLOCKSIZE,
+		dev->rsp_pool = msg_pool_create((struct xio_context *)dev->ctx,
+						RAIO_CMD_HDR_SZ, MAXBLOCKSIZE,
 						io_u_free_nr);
 		TAILQ_INIT(&dev->io_u_free_list);
 
