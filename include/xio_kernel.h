@@ -104,7 +104,8 @@ struct xio_sg_iovptr {
 struct xio_vmsg {
 	struct xio_iovec	header;	    /**< header's io vector  */
 	enum xio_sgl_type	sgl_type;
-	int			pad;
+	uint16_t		pad;
+	uint16_t		crc;	    /**< crc		     */
 	struct sg_table		data_tbl;   /**< data table	     */
 	void			*user_context;	/**< private user data */
 };

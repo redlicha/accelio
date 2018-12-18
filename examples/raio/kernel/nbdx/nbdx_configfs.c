@@ -38,6 +38,7 @@
 
 #include "nbdx.h"
 
+#if 0 /* close since it was broken in later kernels */
 
 #define cgroup_to_nbdx_session(x) container_of(x, struct nbdx_session, session_cg)
 #define cgroup_to_nbdx_device(x) container_of(x, struct nbdx_file, dev_cg)
@@ -282,3 +283,15 @@ void nbdx_destroy_configfs_files(void)
 {
 	configfs_unregister_subsystem(&nbdx_subsys);
 }
+#else 
+int nbdx_create_configfs_files(void)
+{
+	return 0;
+}
+
+void nbdx_destroy_configfs_files(void)
+{
+}
+#endif
+
+

@@ -1440,7 +1440,7 @@ static int xio_tcp_prep_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	rsp_hdr.rtid		= task->rtid;
 	rsp_hdr.ltid		= task->ltid;
 	rsp_hdr.out_tcp_op	= tcp_task->out_tcp_op;
-	rsp_hdr.flags		= XIO_HEADER_FLAG_NONE;
+	rsp_hdr.flags		= task->omsg_flags;
 	rsp_hdr.out_num_sge	= tcp_task->rsp_out_num_sge;
 	rsp_hdr.ulp_hdr_len	= ulp_hdr_len;
 	rsp_hdr.ulp_pad_len	= ulp_pad_len;
@@ -1544,6 +1544,7 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	int			tlv_len = 0;
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
+	uint16_t		crc;
 
 	if (task->on_hold) {
 		/* dynamically initialize header */
@@ -1559,13 +1560,9 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	xio_hdr_len = xio_mbuf_get_curr_offset(&task->mbuf);
 	xio_hdr_len += sizeof(rsp_hdr);
 	xio_hdr_len += tcp_task->req_in_num_sge * sizeof(struct xio_sge);
-	enforce_write_rsp = task->imsg_flags & XIO_HEADER_FLAG_PEER_WRITE_RSP;
+	enforce_write_rsp = task->imsg_flags & XIO_MSG_FLAG_PEER_WRITE_RSP;
 
-<<<<<<< HEAD
 	if (ulp_hdr_len && ulp_hdr_len > tcp_hndl->peer_max_header && 
-=======
-	if (ulp_hdr_len > tcp_hndl->peer_max_header &&
->>>>>>> upstream/for_next
 	    IS_APPLICATION_MSG(task->tlv_type)) {
 		ERROR_LOG("hdr_len=%llu is bigger than peer_max_header=%d\n",
 				ulp_hdr_len, tcp_hndl->peer_max_header);

@@ -451,7 +451,5 @@ static inline int xio_tasks_list_flush(struct list_head *list)
 
 	return 0;
 }
-EXPORT_SYMBOL(xio_tasks_list_flush);
-
 
 #endif

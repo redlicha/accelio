@@ -2666,7 +2666,7 @@ static int xio_rdma_prep_rsp_header(struct xio_rdma_transport *rdma_hndl,
 	rsp_hdr.rtid		= task->rtid;
 	rsp_hdr.ltid		= task->ltid;
 	rsp_hdr.out_ib_op		= rdma_task->out_ib_op;
-	rsp_hdr.flags		= XIO_HEADER_FLAG_NONE;
+	rsp_hdr.flags		= task->omsg_flags;
 	if (rdma_task->out_ib_op == XIO_IB_RDMA_READ)
 		rsp_hdr.out_num_sge	= rdma_task->req_out_num_sge;
 	else
@@ -2781,7 +2781,7 @@ static int xio_rdma_prep_rsp_out_data(
 
 	enforce_write_rsp = (task->imsg_flags &&
 			   (task->imsg_flags &
-			    XIO_HEADER_FLAG_PEER_WRITE_RSP));
+			    XIO_MSG_FLAG_PEER_WRITE_RSP));
 	/*
 	if (rdma_hndl->max_inline_buf_sz < xio_hdr_len + ulp_hdr_len) {
 		ERROR_LOG("header size %u exceeds max header %zu\n",
@@ -2834,7 +2834,7 @@ static int xio_rdma_prep_rsp_out_data(
 			retval = xio_sched_rdma_wr_req(rdma_hndl, task);
 			if (unlikely(retval)) {
 				ERROR_LOG("Failed to write header\n");
-				goto cleanup1;
+				goto cleanup;
 			}
 			/* and the header is sent via SEND */
 			/* write xio header to the buffer */
@@ -2844,7 +2844,7 @@ static int xio_rdma_prep_rsp_out_data(
 					XIO_E_SUCCESS);
 			if (unlikely(retval)) {
 				ERROR_LOG("xio_rdma_prep_rsp_header failed\n");
-				goto cleanup1;
+				goto cleanup;
 			}
 		} else {
 			/* EYAL - the case were requester send request but
@@ -2866,7 +2866,7 @@ static int xio_rdma_prep_rsp_out_data(
 					XIO_E_RSP_BUF_SIZE_MISMATCH);
 			if (unlikely(retval)) {
 				ERROR_LOG("xio_rdma_prep_rsp_header failed\n");
-				goto cleanup1;
+				goto cleanup;
 			}
 			tbl_set_nents(sgtbl_ops, sgtbl, 0);
 #else

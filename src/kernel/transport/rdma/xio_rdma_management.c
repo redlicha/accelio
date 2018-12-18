@@ -292,7 +292,7 @@ static struct xio_cq *xio_cq_get(struct xio_device *dev,
 	 * so we use only one cq for RX and TX
 	 */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0)
 	tcq->cq = ib_create_cq(dev->ib_dev,
 			       xio_cq_data_callback,
 			       xio_cq_event_callback,
