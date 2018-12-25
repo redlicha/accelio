@@ -2224,7 +2224,8 @@ int xio_disconnect(struct xio_connection *connection)
 
 	if (!connection || !connection->session) {
 		xio_set_error(EINVAL);
-		ERROR_LOG("xio_disconnect failed 'Invalid argument'\n");
+		ERROR_LOG("xio_disconnect failed 'Invalid argument'. connection:%p\n",
+			  connection);
 		return -1;
 	}
 
