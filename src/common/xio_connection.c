@@ -124,6 +124,7 @@ static void xio_connection_post_destroy(struct kref *kref);
 static void xio_connection_teardown_handler(void *connection_);
 static void xio_connection_keepalive_time(void *_connection);
 static void xio_close_time_wait(void *data);
+static void xio_close_time_wait_handler(void *data);
 static void xio_handle_last_ack(void *data);
 
 struct xio_managed_rkey {
@@ -1967,12 +1968,12 @@ static void xio_fin_msg_timeout(struct xio_connection *connection, bool is_req)
 		xio_ctx_add_work(
 				connection->ctx,
 				connection,
-				xio_connection_teardown_handler,
+				xio_close_time_wait_handler,
 				&connection->teardown_work);
-	else
+	else {
 		xio_connection_destroy(connection);
-
-	kref_put(&connection->kref, xio_connection_post_destroy);
+		kref_put(&connection->kref, xio_connection_post_destroy);
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2926,6 +2927,19 @@ int xio_on_fin_req_send_comp(struct xio_connection *connection,
 	return 0;
 }
 
+static void xio_close_time_wait_handler(void *data)
+{
+	struct xio_connection *connection = (struct xio_connection *)data;
+
+	DEBUG_LOG("%s. session:%p, connection:%p\n",
+		  __func__, connection->session, connection);
+
+	xio_connection_teardown_handler(data);
+
+	/* this should set the kref for destruction */
+	kref_put(&connection->kref, xio_connection_post_destroy);
+}
+
 static void xio_close_time_wait(void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
@@ -2952,17 +2966,17 @@ static void xio_close_time_wait(void *data)
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
-	if (!connection->disable_notify)
+	if (!connection->disable_notify) {
 		xio_ctx_add_work(
 				connection->ctx,
 				connection,
-				xio_connection_teardown_handler,
+				xio_close_time_wait_handler,
 				&connection->teardown_work);
-	else
+	} else {
 		xio_connection_destroy(connection);
-	
-	/* this should set the kref for destruction */
-	kref_put(&connection->kref, xio_connection_post_destroy);
+		/* this should set the kref for destruction */
+		kref_put(&connection->kref, xio_connection_post_destroy);
+	}
 }
 
 static void xio_handle_last_ack(void *data)
