@@ -97,7 +97,6 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 	struct xio_context		*ctx;
 	struct xio_loop_ops		*loop_ops;
 	struct task_struct		*worker;
-	struct xio_context		helper_ctx = {};
 	struct xio_transport		*transport;
 	int				flags, cpu;
 
@@ -134,16 +133,9 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 
 	if (cpu == -1)
 		goto cleanup0;
-	if (ctx_params && ctx_params->allocator_assigned) {
-		helper_ctx.allocator_assigned = 1;
-
-		memcpy(&helper_ctx.mem_allocator,
-		       &ctx_params->mem_allocator,
-		       sizeof(helper_ctx.mem_allocator));
-	}
 	/* allocate new context */
 	ctx = (struct xio_context *)xio_context_kzalloc(
-			&helper_ctx, sizeof(*ctx), GFP_KERNEL);
+			NULL, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("xio_context_kzalloc failed. %m\n");

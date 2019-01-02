@@ -96,7 +96,6 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 {
 	struct xio_context		*ctx = NULL;
 	struct xio_transport		*transport;
-	struct xio_context		helper_ctx = {};
 	int				cpu;
 	size_t				msgpool_grow_nr;
 
@@ -125,15 +124,8 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 			xio_set_error(errno);
 			ERROR_LOG("could not set affinity to cpu. %m\n");
 		}
-	if (ctx_params && ctx_params->allocator_assigned) {
-		helper_ctx.allocator_assigned = 1;
-
-		memcpy(&helper_ctx.mem_allocator,
-		       &ctx_params->mem_allocator,
-		       sizeof(helper_ctx.mem_allocator));
-	}
 	ctx = (struct xio_context *)xio_context_ucalloc(
-			&helper_ctx, 1, sizeof(struct xio_context));
+			NULL, 1, sizeof(struct xio_context));
 	if (!ctx) {
 		xio_set_error(ENOMEM);
 		ERROR_LOG("xio_context_ucalloc failed. %m\n");
