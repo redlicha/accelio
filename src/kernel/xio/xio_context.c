@@ -241,7 +241,7 @@ cleanup2:
 	xio_workqueue_destroy(ctx->workqueue);
 
 cleanup1:
-	kfree(ctx);
+	xio_context_kfree(NULL, ctx);
 
 cleanup0:
 	ERROR_LOG("xio_ctx_open failed\n");
@@ -355,7 +355,7 @@ void xio_destroy_context_continue(struct work_struct *work)
 		ctx->mempool = NULL;
 	}
 
-	kfree(ctx);
+	xio_context_kfree(NULL, ctx);
 }
 EXPORT_SYMBOL(xio_destroy_context_continue);
 

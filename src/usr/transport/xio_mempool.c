@@ -628,6 +628,7 @@ retry:
 		reg_mem->addr	= NULL;
 		reg_mem->mr	= NULL;
 		reg_mem->priv	= NULL;
+		reg_mem->ctx	= NULL;
 		reg_mem->length	= 0;
 		goto cleanup;
 	}
@@ -674,6 +675,7 @@ retry:
 	reg_mem->addr	= block->buf;
 	reg_mem->mr	= block->omr;
 	reg_mem->priv	= block;
+	reg_mem->ctx	= slab->pool->ctx;
 	reg_mem->length	= length;
 
 #ifdef DEBUG_MEMPOOL_MT

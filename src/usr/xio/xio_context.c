@@ -321,7 +321,7 @@ void xio_context_destroy(struct xio_context *ctx)
 #endif
 
 	XIO_OBSERVABLE_DESTROY(&ctx->observable);
-	xio_context_ufree(ctx, ctx);
+	xio_context_ufree(NULL, ctx);
 }
 EXPORT_SYMBOL(xio_context_destroy);
 

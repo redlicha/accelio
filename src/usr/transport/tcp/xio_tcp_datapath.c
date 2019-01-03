@@ -732,6 +732,8 @@ static int xio_tcp_prep_req_out_data(
 				tcp_task->write_reg_mem[i].addr =
 					sge_addr(sgtbl_ops, sg);
 				tcp_task->write_reg_mem[i].priv = NULL;
+				tcp_task->write_reg_mem[i].ctx =
+							tcp_hndl->base.ctx;
 				tcp_task->write_reg_mem[i].mr =
 					(struct xio_mr *)sge_mr(sgtbl_ops, sg);
 				tcp_task->write_reg_mem[i].length =
@@ -763,7 +765,8 @@ static int xio_tcp_prep_req_out_data(
 
 				tcp_task->write_reg_mem[i].length =
 					sge_length(sgtbl_ops, sg);
-
+				tcp_task->write_reg_mem[i].ctx =
+							tcp_hndl->base.ctx;
 				/* copy the data to the buffer */
 				memcpy(tcp_task->write_reg_mem[i].addr,
 				       sge_addr(sgtbl_ops, sg),
@@ -1331,6 +1334,7 @@ static int xio_tcp_prep_req_in_data(struct xio_tcp_transport *tcp_hndl,
 				tcp_task->read_reg_mem[i].addr =
 					sge_addr(sgtbl_ops, sg);
 				tcp_task->read_reg_mem[i].priv = NULL;
+				tcp_task->read_reg_mem[i].ctx = tcp_hndl->base.ctx;
 				tcp_task->read_reg_mem[i].mr =
 					(struct xio_mr *)sge_mr(sgtbl_ops, sg);
 				tcp_task->read_reg_mem[i].length =
@@ -2267,6 +2271,7 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 		sge_set_length(sgtbl_ops, sg,
 			       tcp_task->req_out_sge[i].length);
 		rlen += tcp_task->req_out_sge[i].length;
+		tcp_task->read_reg_mem[i].ctx = tcp_hndl->base.ctx;
 		tcp_task->read_reg_mem[i].priv = NULL;
 	}
 	sgtbl		= xio_sg_table_get(&task->imsg.out);
@@ -2278,6 +2283,7 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 			sge_set_addr(sgtbl_ops, sg, NULL);
 			sge_set_length(sgtbl_ops, sg,
 				       tcp_task->req_in_sge[i].length);
+			tcp_task->write_reg_mem[i].ctx = tcp_hndl->base.ctx;
 			tcp_task->write_reg_mem[i].priv = NULL;
 		}
 	} else {

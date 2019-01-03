@@ -2648,6 +2648,7 @@ static int xio_rdma_prep_req_out_data(
 			for_each_sge(sgtbl, sgtbl_ops, sg, i) {
 				rdma_task->write_reg_mem[i].addr =
 					sge_addr(sgtbl_ops, sg);
+				rdma_task->write_reg_mem[i].ctx = rdma_hndl->base.ctx;
 				rdma_task->write_reg_mem[i].priv = NULL;
 				rdma_task->write_reg_mem[i].mr =
 					(struct xio_mr *)sge_mr(sgtbl_ops, sg);
@@ -2785,6 +2786,7 @@ static int xio_rdma_prep_req_in_data(
 				rdma_task->read_reg_mem[i].addr =
 					sge_addr(sgtbl_ops, sg);
 				rdma_task->read_reg_mem[i].priv = NULL;
+				rdma_task->read_reg_mem[i].ctx = rdma_hndl->base.ctx;
 				rdma_task->read_reg_mem[i].mr =
 					(struct xio_mr *)sge_mr(sgtbl_ops, sg);
 				rdma_task->read_reg_mem[i].length =
@@ -3505,6 +3507,8 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 					i++) {
 						xio_mempool_free(
 					    &rdma_sender_task->read_reg_mem[i]);
+					rdma_sender_task->read_reg_mem[i].ctx =
+						rdma_hndl->base.ctx;
 					rdma_sender_task->read_reg_mem[i].priv =
 						NULL;
 					}
@@ -4005,6 +4009,7 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 		sge_set_length(sgtbl_ops, sg,
 			       rdma_task->req_out_sge[i].length);
 		rlen += rdma_task->req_out_sge[i].length;
+		rdma_task->read_reg_mem[i].ctx = rdma_hndl->base.ctx;
 		rdma_task->read_reg_mem[i].priv = NULL;
 	}
 
@@ -4018,6 +4023,7 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 			sge_set_length(sgtbl_ops, sg,
 				       rdma_task->req_in_sge[i].length);
 			sge_set_mr(sgtbl_ops, sg, NULL);
+			rdma_task->write_reg_mem[i].ctx = rdma_hndl->base.ctx;
 			rdma_task->write_reg_mem[i].priv = NULL;
 		}
 	} else {
