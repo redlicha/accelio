@@ -888,11 +888,14 @@ void *xio_context_umemalign(struct xio_context *ctx, size_t boundary, size_t siz
 	void *ptr;
 
 	if (ctx && ctx->allocator_assigned &&
-	    ctx->mem_allocator.memalign)
+	    ctx->mem_allocator.memalign) {
 		ptr = ctx->mem_allocator.memalign(ctx, boundary, size,
 					      ctx->mem_allocator.user_context);
-	else
+		if (ptr)
+			memset(ptr, 0, size);
+	} else {
 		ptr = umemalign(boundary, size);
+	}
 
 	return ptr;
 }
@@ -902,11 +905,14 @@ void *xio_context_umalloc_huge_pages(struct xio_context *ctx, size_t size)
 	void *ptr;
 
 	if (ctx && ctx->allocator_assigned &&
-	    ctx->mem_allocator.malloc_huge_pages)
+	    ctx->mem_allocator.malloc_huge_pages) {
 		ptr = ctx->mem_allocator.malloc_huge_pages(ctx, size,
 					      ctx->mem_allocator.user_context);
-	else
+		if (ptr)
+			memset(ptr, 0, size);
+	} else {
 		ptr = umalloc_huge_pages(size);
+	}
 
 	return ptr;
 }
@@ -916,12 +922,14 @@ void *xio_context_unuma_alloc(struct xio_context *ctx, size_t size, int node)
 	void *ptr;
 
 	if (ctx && ctx->allocator_assigned &&
-	    ctx->mem_allocator.numa_alloc)
+	    ctx->mem_allocator.numa_alloc) {
 		ptr = ctx->mem_allocator.numa_alloc(ctx, size, node,
 					      ctx->mem_allocator.user_context);
-	else
+		if (ptr)
+			memset(ptr, 0, size);
+	} else {
 		ptr = unuma_alloc(size, node);
-
+	}
 	return ptr;
 }
 
