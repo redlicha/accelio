@@ -1996,6 +1996,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 		}
 	}
 
+	nexus->ctx = ctx;
 	nexus->transport_hndl = transport->open(
 					transport, ctx,
 					&nexus->trans_observer,
@@ -2005,8 +2006,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 		ERROR_LOG("transport open failed\n");
 		goto cleanup;
 	}
-	nexus->transport	= transport;
-	nexus->ctx		= ctx;
+	nexus->transport = transport;
 	kref_init(&nexus->kref);
 	nexus->state = XIO_NEXUS_STATE_OPEN;
 

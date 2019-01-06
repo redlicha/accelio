@@ -1432,6 +1432,7 @@ static int xio_rdma_primary_pool_post_create(
 		struct xio_transport_base *transport_hndl,
 		void *pool, void *pool_dd_data)
 {
+	in retval;
 	struct xio_rdma_transport *rdma_hndl =
 		(struct xio_rdma_transport *)transport_hndl;
 	struct xio_rdma_tasks_pool *rdma_pool =
@@ -1453,9 +1454,9 @@ static int xio_rdma_primary_pool_post_create(
 	xio_rdma_rearm_rq(rdma_hndl);
 
 	/* late creation */
-	xio_rdma_phantom_pool_create(rdma_hndl);
+	retval = xio_rdma_phantom_pool_create(rdma_hndl);
 
-	return 0;
+	return retval;
 }
 
 /*---------------------------------------------------------------------------*/

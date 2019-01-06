@@ -212,6 +212,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 {
 	struct xio_tasks_pool	*q;
 	char			*buf;
+	int			retval;
 
 	/* pool */
 	buf = (char *)xio_context_ucalloc(params->xio_context,
@@ -233,9 +234,14 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 
 	memcpy(&q->params, params, sizeof(*params));
 
-	if (q->params.pool_hooks.pool_pre_create)
-		q->params.pool_hooks.pool_pre_create(
+	if (q->params.pool_hooks.pool_pre_create) {
+		retval = q->params.pool_hooks.pool_pre_create(
 				q->params.pool_hooks.context, q, q->dd_data);
+		if (unlikely(retval)) {
+			xio_context_ufree(q->params.xio_context, q);
+			return NULL;
+		}
+	}
 
 	if (q->params.start_nr) {
 		xio_tasks_pool_alloc_slab(q, q->params.pool_hooks.context);
@@ -244,10 +250,15 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 			return NULL;
 		}
 	}
-	if (q->params.pool_hooks.pool_post_create)
-		q->params.pool_hooks.pool_post_create(
+	if (q->params.pool_hooks.pool_post_create) {
+		retval = q->params.pool_hooks.pool_post_create(
 				q->params.pool_hooks.context, q, q->dd_data);
 
+		if (unlikely(retval)) {
+			xio_context_ufree(q->params.xio_context, q);
+			return NULL;
+		}
+	}
 	return q;
 }
 EXPORT_SYMBOL(xio_tasks_pool_create);
