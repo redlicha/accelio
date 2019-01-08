@@ -360,7 +360,7 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 					  "type:0x%x, on_hold:%d\n",
 					  pool_name,
 					  pslab->array[i],
-					  pslab->array[i]->tlv_type, 
+					  pslab->array[i]->tlv_type,
 					  pslab->array[i]->on_hold);
 			}
 	}

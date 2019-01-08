@@ -1202,40 +1202,39 @@ void xio_tcp_pending_conn_ev_handler(int fd, int events, void *user_context)
 /*---------------------------------------------------------------------------*/
 void xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 {
-	int retval;
+	int retval, accepted_fd;
 	socklen_t len = sizeof(struct sockaddr_storage);
 	struct xio_tcp_pending_conn *pending_conn;
+	union xio_sockaddr sa = { };
 
+	/* "accept" the connection */
+	accepted_fd = xio_accept_non_blocking(
+			parent_hndl->sock.cfd,
+			(struct sockaddr *)&sa.sa_stor,
+			&len);
+	if (accepted_fd < 0) {
+		xio_set_error(xio_get_last_socket_error());
+		ERROR_LOG("tcp accept failed. (errno=%d %m)\n",
+			  xio_get_last_socket_error());
+		xio_transport_notify_observer_error(&parent_hndl->base,
+						    xio_errno());
+		return;
+	}
 	/*allocate pending fd struct */
 	pending_conn = (struct xio_tcp_pending_conn *)
 				xio_context_ucalloc(parent_hndl->base.ctx,
 						1, sizeof(struct xio_tcp_pending_conn));
 	if (!pending_conn) {
+		close(accepted_fd);
 		xio_set_error(ENOMEM);
 		ERROR_LOG("xio_context_ucalloc failed. %m\n");
 		xio_transport_notify_observer_error(&parent_hndl->base,
 						    xio_errno());
 		return;
 	}
-
 	pending_conn->waiting_for_bytes = sizeof(struct xio_tcp_connect_msg);
-
-	/* "accept" the connection */
-	retval = xio_accept_non_blocking(
-			parent_hndl->sock.cfd,
-			(struct sockaddr *)&pending_conn->sa.sa_stor,
-			&len);
-	if (retval < 0) {
-		xio_set_error(xio_get_last_socket_error());
-		ERROR_LOG("tcp accept failed. (errno=%d %m)\n",
-			  xio_get_last_socket_error());
-		xio_context_ufree(parent_hndl->base.ctx, pending_conn);
-		return;
-	}
-	pending_conn->fd = retval;
-
-	list_add_tail(&pending_conn->conns_list_entry,
-		      &parent_hndl->pending_conns);
+	memcpy(&pending_conn->sa.sa_stor, &sa.sa_stor, len);
+	pending_conn->fd = accepted_fd;
 
 	/* add to epoll */
 	retval = xio_context_add_ev_handler(
@@ -1244,8 +1243,16 @@ void xio_tcp_new_connection(struct xio_tcp_transport *parent_hndl)
 			XIO_POLLIN | XIO_POLLRDHUP,
 			xio_tcp_pending_conn_ev_handler,
 			parent_hndl);
-	if (retval)
+	if (retval) {
 		ERROR_LOG("adding pending_conn_ev_handler failed\n");
+		close(accepted_fd);
+		xio_context_ufree(parent_hndl->base.ctx, pending_conn);
+		xio_transport_notify_observer_error(&parent_hndl->base,
+						    xio_errno());
+		return;
+	}
+	list_add_tail(&pending_conn->conns_list_entry,
+		      &parent_hndl->pending_conns);
 }
 
 /*---------------------------------------------------------------------------*/
