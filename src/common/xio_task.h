@@ -315,6 +315,7 @@ pool_exhausted:
 	ERROR_LOG("%s - pool exhausted. used:%d max_nr:%d\n",
 		  q->params.pool_name,
 		  q->curr_used , q->params.max_nr);
+	xio_tasks_pool_dump_used(q);
 	return NULL;
 }
 

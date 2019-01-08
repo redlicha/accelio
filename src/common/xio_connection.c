@@ -2053,7 +2053,11 @@ int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 	int retval;
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_FIN_RSP;
 	msg->request		= &task->imsg;
 	msg->in.header.iov_len	= 0;

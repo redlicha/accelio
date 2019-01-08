@@ -357,10 +357,11 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 				pool_name = q->params.pool_name ?
 					q->params.pool_name : "unknown";
 				ERROR_LOG("pool_name:%s: in use: task:%p, " \
-					  "type:0x%x\n",
+					  "type:0x%x, on_hold:%d\n",
 					  pool_name,
 					  pslab->array[i],
-					  pslab->array[i]->tlv_type);
+					  pslab->array[i]->tlv_type, 
+					  pslab->array[i]->on_hold);
 			}
 	}
 }

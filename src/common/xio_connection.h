@@ -98,7 +98,7 @@ struct xio_connection {
 	uint16_t			peer_credits_msgs;
 	uint16_t			rx_queue_watermark_msgs;
 	uint16_t			conn_idx;
-	uint16_t			state;
+	uint16_t			pad;
 
 	uint8_t				fin_req_timeout;
 	uint8_t				fin_ack_timeout;
@@ -119,7 +119,7 @@ struct xio_connection {
 	struct kref			kref;
 	uint32_t			connect_timeout;
 	uint32_t			disconnect_timeout;
-	uint32_t			pad;
+	enum xio_connection_state	state;
 
 	struct xio_msg_list		reqs_msgq;
 	struct xio_msg_list		rsps_msgq;
