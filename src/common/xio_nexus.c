@@ -1420,12 +1420,9 @@ static void xio_nexus_on_transport_error(struct xio_nexus *nexus,
 	nexus_event_data.error.reason =  event_data->error.reason;
 
 	xio_nexus_state_set(nexus, XIO_NEXUS_STATE_ERROR);
-	if (xio_observable_is_empty(&nexus->observable))
-		xio_nexus_destroy(nexus);
-	else
-		xio_observable_notify_all_observers(&nexus->observable,
-						    XIO_NEXUS_EVENT_ERROR,
-						    &nexus_event_data);
+	xio_observable_notify_all_observers(&nexus->observable,
+					    XIO_NEXUS_EVENT_ERROR,
+					    &nexus_event_data);
 }
 
 /*---------------------------------------------------------------------------*/
