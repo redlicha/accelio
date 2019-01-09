@@ -1379,7 +1379,11 @@ int xio_connection_send_read_receipt(struct xio_connection *connection,
 	task = container_of(msg, struct xio_task, imsg);
 
 	rsp = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!rsp)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	rsp->type = (enum xio_msg_type)
 		(((unsigned)msg->type & ~XIO_REQUEST) | XIO_RESPONSE);
 	rsp->request = msg;
@@ -2011,7 +2015,11 @@ int xio_send_fin_req(struct xio_connection *connection)
 	int		retval;
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_FIN_REQ;
 	msg->in.header.iov_len	= 0;
 	msg->out.header.iov_len	= 0;
@@ -2110,7 +2118,11 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 	int		retval;
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_FIN_REQ;
 	msg->in.header.iov_len	= 0;
 	msg->out.header.iov_len	= 0;
@@ -2490,7 +2502,11 @@ int xio_connection_send_hello_req(struct xio_connection *connection)
 		  connection->session, connection);
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_CONNECTION_HELLO_REQ;
 	msg->in.header.iov_len	= 0;
 	msg->out.header.iov_len	= 0;
@@ -2518,7 +2534,11 @@ int xio_connection_send_hello_rsp(struct xio_connection *connection,
 		  connection->session, connection);
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_CONNECTION_HELLO_RSP;
 	msg->request		= &task->imsg;
 	msg->in.header.iov_len	= 0;
@@ -3392,7 +3412,11 @@ int xio_send_credits_ack(struct xio_connection *connection)
 	struct xio_msg *msg;
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_ACK_REQ;
 	msg->in.header.iov_len	= 0;
 	msg->out.header.iov_len	= 0;
@@ -3528,7 +3552,11 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 		  connection->session, connection);
 #endif
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_CONNECTION_KA_REQ;
 	msg->in.header.iov_len	= 0;
 	msg->out.header.iov_len	= 0;
@@ -3562,7 +3590,11 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 		  connection->session, connection);
 #endif
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
-
+	if (unlikely(!msg)) {
+		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  connection, connection->ctx);
+		return -1;
+	}
 	msg->type		= (enum xio_msg_type)XIO_CONNECTION_KA_RSP;
 	msg->request		= &task->imsg;
 	msg->in.header.iov_len	= 0;
