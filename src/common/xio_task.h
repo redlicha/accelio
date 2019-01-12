@@ -164,6 +164,7 @@ struct xio_tasks_pool {
 	unsigned int			pad;
 	struct list_head		slabs_list;
 	struct list_head		on_hold_list;
+	struct list_head		orphans_list;
 	void				*dd_data;
 };
 
@@ -461,6 +462,56 @@ static inline struct xio_context *xio_task_get_xio_context(struct xio_task *task
 	struct xio_tasks_pool	*pool = (struct xio_tasks_pool *)task->pool;
 
 	return pool->params.xio_context;
+}
+
+static inline void xio_tasks_pool_add_orphan_task(struct xio_task *task)
+{
+	struct xio_tasks_pool *pool =
+		((struct xio_tasks_pool *)task->pool);
+
+	list_move(&task->tasks_list_entry, &pool->orphans_list);
+}
+
+static inline void xio_tasks_pool_free_orphan_task(struct xio_task *task)
+{
+	if (task->sender_task && !task->on_hold) {
+		xio_tasks_pool_put(task->sender_task);
+		task->sender_task = NULL;
+	}
+	xio_tasks_pool_put(task);
+}
+
+static inline int xio_tasks_pool_is_orphan_task(struct xio_task *task)
+{
+	struct xio_task *ptask;
+	struct xio_tasks_pool *pool =
+		((struct xio_tasks_pool *)task->pool);
+
+	list_for_each_entry(ptask,
+			    &pool->orphans_list,
+			    tasks_list_entry) {
+		if (ptask == task)
+			return 1;
+	}
+	return 0;
+}
+
+static inline void xio_tasks_pool_flush_orphan_tasks(struct xio_tasks_pool *pool)
+{
+	struct xio_task *ptask;
+	int cnt = 0;
+
+	list_for_each_entry(ptask,
+			    &pool->orphans_list,
+			    tasks_list_entry) {
+		cnt++;
+	}
+	if (cnt)
+		ERROR_LOG("%s - ctx%p, flushing %d orphan tasks\n",
+			  pool->params.pool_name,
+			  pool->params.xio_context, cnt);
+
+	xio_tasks_list_flush(&pool->orphans_list);
 }
 
 #endif

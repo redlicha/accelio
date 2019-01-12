@@ -231,6 +231,7 @@ struct xio_tasks_pool *xio_tasks_pool_create(
 	INIT_LIST_HEAD(&q->stack);
 	INIT_LIST_HEAD(&q->slabs_list);
 	INIT_LIST_HEAD(&q->on_hold_list);
+	INIT_LIST_HEAD(&q->orphans_list);
 
 	memcpy(&q->params, params, sizeof(*params));
 
@@ -270,6 +271,8 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 {
 	struct xio_tasks_slab	*pslab, *next_pslab;
 	unsigned int		i;
+
+	xio_tasks_pool_flush_orphan_tasks(q);
 
 	list_for_each_entry_safe(pslab, next_pslab, &q->slabs_list,
 				 slabs_list_entry) {

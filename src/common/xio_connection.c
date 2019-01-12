@@ -1269,6 +1269,12 @@ int xio_send_response(struct xio_msg *msg)
 		task	   = container_of(pmsg->request, struct xio_task, imsg);
 		connection = task->connection;
 		if (unlikely(!connection)) {
+			/* connection already destroyed */
+			if (xio_tasks_pool_is_orphan_task(task)) {
+				xio_tasks_pool_free_orphan_task(task);
+				xio_set_error(ESHUTDOWN);
+				return -1;
+			}
 			ERROR_LOG("sending response after connection destroyed is prohibited, " \
 				  "connection:%p\n", connection);
 			xio_set_error(EINVAL);
@@ -1756,6 +1762,11 @@ int xio_release_response(struct xio_msg *msg)
 
 		connection = task->connection;
 		if (unlikely(!connection)) {
+			if (xio_tasks_pool_is_orphan_task(task)) {
+				xio_tasks_pool_free_orphan_task(task);
+				xio_set_error(ESHUTDOWN);
+				return -1;
+			}
 			ERROR_LOG("%s failed. response release after " \
 				  "connection destroy is forbidden\n",
 				  __func__);
@@ -2688,6 +2699,7 @@ int xio_connection_destroy(struct xio_connection *connection)
 						 tasks_list_entry) {
 				if (!ptask->on_hold)
 					pending++;
+				xio_tasks_pool_add_orphan_task(ptask);
 			}
 			if (pending)
 				ERROR_LOG("%d tasks still pending. connection:%p\n",
