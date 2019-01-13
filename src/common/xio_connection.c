@@ -1212,7 +1212,7 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 
 
 /*---------------------------------------------------------------------------*/
-/* xio_send_response_error							     */
+/* xio_send_response_error						     */
 /*---------------------------------------------------------------------------*/
 int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 {
@@ -1226,8 +1226,10 @@ int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 	msg->request = msg;
 	msg->out.data_tbl.nents = 0;
 	msg->out.header.iov_len = 0;
+	/* same task that use to request -now used for response too */
 	task	   = container_of(msg->request, struct xio_task, imsg);
 	task->status = result;
+	xio_task_addref(task);
 	xio_send_single_rsp(msg, task);
 	return 0;
 }

@@ -276,7 +276,7 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 	struct xio_task *task;
 	struct xio_msg *msg;
 	unsigned int i;
-	
+
 	xio_tasks_pool_flush_orphan_tasks(q);
 
 	list_for_each_entry_safe(pslab, next_pslab, &q->slabs_list,
