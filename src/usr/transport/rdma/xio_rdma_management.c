@@ -121,6 +121,7 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl);
 static void on_cm_timewait_exit(void *trans_hndl);
 static void on_post_disconnected(void *trans_hndl);
+int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl, int send_beacon);
 
 /*---------------------------------------------------------------------------*/
 /* xio_rdma_dump_tasks_queues						     */
@@ -1693,6 +1694,7 @@ static int xio_rdma_phantom_pool_slab_init_task(
 static int xio_rdma_phantom_pool_create(struct xio_rdma_transport *rdma_hndl)
 {
 	struct xio_tasks_pool_params	params;
+	int retval;
 
 	memset(&params, 0, sizeof(params));
 	params.pool_name		   = xio_context_ustrdup(rdma_hndl->base.ctx,
@@ -1725,6 +1727,11 @@ static int xio_rdma_phantom_pool_create(struct xio_rdma_transport *rdma_hndl)
 	return 0;
 
 cleanup:
+	retval = xio_rdma_disconnect(rdma_hndl, 0);
+	if (retval)
+		ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
+				rdma_hndl);
+
 	return -1;
 }
 
@@ -2693,7 +2700,7 @@ static void on_cm_device_release(struct rdma_cm_event *ev,
 static void on_cm_error(struct rdma_cm_event *ev,
 			struct xio_rdma_transport *rdma_hndl)
 {
-	int	reason;
+	int	reason, retval;
 
 	DEBUG_LOG("rdma transport [error] %s, rdma_hndl:%p\n",
 		  rdma_event_str(ev->event), rdma_hndl);
@@ -2715,6 +2722,13 @@ static void on_cm_error(struct rdma_cm_event *ev,
 		reason = XIO_E_NOT_SUPPORTED;
 		break;
 	};
+	if (rdma_hndl->state == XIO_TRANSPORT_STATE_CONNECTED) {
+		rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
+		retval = xio_rdma_disconnect(rdma_hndl, 0);
+		if (retval)
+			ERROR_LOG("rdma_hndl:%p rdma_disconnect failed, %m\n",
+					rdma_hndl);
+	}
 	xio_transport_notify_observer_error(&rdma_hndl->base, reason);
 }
 
