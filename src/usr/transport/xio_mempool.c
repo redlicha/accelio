@@ -689,9 +689,7 @@ retry:
 #endif
 
 cleanup:
-#ifdef DEBUG_MEMPOOL_MT
 	xio_mempool_dump(p);
-#endif
 	xio_set_error(err);
 	return ret;
 }
@@ -722,6 +720,7 @@ void xio_mempool_free(struct xio_reg_mem *reg_mem)
 		safe_release(block->parent_slab, block);
 	else
 		non_safe_release(block->parent_slab, block);
+	reg_mem->priv = NULL;
 }
 
 /*---------------------------------------------------------------------------*/

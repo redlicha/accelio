@@ -3484,11 +3484,13 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 	void			*osgtbl;
 	void			*sg;
 	struct scatterlist	*sgl;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read the response header */
 	retval = xio_rdma_read_rsp_header(rdma_hndl, task, &rsp_hdr);
 	if (retval != 0) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 	/* update receive + send window */
@@ -3751,7 +3753,11 @@ cleanup:
 	retval = xio_errno();
 	ERROR_LOG("xio_rdma_on_recv_rsp failed. (errno=%d %s)\n",
 		  retval, xio_strerror(retval));
-	xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&rdma_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
 
 	return -1;
 }
@@ -4021,11 +4027,13 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
 	void			*sg;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read header */
 	retval = xio_rdma_read_req_header(rdma_hndl, task, &req_hdr);
 	if (unlikely(retval)) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 
@@ -4137,7 +4145,12 @@ cleanup:
 	retval = xio_errno();
 	ERROR_LOG("xio_rdma_on_recv_req failed. (errno=%d %s)\n", retval,
 		  xio_strerror(retval));
-	xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&rdma_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
+
 
 	return -1;
 }
@@ -5116,11 +5129,13 @@ static int xio_rdma_on_recv_cancel_req(struct xio_rdma_transport *rdma_hndl,
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
 	void			*sg;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read header */
 	retval = xio_rdma_read_req_header(rdma_hndl, task, &req_hdr);
 	if (retval != 0) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 	if (rdma_hndl->exp_sn == req_hdr.sn) {
@@ -5166,7 +5181,12 @@ cleanup:
 	retval = xio_errno();
 	ERROR_LOG("xio_rdma_on_recv_req failed. (errno=%d %s)\n", retval,
 		  xio_strerror(retval));
-	xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&rdma_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&rdma_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
+
 
 	return -1;
 }

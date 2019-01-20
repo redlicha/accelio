@@ -274,6 +274,11 @@ int xio_tasks_pool_alloc_slab(struct xio_tasks_pool *q, void *context);
 void xio_tasks_pool_dump_used(struct xio_tasks_pool *q);
 
 /*---------------------------------------------------------------------------*/
+/* xio_tasks_pool_dump_tasks_queues					     */
+/*---------------------------------------------------------------------------*/
+void xio_tasks_pool_dump_tasks_queues(struct xio_tasks_pool *q);
+
+/*---------------------------------------------------------------------------*/
 /* xio_tasks_pool_get							     */
 /*---------------------------------------------------------------------------*/
 static inline struct xio_task *xio_tasks_pool_get(

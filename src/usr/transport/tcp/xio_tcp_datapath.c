@@ -2419,11 +2419,13 @@ static int xio_tcp_on_recv_req_header(struct xio_tcp_transport *tcp_hndl,
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
 	void			*sg;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read header */
 	retval = xio_tcp_read_req_header(tcp_hndl, task, &req_hdr);
 	if (retval != 0) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 
@@ -2519,7 +2521,11 @@ cleanup:
 	retval = xio_errno(); /* no need get_last_socket_error() */
 	ERROR_LOG("xio_tcp_on_recv_req failed. (errno=%d %s)\n", retval,
 		  xio_strerror(retval));
-	xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&tcp_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
 
 	return -1;
 }
@@ -2573,11 +2579,13 @@ static int xio_tcp_on_recv_rsp_header(struct xio_tcp_transport *tcp_hndl,
 	struct xio_sg_table_ops	*isgtbl_ops;
 	void			*isgtbl;
 	void			*sg;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read the response header */
 	retval = xio_tcp_read_rsp_header(tcp_hndl, task, &rsp_hdr);
 	if (retval != 0) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 	/* read the sn */
@@ -2694,7 +2702,12 @@ cleanup:
 	retval = xio_errno();
 	ERROR_LOG("xio_tcp_on_recv_rsp failed. (errno=%d %s)\n",
 		  retval, xio_strerror(retval));
-	xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&tcp_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
+
 
 	return -1;
 }
@@ -3065,11 +3078,13 @@ static int xio_tcp_on_recv_cancel_req_header(
 	struct xio_msg		*imsg;
 	void			*ulp_hdr;
 	int			retval = 0;
+	int			header_err = 1; /* temporary do not activate */
 
 	/* read header */
 	retval = xio_tcp_read_req_header(tcp_hndl, task, &req_hdr);
 	if (retval != 0) {
 		xio_set_error(XIO_E_MSG_INVALID);
+		header_err = 1;
 		goto cleanup;
 	}
 
@@ -3092,7 +3107,11 @@ cleanup:
 	retval = xio_errno(); /* no need get_last_socket_error() */
 	ERROR_LOG("recv_cancel_req_header failed. (errno=%d %s)\n", retval,
 		  xio_strerror(retval));
-	xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	if (header_err)
+		xio_transport_notify_observer_error(&tcp_hndl->base, retval);
+	else
+		xio_transport_notify_message_error(&tcp_hndl->base, task,
+				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
 
 	return -1;
 }

@@ -272,6 +272,11 @@ void xio_tasks_pool_destroy(struct xio_tasks_pool *q)
 	struct xio_tasks_slab	*pslab, *next_pslab;
 	unsigned int		i;
 
+
+	if (!list_empty(&q->on_hold_list) ||
+	    !list_empty(&q->orphans_list))
+		xio_tasks_pool_dump_tasks_queues(q);
+
 	xio_tasks_pool_flush_orphan_tasks(q);
 
 	list_for_each_entry_safe(pslab, next_pslab, &q->slabs_list,
@@ -356,12 +361,14 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 
 	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
 		for (i = 0; i < pslab->nr; i++)
-			if (pslab->array[i]->tlv_type != 0xdead) {
+			if (pslab->array[i]->tlv_type != 0xdead ||
+			    pslab->array[i]->tlv_type != 0xbeef) {
 				pool_name = q->params.pool_name ?
 					q->params.pool_name : "unknown";
-				ERROR_LOG("pool_name:%s: in use: task:%p, " \
+				ERROR_LOG("pool_name:%s: [%d] - task:%p, " \
 					  "type:0x%x, on_hold:%d\n",
 					  pool_name,
+					  i,
 					  pslab->array[i],
 					  pslab->array[i]->tlv_type,
 					  pslab->array[i]->on_hold);
@@ -369,3 +376,21 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 	}
 }
 
+/*---------------------------------------------------------------------------*/
+/* xio_tasks_pool_dump_tasks_queues					     */
+/*---------------------------------------------------------------------------*/
+void xio_tasks_pool_dump_tasks_queues(struct xio_tasks_pool *q)
+{
+	DEBUG_LOG("#################################################################\n");
+	if (!list_empty(&q->on_hold_list)) {
+		xio_dump_task_list("tasks_pool", q,
+				   &q->on_hold_list,
+				   "on_hold_list");
+	}
+	if (!list_empty(&q->orphans_list)) {
+		xio_dump_task_list("tasks_pool", q,
+				   &q->orphans_list,
+				   "orphans_list");
+	}
+	DEBUG_LOG("#################################################################\n");
+}

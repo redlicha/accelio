@@ -374,3 +374,21 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 	}
 }
 
+/*---------------------------------------------------------------------------*/
+/* xio_tasks_pool_dump_tasks_queues					     */
+/*---------------------------------------------------------------------------*/
+void xio_tasks_pool_dump_tasks_queues(struct xio_tasks_pool *q)
+{
+	DEBUG_LOG("#################################################################\n");
+	if (!list_empty(&q->on_hold_list)) {
+		xio_dump_task_list("tasks_pool", q,
+				   &q->on_hold_list,
+				   "on_hold_list");
+	}
+	if (!list_empty(&q->orphans_list)) {
+		xio_dump_task_list("tasks_pool", q,
+				   &q->orphans_list,
+				   "orphans_list");
+	}
+	DEBUG_LOG("#################################################################\n");
+}

@@ -337,12 +337,14 @@ static inline void xio_transport_notify_observer_error(
 static inline void xio_transport_notify_message_error(
 				struct xio_transport_base *trans_hndl,
 				struct xio_task *task,
+				enum xio_msg_direction	direction,
 				enum xio_status reason)
 {
 	union xio_transport_event_data ev_data;
 
 	ev_data.msg_error.task		= task;
 	ev_data.msg_error.reason	= reason;
+	ev_data.msg_error.direction	= direction;
 
 	xio_observable_notify_all_observers(&trans_hndl->observable,
 					    XIO_TRANSPORT_EVENT_MESSAGE_ERROR,
