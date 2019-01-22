@@ -3646,7 +3646,7 @@ int xio_on_connection_ka_rsp_recv(struct xio_connection *connection,
 	retval = xio_ctx_add_delayed_work(
 				connection->ctx,
 				1000 * connection->ka.options.time, connection,
-				xio_connection_keepalive_time,
+				xio_connection_keepalive_start,
 				&connection->ka.timer);
 	if (retval != 0) {
 		ERROR_LOG("periodic keepalive failed - abort\n");
