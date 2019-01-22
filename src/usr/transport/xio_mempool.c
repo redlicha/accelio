@@ -617,14 +617,12 @@ int xio_mempool_alloc(struct xio_mempool *p, size_t length,
 	int			index;
 	struct xio_mem_slab	*slab;
 	struct xio_mem_block	*block;
-	int			ret = 0;
 	int			err = 0;
 
 	index = size2index(p, length);
 retry:
 	if (index == -1) {
 		err = err ? err : EINVAL;
-		ret = -1;
 		reg_mem->addr	= NULL;
 		reg_mem->mr	= NULL;
 		reg_mem->priv	= NULL;
@@ -662,7 +660,6 @@ retry:
 
 				if (p->safe_mt)
 					spin_unlock(&slab->lock);
-				ret = 0;
 				DEBUG_LOG("retry with next slab index :%d\n", index);
 				goto retry;
 			}
@@ -687,11 +684,13 @@ retry:
 #else
 	slab->used_mb_nr++;
 #endif
+	return 0;
 
 cleanup:
+        ERROR_LOG("%s failed. pool:%p, size:%zd\n", p, length);
 	xio_mempool_dump(p);
 	xio_set_error(err);
-	return ret;
+	return -1;
 }
 
 /*---------------------------------------------------------------------------*/
