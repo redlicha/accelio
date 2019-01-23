@@ -2175,14 +2175,7 @@ static int xio_tcp_task_pre_put(
 	/* recycle TCP  buffers back to pool */
 
 	/* put buffers back to pool */
-
-	for (i = 0; i < tcp_task->read_num_reg_mem; i++) {
-		if (tcp_task->read_reg_mem[i].priv) {
-			xio_mempool_free(&tcp_task->read_reg_mem[i]);
-			tcp_task->read_reg_mem[i].priv = NULL;
-		}
-	}
-	tcp_task->read_num_reg_mem = 0;
+	xio_free_rdma_read_mem(tcp_hndl, task);
 
 	for (i = 0; i < tcp_task->write_num_reg_mem; i++) {
 		if (tcp_task->write_reg_mem[i].priv) {

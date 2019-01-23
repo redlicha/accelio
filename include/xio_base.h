@@ -677,6 +677,18 @@ struct xio_session_ops {
 				  void *conn_user_context);
 
 	/**
+	 * notify the user to unassign a data buffer for incoming read
+	 *
+	 *  @param[in] msg			the incoming message
+	 *  @param[in] conn_user_context	user private data provided in
+	 *					connection open on which
+	 *					the message send
+	 *  @return 0
+	 */
+	int (*unassign_data_in_buf)(struct xio_msg *msg,
+				  void *conn_user_context);
+
+	/**
 	 * sender's send completion notification - one way message only
 	 *
 	 *  @param[in] session			the session

@@ -420,6 +420,16 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 }
 
 /*---------------------------------------------------------------------------*/
+/* unassign_data_in_buf							     */
+/*---------------------------------------------------------------------------*/
+int unassign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+{
+	vmsg_sglist_set_nents(&msg->in, 0);
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* callbacks								     */
 /*---------------------------------------------------------------------------*/
 static struct xio_session_ops ses_ops = {
@@ -428,7 +438,8 @@ static struct xio_session_ops ses_ops = {
 	.on_msg_delivered		=  on_msg_delivered,
 	.on_msg				=  on_response,
 	.on_msg_error			=  on_msg_error,
-	.assign_data_in_buf		=  assign_data_in_buf
+	.assign_data_in_buf		=  assign_data_in_buf,
+	.unassign_data_in_buf		=  unassign_data_in_buf
 };
 
 /*---------------------------------------------------------------------------*/

@@ -301,6 +301,17 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 }
 
 /*---------------------------------------------------------------------------*/
+/* unassign_data_in_buf							     */
+/*---------------------------------------------------------------------------*/
+static int unassign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+{
+	int			nents = msg->in.data_tbl.nents;
+
+	msg->in.data_tbl.nents = 0;
+
+	return 0;
+}
+/*---------------------------------------------------------------------------*/
 /* callbacks								     */
 /*---------------------------------------------------------------------------*/
 static struct xio_session_ops server_ops = {
@@ -309,7 +320,8 @@ static struct xio_session_ops server_ops = {
 	.on_msg_send_complete		=  on_send_response_complete,
 	.on_msg				=  on_request,
 	.on_msg_error			=  on_msg_error,
-	.assign_data_in_buf		=  assign_data_in_buf
+	.assign_data_in_buf		=  assign_data_in_buf,
+	.unassign_data_in_buf		=  unassign_data_in_buf
 };
 
 /*---------------------------------------------------------------------------*/

@@ -96,8 +96,6 @@ union xio_nexus_event_data {
 	} msg;
 	struct {
 		struct xio_task		*task;
-		int			is_assigned;
-		int			pad;
 	} assign_in_buf;
 	struct {
 		struct xio_task		*task;

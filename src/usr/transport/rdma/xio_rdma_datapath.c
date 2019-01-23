@@ -2835,10 +2835,7 @@ static int xio_rdma_prep_req_in_data(
 	return 0;
 
 cleanup:
-	for (i = 0; i < rdma_task->read_num_reg_mem; i++)
-		xio_mempool_free(&rdma_task->read_reg_mem[i]);
-
-	rdma_task->req_in_num_sge = 0;
+	xio_free_rdma_rd_mem(rdma_hndl, task);
 	xio_set_error(EMSGSIZE);
 
 	return -1;
@@ -3977,6 +3974,33 @@ static inline void xio_set_msg_in_data_iovec(struct xio_task *task,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_free_rdma_rd_mem							     */
+/*---------------------------------------------------------------------------*/
+void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
+			  struct xio_task *task)
+{
+	XIO_TO_RDMA_TASK(task, rdma_task);
+
+	unsigned int		i;
+
+	if (task->is_assigned) {
+		if (task->unassign_data_in_buf)
+			task->unassign_data_in_buf(&task->imsg,
+						   task->unassign_user_context);
+		task->is_assigned = 0;
+		task->unassign_data_in_buf = NULL;
+		task->unassign_user_context = NULL;
+		clr_bits(XIO_MSG_HINT_ASSIGNED_DATA_IN_BUF, &task->imsg.hints);
+	} else {
+		for (i = 0; i < rdma_task->read_num_reg_mem; i++) {
+			xio_mempool_free(&rdma_task->read_reg_mem[i]);
+			rdma_task->read_reg_mem[i].priv = NULL;
+		}
+		rdma_task->read_num_reg_mem = 0;
+	}
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_sched_rdma_rd							     */
 /*---------------------------------------------------------------------------*/
 static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
@@ -3986,7 +4010,6 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 
 	unsigned int		i;
 	int			retval;
-	int			user_assign_flag = 0;
 	size_t			llen = 0, rlen = 0;
 	int			tasks_used = 0;
 	struct xio_sge		lsg_list[XIO_MAX_IOV];
@@ -4039,9 +4062,9 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 	sgtbl_ops	= (struct xio_sg_table_ops *)
 				xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
-	xio_transport_assign_in_buf(&rdma_hndl->base, task, &user_assign_flag);
-
-	if (user_assign_flag) {
+	task->is_assigned = 0;
+	xio_transport_assign_in_buf(&rdma_hndl->base, task);
+	if (task->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {
 			WARN_LOG("application has not provided buffers\n");
@@ -4171,10 +4194,7 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 	return 0;
 cleanup:
 	xio_set_error(task->status);
-	for (i = 0; i < rdma_task->read_num_reg_mem; i++)
-		xio_mempool_free(&rdma_task->read_reg_mem[i]);
-
-	rdma_task->read_num_reg_mem = 0;
+	xio_free_rdma_rd_mem(rdma_hndl, task);
 
 	return -1;
 }

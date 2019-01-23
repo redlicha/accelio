@@ -3813,9 +3813,9 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 	sgtbl		= xio_sg_table_get(&task->imsg.in);
 	sgtbl_ops	= xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
-	xio_transport_assign_in_buf(&rdma_hndl->base, task, &user_assign_flag);
+	xio_transport_assign_in_buf(&rdma_hndl->base, task);
 
-	if (user_assign_flag) {
+	if (task->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {
 			WARN_LOG("application has not provided buffers\n");

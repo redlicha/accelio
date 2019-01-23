@@ -107,7 +107,7 @@ struct xio_transport *xio_get_transport(const char *name)
 /* xio_transport_assign_in_buf						     */
 /*---------------------------------------------------------------------------*/
 int xio_transport_assign_in_buf(struct xio_transport_base *trans_hndl,
-				struct xio_task *task, int *is_assigned)
+				struct xio_task *task)
 {
 	union xio_transport_event_data event_data = {};
 
@@ -117,7 +117,6 @@ int xio_transport_assign_in_buf(struct xio_transport_base *trans_hndl,
 				      XIO_TRANSPORT_EVENT_ASSIGN_IN_BUF,
 				      &event_data);
 
-	*is_assigned = event_data.assign_in_buf.is_assigned;
 	return 0;
 }
 EXPORT_SYMBOL(xio_transport_assign_in_buf);

@@ -78,7 +78,8 @@ struct xio_task {
 	uint32_t                magic;
 	int32_t                 status;
 	uint32_t                on_hold:1;
-	uint32_t                pad:31;
+	uint32_t                is_assigned:1;
+	uint32_t                pad:30;
 
 	void			*pool;
 	void			*slab;
@@ -91,6 +92,9 @@ struct xio_task {
 						/* receipt */
 	struct xio_msg		*omsg;		/* pointer from user */
 	struct xio_msg		imsg;		/* message to the user */
+
+	int 			(*unassign_data_in_buf)(struct xio_msg *msg, void *user_context);
+	void			*unassign_user_context;
 };
 
 struct xio_tasks_pool_hooks {

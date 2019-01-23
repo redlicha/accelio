@@ -1530,18 +1530,9 @@ static int xio_rdma_task_pre_put(
 	unsigned int	i;
 
 	/* recycle RDMA  buffers back to pool */
+	xio_free_rdma_rd_mem((struct xio_rdma_transport *)trans_hndl, task);
 
 	/* put buffers back to pool */
-	if (rdma_task->read_num_reg_mem) {
-		for (i = 0; i < rdma_task->read_num_reg_mem; i++) {
-			if (rdma_task->read_reg_mem[i].priv) {
-				xio_mempool_free(&rdma_task->read_reg_mem[i]);
-				rdma_task->read_reg_mem[i].priv = NULL;
-			}
-		}
-		rdma_task->read_num_reg_mem = 0;
-	}
-
 	if (rdma_task->write_num_reg_mem) {
 		for (i = 0; i < rdma_task->write_num_reg_mem; i++) {
 			if (rdma_task->write_reg_mem[i].priv) {

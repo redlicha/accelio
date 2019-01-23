@@ -2200,15 +2200,7 @@ static int xio_tcp_task_pre_put(struct xio_transport_base *trans_hndl,
 	/* recycle TCP  buffers back to pool */
 
 	/* put buffers back to pool */
-
-	for (i = 0; i < tcp_task->read_num_mp_mem; i++) {
-		if (tcp_task->read_mp_mem[i].cache) {
-			xio_mempool_free_mp(&tcp_task->read_mp_mem[i]);
-			tcp_task->read_mp_mem[i].cache = NULL;
-		}
-	}
-
-	tcp_task->read_num_mp_mem = 0;
+	xio_free_rdma_read_mem(tcp_hndl, tcp_task);
 
 	for (i = 0; i < tcp_task->write_num_mp_mem; i++) {
 		if (tcp_task->write_mp_mem[i].cache) {

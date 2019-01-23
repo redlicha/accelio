@@ -1812,25 +1812,6 @@ static int xio_tcp_read_rsp_header(struct xio_tcp_transport *tcp_hndl,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_tcp_notify_assign_in_buf						     */
-/*---------------------------------------------------------------------------*/
-static int xio_tcp_assign_in_buf(struct xio_tcp_transport *tcp_hndl,
-				 struct xio_task *task, int *is_assigned)
-{
-	union xio_transport_event_data event_data = {
-			.assign_in_buf.task	   = task,
-			.assign_in_buf.is_assigned = 0
-	};
-
-	xio_transport_notify_observer(&tcp_hndl->base,
-				      XIO_TRANSPORT_EVENT_ASSIGN_IN_BUF,
-				      &event_data);
-
-	*is_assigned = event_data.assign_in_buf.is_assigned;
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
 /* xio_tcp_recv_ctl_work						     */
 /*---------------------------------------------------------------------------*/
 int xio_tcp_recv_ctl_work(struct xio_tcp_transport *tcp_hndl,
@@ -2013,6 +1994,35 @@ void xio_tcp_dual_sock_set_rxd(struct xio_task *task,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_free_rdma_read_mem						     */
+/*---------------------------------------------------------------------------*/
+void xio_free_rdma_read_mem(struct xio_tcp_transport *tcp_hndl,
+			  struct xio_task *task)
+{
+	XIO_TO_TCP_TASK(task, tcp_task);
+
+	unsigned int		i;
+
+	if (task->is_assigned) {
+		if (task->unassign_data_in_buf)
+			task->unassign_data_in_buf(&task->imsg,
+						   task->unassign_user_context);
+		task->is_assigned = 0;
+		task->unassign_data_in_buf = NULL;
+		task->unassign_user_context = NULL;
+		clr_bits(XIO_MSG_HINT_ASSIGNED_DATA_IN_BUF, &task->imsg.hints);
+	} else {
+		for (i = 0; i < tcp_task->read_num_mp_mem; i++) {
+			if (tcp_task->read_mp_mem[i].cache) {
+				xio_mempool_free_mp(&tcp_task->read_mp_mem[i]);
+				tcp_task->read_mp_mem[i].cache = NULL;
+			}
+		}
+		tcp_task->read_num_mp_mem = 0;
+	}
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_tcp_rd_req_header						     */
 /*---------------------------------------------------------------------------*/
 static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
@@ -2060,8 +2070,8 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 	sgtbl		= xio_sg_table_get(&task->imsg.in);
 	sgtbl_ops	= xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
-	xio_tcp_assign_in_buf(tcp_hndl, task, &user_assign_flag);
-	if (user_assign_flag) {
+	xio_transport_assign_in_buf(tcp_hndl, task);
+	if (tcp->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {
 			WARN_LOG("application has not provided buffers\n");
@@ -2157,12 +2167,8 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 
 	return 0;
 cleanup:
-	for (i = 0; i < tcp_task->read_num_mp_mem; i++) {
-		if (tcp_task->read_mp_mem[i].cache)
-			xio_mempool_free_mp(&tcp_task->read_mp_mem[i]);
-	}
 
-	tcp_task->read_num_mp_mem = 0;
+	xio_free_rdma_read_mem(tcp_hndl, task);
 	return -1;
 }
 
@@ -2570,12 +2576,7 @@ static int xio_tcp_on_recv_rsp_data(struct xio_tcp_transport *tcp_hndl,
 				tbl_copy(osgtbl_ops, osgtbl,
 					 isgtbl_ops, isgtbl);
 				/* put buffers back to pool */
-				for (i = 0; i < tcp_sender_task->read_num_mp_mem;
-						i++) {
-					xio_mempool_free_mp(
-						&tcp_sender_task->read_mp_mem[i]);
-				}
-				tcp_sender_task->read_num_mp_mem = 0;
+				xio_free_rdma_read_mem(tcp_hndl, tcp_sender_task);
 			} else {
 				/* use provided only length - set user
 				 * pointers */
@@ -3155,12 +3156,7 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr,
 			DEBUG_LOG("tcp transport got EOF, tcp_hndl=%p\n",
 				  tcp_hndl);
 			if (tcp_task->out_tcp_op == XIO_TCP_READ) { /*TODO needed?*/
-				for (i = 0; i < tcp_task->read_num_mp_mem; i++) {
-					if (tcp_task->read_mp_mem[i].cache)
-						xio_mempool_free_mp(
-							&tcp_task->read_mp_mem[i]);
-				}
-				tcp_task->read_num_mp_mem = 0;
+				xio_free_rdma_read_mem(tcp_hndl, tcp_task);
 			}
 			xio_tcp_disconnect_helper(tcp_hndl);
 			return -1;

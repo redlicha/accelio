@@ -507,5 +507,7 @@ void xio_tcp_accept_connections(void *user_data);
 void xio_tcp_ctl_conn_established_ev_handler(void *user_context);
 void xio_tcp_data_conn_established_ev_handler(void *user_context);
 void xio_tcp_pending_conn_remove_handler(void *user_data);
+void xio_free_rdma_read_mem(struct xio_tcp_transport *tcp_hndl,
+			  struct xio_task *task);
 
 #endif /* XIO_TCP_TRANSPORT_H_ */

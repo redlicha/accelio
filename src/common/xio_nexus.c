@@ -1656,9 +1656,6 @@ static int xio_nexus_on_assign_in_buf(struct xio_nexus *nexus,
 			XIO_NEXUS_EVENT_ASSIGN_IN_BUF,
 			&nexus_event_data);
 
-	event_data->assign_in_buf.is_assigned =
-		nexus_event_data.assign_in_buf.is_assigned;
-
 	return retval;
 }
 

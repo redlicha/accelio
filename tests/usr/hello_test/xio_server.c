@@ -300,6 +300,25 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 }
 
 /*---------------------------------------------------------------------------*/
+/* unassign_data_in_buf							     */
+/*---------------------------------------------------------------------------*/
+static int unassign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+{
+	struct test_params *test_params = (struct test_params *)cb_user_context;
+	struct xio_iovec_ex	*sglist = vmsg_sglist(&msg->in);
+	int			nents = vmsg_sglist_nents(&msg->in);
+	int i;
+
+	for (i = 0; i < nents; i++) {
+		sglist[i].iov_base = test_params->reg_mem.addr;
+		sglist[i].mr = test_params->reg_mem.mr;
+	}
+	vmsg_sglist_set_nents(&msg->in, 0);
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* callbacks								     */
 /*---------------------------------------------------------------------------*/
 static struct xio_session_ops server_ops = {
@@ -308,7 +327,8 @@ static struct xio_session_ops server_ops = {
 	.on_msg_send_complete		=  on_send_response_complete,
 	.on_msg				=  on_request,
 	.on_msg_error			=  on_msg_error,
-	.assign_data_in_buf		=  assign_data_in_buf
+	.assign_data_in_buf		=  assign_data_in_buf,
+	.unassign_data_in_buf		=  unassign_data_in_buf
 };
 
 /*---------------------------------------------------------------------------*/

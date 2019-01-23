@@ -244,6 +244,22 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 }
 
 /*---------------------------------------------------------------------------*/
+/* unassign_data_in_buf							     */
+/*---------------------------------------------------------------------------*/
+int unassign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+{
+	struct xio_iovec_ex	*sglist = vmsg_sglist(&msg->in);
+
+	vmsg_sglist_set_nents(&msg->in, 0);
+
+	sglist[0].iov_base = NULL;
+	sglist[0].mr = NULL;
+	sglist[0].iov_len = 0;
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
 /* callbacks								     */
 /*---------------------------------------------------------------------------*/
 static struct xio_session_ops server_ops = {
@@ -252,7 +268,8 @@ static struct xio_session_ops server_ops = {
 	.on_msg_send_complete		=  NULL,
 	.on_msg				=  on_request,
 	.on_msg_error			=  on_msg_error,
-	.assign_data_in_buf		=  assign_data_in_buf
+	.assign_data_in_buf		=  assign_data_in_buf,
+	.unassign_data_in_buf		=  unassign_data_in_buf
 };
 
 /*---------------------------------------------------------------------------*/
