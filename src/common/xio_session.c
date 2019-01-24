@@ -1615,18 +1615,18 @@ int xio_on_assign_in_buf(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+		task->unassign_user_context = NULL;
 		retval = connection->ses_ops.assign_data_in_buf(
 					&task->imsg,
-					connection->cb_user_context);
+					connection->cb_user_context,
+					&task->unassign_user_context);
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
 		task->is_assigned = (retval == 0);
-		if (task->is_assigned) {
+		if (task->is_assigned)
 			task->unassign_data_in_buf =
 				connection->ses_ops.unassign_data_in_buf;
-			task->unassign_user_context = connection->cb_user_context;
-		}
 		return 0;
 	}
 	task->is_assigned = 0;

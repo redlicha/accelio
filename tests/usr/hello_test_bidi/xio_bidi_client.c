@@ -404,7 +404,8 @@ static int on_msg_error(struct xio_session *session,
 /*---------------------------------------------------------------------------*/
 /* assign_data_in_buf							     */
 /*---------------------------------------------------------------------------*/
-static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context,
+			      void **unassign_user_context)
 {
 	struct xio_iovec_ex	*sglist = vmsg_sglist(&msg->in);
 
@@ -415,6 +416,7 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	sglist[0].iov_base = reg_mem.addr;
 	sglist[0].mr = reg_mem.mr;
 	sglist[0].iov_len = XIO_READ_BUF_LEN;
+	*unassign_user_context = cb_user_context;
 
 	return 0;
 }

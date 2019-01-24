@@ -671,22 +671,24 @@ struct xio_session_ops {
 	 *  @param[in] conn_user_context	user private data provided in
 	 *					connection open on which
 	 *					the message send
-	 *  @return 0
+	 *  @param[out] out_unassign_user_context user private data provided from callback
+	 *					provided to unassign function
+		 *  @return 0
 	 */
 	int (*assign_data_in_buf)(struct xio_msg *msg,
-				  void *conn_user_context);
+				  void *conn_user_context,
+				  void **out_unassign_user_context);
 
 	/**
 	 * notify the user to unassign a data buffer for incoming read
 	 *
 	 *  @param[in] msg			the incoming message
-	 *  @param[in] conn_user_context	user private data provided in
-	 *					connection open on which
-	 *					the message send
+	 *  @param[in] unassign_user_context	user private data provided in
+	 *					assign callback
 	 *  @return 0
 	 */
 	int (*unassign_data_in_buf)(struct xio_msg *msg,
-				  void *conn_user_context);
+				    void *unassign_user_context);
 
 	/**
 	 * sender's send completion notification - one way message only

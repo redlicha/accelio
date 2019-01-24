@@ -233,7 +233,8 @@ static int on_request(struct xio_session *session,
 /*---------------------------------------------------------------------------*/
 /* assign_data_in_buf							     */
 /*---------------------------------------------------------------------------*/
-int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context,
+			      void **unassign_user_context)
 {
 	struct thread_data	*tdata = (struct thread_data *)cb_user_context;
 	struct xio_iovec_ex	*sglist = vmsg_sglist(&msg->in);
@@ -246,6 +247,27 @@ int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 	sglist[0].iov_len	= reg_mem->length;
 	sglist[0].mr		= reg_mem->mr;
 	sglist[0].user_context	= reg_mem;
+	*unassign_user_context = cb_user_context;
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
+/* unassign_data_in_buf							     */
+/*---------------------------------------------------------------------------*/
+int unassign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+{
+	struct thread_data	*tdata = (struct thread_data *)cb_user_context;
+	struct xio_iovec_ex	*sglist = vmsg_sglist(&msg->in);
+
+	obj_pool_put(tdata->out_reg_mem_pool,
+			     sglist[0].user_context);
+
+	vmsg_sglist_set_nents(&msg->in, 0);
+
+	sglist[0].iov_base = NULL;
+	sglist[0].mr = NULL;
+	sglist[0].iov_len = 0;
 
 	return 0;
 }

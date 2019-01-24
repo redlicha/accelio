@@ -316,7 +316,8 @@ static int on_request(struct xio_session *session,
 /*---------------------------------------------------------------------------*/
 /* assign_data_in_buf							     */
 /*---------------------------------------------------------------------------*/
-static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
+static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context,
+			      void **unassign_user_context)
 {
 	struct server_data	*sdata =
 					(struct server_data *)cb_user_context;
@@ -346,6 +347,7 @@ static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context)
 			sglist[i].mr		= sdata->in_xbuf.mr;
 		}
 	}
+	*unassign_user_context = cb_user_context;
 
 	return 0;
 }
