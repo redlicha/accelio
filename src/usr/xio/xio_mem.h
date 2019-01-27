@@ -69,6 +69,12 @@ static inline int xio_set_mem_allocator(struct xio_mem_allocator *allocator)
 	return 0;
 }
 
+static inline int xio_get_mem_allocator(struct xio_mem_allocator *allocator)
+{
+	memcpy(allocator, mem_allocator, sizeof(*allocator));
+	return 0;
+}
+
 static inline void *ucalloc(size_t nmemb, size_t size)
 {
 	void *ptr;

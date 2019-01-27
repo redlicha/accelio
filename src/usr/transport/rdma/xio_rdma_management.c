@@ -1530,7 +1530,7 @@ static int xio_rdma_task_pre_put(
 
 	/* recycle RDMA  buffers back to pool */
 	xio_free_rdma_task_mem(trans_hndl, task);
-	
+
 	/*
 	rdma_task->req_write_num_reg_mem	= 0;
 	rdma_task->rsp_write_num_reg_mem	= 0;
