@@ -96,6 +96,8 @@ static int xio_rdma_on_recv_rdma_read_ack(struct xio_rdma_transport *rdma_hndl,
 static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 			     struct xio_task *task);
 static int xio_rdma_post_recv_rsp(struct xio_task *task);
+static void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
+				 struct xio_task *task);
 
 /*---------------------------------------------------------------------------*/
 /* xio_post_recv							     */
@@ -1093,6 +1095,9 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_req_comp_handler(
 		event_data.msg.op		= XIO_WC_OP_RECV;
 		event_data.msg.task		= task;
 
+		if (task->status)
+			xio_free_rdma_task_mem(&rdma_hndl->base, task);
+
 		xio_transport_notify_observer(&rdma_hndl->base,
 					      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
 					      &event_data);
@@ -1115,6 +1120,9 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_req_comp_handler(
 				       &rdma_hndl->io_list);
 			event_data.msg.op	= XIO_WC_OP_RECV;
 			event_data.msg.task	= task;
+
+			if (task->status)
+				xio_free_rdma_task_mem(&rdma_hndl->base, task);
 
 			xio_transport_notify_observer(
 					&rdma_hndl->base,
@@ -1167,6 +1175,9 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_rsp_comp_handler(
 		event_data.msg.op		= XIO_WC_OP_RECV;
 		event_data.msg.task		= task;
 
+		if (task->status)
+			xio_free_rdma_task_mem(&rdma_hndl->base, task);
+
 		xio_transport_notify_observer(&rdma_hndl->base,
 					      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
 					      &event_data);
@@ -1189,6 +1200,9 @@ static XIO_F_ALWAYS_INLINE void xio_rdma_rd_rsp_comp_handler(
 				       &rdma_hndl->io_list);
 			event_data.msg.op	= XIO_WC_OP_RECV;
 			event_data.msg.task	= task;
+
+			if (task->status)
+				xio_free_rdma_task_mem(&rdma_hndl->base, task);
 
 			xio_transport_notify_observer(
 					&rdma_hndl->base,
@@ -3561,6 +3575,9 @@ msg_comp:
 	event_data.msg.op	= XIO_WC_OP_RECV;
 	event_data.msg.task	= task;
 
+	if (task->status)
+		xio_free_rdma_task_mem(&rdma_hndl->base, task);
+
 	/* notify the upper layer of received message */
 	xio_transport_notify_observer(&rdma_hndl->base,
 				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,
@@ -3998,6 +4015,31 @@ void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
 		}
 		rdma_task->read_num_reg_mem = 0;
 	}
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_free_rdma_task_mem 						     */
+/*---------------------------------------------------------------------------*/
+int xio_free_rdma_task_mem(struct xio_transport_base *trans_hndl,
+			   struct xio_task *task)
+{
+	XIO_TO_RDMA_TASK(task, rdma_task);
+	unsigned int	i;
+
+	/* recycle RDMA  buffers back to pool */
+	xio_free_rdma_rd_mem((struct xio_rdma_transport *)trans_hndl, task);
+
+	/* put buffers back to pool */
+	if (rdma_task->write_num_reg_mem) {
+		for (i = 0; i < rdma_task->write_num_reg_mem; i++) {
+			if (rdma_task->write_reg_mem[i].priv) {
+				xio_mempool_free(&rdma_task->write_reg_mem[i]);
+				rdma_task->write_reg_mem[i].priv = NULL;
+			}
+		}
+		rdma_task->write_num_reg_mem	= 0;
+	}
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -4503,6 +4545,9 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 	/* fill notification event */
 	event_data.msg.op	= XIO_WC_OP_RECV;
 	event_data.msg.task	= task;
+
+	if (task->status)
+		xio_free_rdma_task_mem(&rdma_hndl->base, task);
 
 	xio_transport_notify_observer(&rdma_hndl->base,
 				      XIO_TRANSPORT_EVENT_NEW_MESSAGE,

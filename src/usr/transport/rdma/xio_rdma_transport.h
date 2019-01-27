@@ -598,7 +598,7 @@ int xio_rkey_table_create(struct xio_device *old, struct xio_device *_new,
 
 void xio_rdma_poll_completions(struct xio_cq *tcq, int timeout_us);
 
-void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
-			  struct xio_task *task);
+int xio_free_rdma_task_mem(struct xio_transport_base *trans_hndl,
+			   struct xio_task *task);
 
 #endif  /* XIO_RDMA_TRANSPORT_H */
