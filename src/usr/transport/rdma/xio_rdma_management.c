@@ -2165,6 +2165,23 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 {
 	int				retval = 0;
 
+
+	if (rdma_hndl->cm_id != ev->id) {
+		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
+			 ", ev->id:%p\n", __func__, rdma_hndl, 
+			 rdma_hndl->cm_id, ev->id);
+		if (rdma_hndl->cm_id) {
+			DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
+				  rdma_hndl->cm_id, rdma_hndl);
+			retval = rdma_destroy_id(rdma_hndl->cm_id);
+			if (retval)
+				ERROR_LOG("rdma_destroy_id failed. cm_id:%p, " \
+					  "rdma_hndl:%p, (errno=%d %m)\n",
+					  rdma_hndl->cm_id, rdma_hndl, errno);
+		}
+		rdma_hndl->cm_id = ev->id;
+	}
+
 	rdma_hndl->dev = xio_device_lookup_init(rdma_hndl->base.ctx ,
 						rdma_hndl->cm_id->verbs);
 	if (!rdma_hndl->dev) {
@@ -2223,13 +2240,15 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 	}
 	if (rdma_hndl->cm_id != ev->id) {
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
-			 ", ev->id:%p\n", __func__, rdma_hndl, rdma_hndl->cm_id);
+			 ", ev->id:%p\n", __func__, rdma_hndl, 
+			 rdma_hndl->cm_id, ev->id);
 		if (rdma_hndl->cm_id) {
 			DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
 				  rdma_hndl->cm_id, rdma_hndl);
 			retval = rdma_destroy_id(rdma_hndl->cm_id);
 			if (retval)
-				ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
+				ERROR_LOG("rdma_destroy_id failed. cm_id:%p, " \
+					  "rdma_hndl:%p, (errno=%d %m)\n",
 					  rdma_hndl->cm_id, rdma_hndl, errno);
 		}
 		rdma_hndl->cm_id = ev->id;
