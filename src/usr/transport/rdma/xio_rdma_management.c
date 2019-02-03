@@ -2081,6 +2081,8 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 	xio_rdma_phantom_pool_destroy(rdma_hndl);
 
 	xio_qp_release(rdma_hndl);
+		
+	xio_context_ack_event(rdma_hndl->base.ctx);
 
 	if (rdma_hndl->cm_id) {
 		DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
@@ -2308,6 +2310,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	union xio_transport_event_data	event_data;
 	int				retval = 0;
 	struct xio_device		*dev;
+	struct rdma_cm_id		*cm_id = ev->id;
 
 	dev = xio_device_lookup_init(parent_hndl->base.ctx, ev->id->verbs);
 	if (!dev) {
@@ -2317,8 +2320,9 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			xio_set_error(errno);
 			DEBUG_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
 		}
-		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
-		retval = rdma_destroy_id(ev->id);
+		xio_context_ack_event(parent_hndl->base.ctx);
+		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", cm_id);
+		retval = rdma_destroy_id(cm_id);
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 ev->id, parent_hndl, errno);
@@ -2337,8 +2341,9 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			xio_set_error(errno);
 			DEBUG_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
 		}
-		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
-		retval = rdma_destroy_id(ev->id);
+		xio_context_ack_event(parent_hndl->base.ctx);
+		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", cm_id);
+		retval = rdma_destroy_id(cm_id);
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 ev->id, parent_hndl, errno);
@@ -2367,7 +2372,6 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
-		child_hndl->cm_id	= NULL;
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
 		retval = rdma_reject(ev->id, NULL, 0);
 		if (retval) {
@@ -2375,11 +2379,13 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			DEBUG_LOG("rdma_reject failed. rdma_hndl:%p, (errno=%d %m)\n",
 				  child_hndl, errno);
 		}
-		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", ev->id);
-		retval = rdma_destroy_id(ev->id);
+		xio_context_ack_event(parent_hndl->base.ctx);
+		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", child_hndl->cm_id);
+		retval = rdma_destroy_id(child_hndl->cm_id);
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 ev->id, child_hndl, errno);
+		child_hndl->cm_id	= NULL;
 		goto notify_err3;
 	}
 
@@ -2903,14 +2909,24 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_rdma_ack_event							     */
+/*---------------------------------------------------------------------------*/
+void xio_rdma_ack_event(void *cm_event)
+{
+	/* ack the event */
+	rdma_ack_cm_event((struct rdma_cm_event *)cm_event);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_cma_handler							     */
 /*---------------------------------------------------------------------------*/
 static void xio_cma_handler(int fd, int events, void *user_context)
 {
 	struct rdma_event_channel	*p_cm_channel =
 		(struct rdma_event_channel *)(user_context);
-	struct rdma_cm_event		*ev, lev;
+	struct rdma_cm_event		*ev;
 	struct xio_rdma_transport	*rdma_hndl;
+	struct xio_context		*ctx;
 	int				retval;
 
 	do {
@@ -2924,16 +2940,15 @@ static void xio_cma_handler(int fd, int events, void *user_context)
 					"(errno=%d %m)\n", errno);
 			break;
 		}
-
 		rdma_hndl = (struct xio_rdma_transport *)ev->id->context;
+		ctx	  = rdma_hndl->base.ctx;
 
-		lev = *ev;
-
-		/* ack the event */
-		rdma_ack_cm_event(ev);
+		xio_context_set_prv_event(ctx, ev, xio_rdma_ack_event);
 
 		/* and handle it */
-		xio_handle_cm_event(&lev, rdma_hndl);
+		xio_handle_cm_event(ev, rdma_hndl);
+
+		xio_context_ack_event(ctx);
 	} while (1);
 }
 
@@ -3099,6 +3114,7 @@ static struct xio_transport_base *xio_rdma_open(
 	return (struct xio_transport_base *)rdma_hndl;
 
 cleanup:
+	xio_context_ack_event(ctx);
 	if (rdma_hndl->cm_channel)
 		xio_cm_channel_release(rdma_hndl->cm_channel);
 
@@ -3420,6 +3436,7 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 	return 0;
 
 exit2:
+	xio_context_ack_event(rdma_hndl->base.ctx);
 	DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
 			rdma_hndl->cm_id, rdma_hndl);
 	retval = rdma_destroy_id(rdma_hndl->cm_id);
@@ -3494,6 +3511,7 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 		return -1;
 	}
 	xio_context_ufree(rdma_hndl->base.ctx, p);
+	xio_context_ack_event(rdma_hndl->base.ctx);
 
 	DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
 		  rdma_hndl->cm_id, rdma_hndl);
@@ -3537,6 +3555,7 @@ goto exit2;
 	return 0;
 
 exit2:
+	xio_context_ack_event(rdma_hndl->base.ctx);
 	DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
 		  rdma_hndl->cm_id, rdma_hndl);
 	retval = rdma_destroy_id(rdma_hndl->cm_id);
@@ -3613,6 +3632,7 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	return 0;
 
 exit2:
+	xio_context_ack_event(rdma_hndl->base.ctx);
 	DEBUG_LOG("call rdma_destroy_id cm_id:%p, rdma_hndl:%p\n",
 		  rdma_hndl->cm_id, rdma_hndl);
 	retval = rdma_destroy_id(rdma_hndl->cm_id);
