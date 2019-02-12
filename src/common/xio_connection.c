@@ -2705,7 +2705,9 @@ int xio_connection_destroy(struct xio_connection *connection)
 				xio_tasks_pool_add_orphan_task(ptask);
 			}
 			if (pending)
-				ERROR_LOG("%d tasks still pending. connection:%p\n",
+				WARN_LOG("%s - %d tasks still pending. " \
+					 "moving tasks to orphans list. connection:%p\n",
+					 __func__,
 					  pending, connection);
 		}
 		xio_idr_remove_uobj(usr_idr, connection);
