@@ -16,6 +16,9 @@
 #define _KREF_H_
 
 #include <linux/atomic.h>
+#include <linux/kernel.h>
+#include "libxio.h"
+#include "xio_log.h"
 
 #ifndef WARN_ON
 #define WARN_ON(a, _c)									\
@@ -46,7 +49,10 @@ static inline void kref_init(struct kref *kref)
  */
 static inline void kref_get(struct kref *kref)
 {
-	WARN_ON(!atomic_read(&kref->refcount), return;);
+	if (!atomic_read(&kref->refcount)) {
+		WARN_LOG("atomic_read(&kref->refcount) == 0\n");
+		return;
+	}
 	atomic_inc(&kref->refcount);
 }
 
@@ -97,12 +103,15 @@ static inline int kref_sub(struct kref *kref, unsigned int count,
  * memory.  Only use the return value if you want to see if the kref is now
  * gone, not present.
  */
-static inline int kref_put(struct kref *kref, void (*release)(struct kref *kref))
+static inline int _kref_put(struct kref *kref, void (*release)(struct kref *kref), const char *function, int line)
 {
-	WARN_ON(atomic_read(&kref->refcount) < 1, return 0;); 
+	if (atomic_read(&kref->refcount) < 1) {
+		WARN_LOG("[%s:%d] - atomic_read(&kref->refcount) < 1\n", function, line);
+		return 0 ;
+	}
 	return kref_sub(kref, 1, release);
 }
-
+#define kref_put(kref, release) _kref_put(kref, release, __func__, __LINE__)
 
 /**
    * kref_get_unless_zero - Increment refcount for object unless it is
