@@ -163,26 +163,26 @@ int xio_tcp_get_inline_buffer_size(void)
 static int xio_tcp_flush_all_tasks(struct xio_tcp_transport *tcp_hndl)
 {
 	if (!list_empty(&tcp_hndl->in_flight_list)) {
-		TRACE_LOG("in_flight_list not empty! tcp_hndl:%p\n", tcp_hndl);
+		DEBUG_LOG("in_flight_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_tasks_list_flush(&tcp_hndl->in_flight_list);
 	}
 
 	if (!list_empty(&tcp_hndl->tx_comp_list)) {
-		TRACE_LOG("tx_comp_list not empty! tcp_hndl:%p\n", tcp_hndl);
+		DEBUG_LOG("tx_comp_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_tasks_list_flush(&tcp_hndl->tx_comp_list);
 	}
 	if (!list_empty(&tcp_hndl->io_list)) {
-		TRACE_LOG("io_list not empty! tcp_hndl:%p\n", tcp_hndl);
+		DEBUG_LOG("io_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_tasks_list_flush(&tcp_hndl->io_list);
 	}
 
 	if (!list_empty(&tcp_hndl->tx_ready_list)) {
-		TRACE_LOG("tx_ready_list not empty! tcp_hndl:%p\n", tcp_hndl);
+		DEBUG_LOG("tx_ready_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_tasks_list_flush(&tcp_hndl->tx_ready_list);
 	}
 
 	if (!list_empty(&tcp_hndl->rx_list)) {
-		TRACE_LOG("rx_list not empty! tcp_hndl:%p\n", tcp_hndl);
+		DEBUG_LOG("rx_list not empty! tcp_hndl:%p\n", tcp_hndl);
 		xio_tasks_list_flush(&tcp_hndl->rx_list);
 	}
 
@@ -196,7 +196,7 @@ static int xio_tcp_flush_all_tasks(struct xio_tcp_transport *tcp_hndl)
 /*---------------------------------------------------------------------------*/
 static void on_sock_close(struct xio_tcp_transport *tcp_hndl)
 {
-	TRACE_LOG("on_sock_close tcp_hndl:%p, state:%d\n\n",
+	DEBUG_LOG("on_sock_close tcp_hndl:%p, state:%d\n\n",
 		  tcp_hndl, tcp_hndl->state);
 
 	if (tcp_hndl->state != XIO_TRANSPORT_STATE_CLOSED)
@@ -279,12 +279,12 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 	struct xio_tcp_pending_conn *pconn, *next_pconn;
 	int retval;
 
-	TRACE_LOG("on_sock_disconnected. tcp_hndl:%p, state:%d\n",
+	DEBUG_LOG("on_sock_disconnected. tcp_hndl:%p, state:%d\n",
 		  tcp_hndl, tcp_hndl->state);
 	xio_context_disable_event(&tcp_hndl->disconnect_event);
 
 	if (tcp_hndl->state == XIO_TRANSPORT_STATE_DISCONNECTED) {
-		TRACE_LOG("call to close. tcp_hndl:%p\n",
+		DEBUG_LOG("call to close. tcp_hndl:%p\n",
 			  tcp_hndl);
 		if (passive_close) {
 			xio_transport_notify_observer(
@@ -331,7 +331,7 @@ void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 /*---------------------------------------------------------------------------*/
 static void xio_tcp_post_close(struct xio_tcp_transport *tcp_hndl)
 {
-	TRACE_LOG("tcp transport: [post close] handle:%p\n",
+	DEBUG_LOG("tcp transport: [post close] handle:%p\n",
 		  tcp_hndl);
 
 	xio_context_disable_event(&tcp_hndl->disconnect_event);
@@ -361,7 +361,7 @@ static void xio_tcp_close_cb(struct kref *kref)
 		(struct xio_tcp_transport *)transport;
 
 	/* now it is zero */
-	TRACE_LOG("xio_tcp_close: [close] handle:%p, fd:%d\n",
+	DEBUG_LOG("xio_tcp_close: [close] handle:%p, fd:%d\n",
 		  tcp_hndl, tcp_hndl->sock.cfd);
 
 	switch (tcp_hndl->state) {
@@ -513,7 +513,7 @@ static int xio_tcp_reject(struct xio_transport_base *transport)
 	if (retval)
 		return -1;
 
-	TRACE_LOG("tcp transport: [reject] handle:%p\n", tcp_hndl);
+	DEBUG_LOG("tcp transport: [reject] handle:%p\n", tcp_hndl);
 
 	return 0;
 }
@@ -527,7 +527,7 @@ static int xio_tcp_context_shutdown(struct xio_transport_base *trans_hndl,
 	struct xio_tcp_transport *tcp_hndl =
 		(struct xio_tcp_transport *)trans_hndl;
 
-	TRACE_LOG("tcp transport context_shutdown handle:%p\n", tcp_hndl);
+	DEBUG_LOG("tcp transport context_shutdown handle:%p\n", tcp_hndl);
 
 	switch (tcp_hndl->state) {
 	case XIO_TRANSPORT_STATE_INIT:
@@ -750,7 +750,7 @@ static int xio_tcp_accept(struct xio_transport_base *transport)
 						    XIO_E_UNSUCCESSFUL);
 	}
 
-	TRACE_LOG("tcp transport: [accept] handle:%p\n", tcp_hndl);
+	DEBUG_LOG("tcp transport: [accept] handle:%p\n", tcp_hndl);
 
 	xio_transport_notify_observer(
 			&tcp_hndl->base,
@@ -946,7 +946,7 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 	tcp_hndl->disconnect_event.handler	= xio_tcp_disconnect_handler;
 	tcp_hndl->disconnect_event.data		= tcp_hndl;
 
-	TRACE_LOG("xio_tcp_open: [new] handle:%p\n", tcp_hndl);
+	DEBUG_LOG("xio_tcp_open: [new] handle:%p\n", tcp_hndl);
 
 	return tcp_hndl;
 

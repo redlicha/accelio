@@ -1892,10 +1892,11 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 
 {
 	struct xio_transport		*transport;
-	struct xio_nexus		*nexus;
+	struct xio_nexus		*nexus = NULL;
 	char				proto[8];
 	struct xio_transport_init_attr	*ptrans_init_attr = NULL;
 	struct xio_nexus_query_params	query;
+	int enable_nexus_cache_usage = 0;
 
 	/* look for opened nexus */
 	query.ctx = ctx;
@@ -1908,8 +1909,9 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 			query.tos_enabled = 1;
 		}
 	}
+	if (enable_nexus_cache_usage)
+		nexus = xio_nexus_cache_find(&query);
 
-	nexus = xio_nexus_cache_find(&query);
 	if (nexus && nexus->transport_hndl &&
 	    (nexus->state == XIO_NEXUS_STATE_CONNECTED ||
 	     nexus->state == XIO_NEXUS_STATE_CONNECTING ||
