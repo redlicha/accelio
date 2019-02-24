@@ -1420,9 +1420,15 @@ static void xio_nexus_on_transport_error(struct xio_nexus *nexus,
 	nexus_event_data.error.reason =  event_data->error.reason;
 
 	xio_nexus_state_set(nexus, XIO_NEXUS_STATE_ERROR);
-	xio_observable_notify_all_observers(&nexus->observable,
-					    XIO_NEXUS_EVENT_ERROR,
-					    &nexus_event_data);
+	if (!xio_observable_is_empty(&nexus->observable)) {
+		xio_observable_notify_all_observers(&nexus->observable,
+				XIO_NEXUS_EVENT_ERROR,
+				&nexus_event_data);
+	} else {
+		xio_context_add_event(nexus->ctx,
+				&nexus->trans_release_event);
+	}
+	xio_nexus_flush_all_tasks(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1490,6 +1496,7 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 
 	xio_context_disable_event(&ev_params->nexus->trans_error_event);
 
+
 	if (ev_params->nexus->state == XIO_NEXUS_STATE_RECONNECT)
 		xio_nexus_client_reconnect_failed(ev_params->nexus);
 	else
@@ -1539,6 +1546,9 @@ static void xio_nexus_on_transport_disconnected(struct xio_nexus *nexus,
 	/* Can't reconnect */
 	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 	TRACE_LOG("%s - nexus:%p\n", __func__, nexus);
+
+	if (!nexus->is_listener)
+		xio_nexus_cache_remove(nexus->cid);
 
 	xio_context_add_event(nexus->ctx,
 			      &nexus->disconnect_event);
@@ -1812,6 +1822,8 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		ev_params->nexus = nexus;
 		memcpy(&ev_params->event_data, ev_data, sizeof(*ev_data));
 		nexus->trans_error_event.data = ev_params;
+		if (!nexus->is_listener)
+			xio_nexus_cache_remove(nexus->cid);
 
 		xio_context_add_event(nexus->ctx,
 				      &nexus->trans_error_event);
