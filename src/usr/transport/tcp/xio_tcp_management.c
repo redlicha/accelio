@@ -1161,6 +1161,11 @@ single_sock:
 	return;
 
 cleanup1:
+	if (matching_conn && matching_conn != pending_conn) {
+		ERROR_LOG("removing matching conn\n");
+		list_del(&matching_conn->conns_list_entry);
+		xio_context_ufree(parent_hndl->base.ctx, matching_conn);
+	}
 	list_del(&pending_conn->conns_list_entry);
 	xio_context_ufree(parent_hndl->base.ctx, pending_conn);
 cleanup2:
