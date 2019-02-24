@@ -1896,7 +1896,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	char				proto[8];
 	struct xio_transport_init_attr	*ptrans_init_attr = NULL;
 	struct xio_nexus_query_params	query;
-	int enable_nexus_cache_usage = 0;
+	int enable_nexus_cache_usage = 1;
 
 	/* look for opened nexus */
 	query.ctx = ctx;
