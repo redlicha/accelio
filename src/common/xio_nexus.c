@@ -1924,6 +1924,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	nexus = xio_nexus_cache_find(&query);
 	if (nexus && nexus->transport_hndl &&
 	    nexus->state == XIO_NEXUS_STATE_CONNECTED) {
+		DEBUG_LOG("nexus was found in cache. using it. nexus:%p\n", nexus);
 		xio_ctx_del_delayed_work(nexus->ctx,
 				         &nexus->close_time_hndl);
 		if (observer) {
@@ -2119,6 +2120,12 @@ static void xio_nexus_notify_observer_work(void *_work_params)
 	struct xio_nexus_observer_work  *work_params =
                 (struct xio_nexus_observer_work *) _work_params;
 
+	DEBUG_LOG("%s: nexus:%p, %s_hndl:%p, state:%d\n", __func__,
+			work_params->nexus, 
+			xio_proto_str(work_params->nexus->transport_hndl->proto),
+			work_params->nexus->transport_hndl, 
+			work_params->nexus->state);
+
 	if (work_params->nexus->state == XIO_NEXUS_STATE_CONNECTED)
 		xio_observable_notify_observer(
 				work_params->observer_event.observable,
@@ -2145,6 +2152,9 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		xio_set_error(ENOSYS);
 		return -1;
 	}
+	DEBUG_LOG("%s: nexus:%p, %s_hndl:%p, portal:%s, state:%d\n", __func__,
+			nexus, xio_proto_str(nexus->transport_hndl->proto),
+			nexus->transport_hndl, portal_uri, nexus->state);
 	mutex_lock(&nexus->lock_connect);
 	switch (nexus->state) {
 	case XIO_NEXUS_STATE_OPEN:
@@ -2163,9 +2173,6 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 				goto cleanup2;
 			}
 		}
-		DEBUG_LOG("%s: nexus:%p, %s_hndl:%p, portal:%s\n", __func__,
-			  nexus, xio_proto_str(nexus->transport_hndl->proto),
-			  nexus->transport_hndl, portal_uri);
 		retval = nexus->transport->connect(nexus->transport_hndl,
 						  portal_uri,
 						  out_if);
