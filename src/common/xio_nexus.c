@@ -2120,11 +2120,9 @@ static void xio_nexus_notify_observer_work(void *_work_params)
 	struct xio_nexus_observer_work  *work_params =
                 (struct xio_nexus_observer_work *) _work_params;
 
-	DEBUG_LOG("%s: nexus:%p, %s_hndl:%p, state:%d\n", __func__,
-			work_params->nexus, 
-			xio_proto_str(work_params->nexus->transport_hndl->proto),
-			work_params->nexus->transport_hndl, 
-			work_params->nexus->state);
+	DEBUG_LOG("%s: nexus:%p, state:%d\n", __func__,
+		  work_params->nexus, 
+		  work_params->nexus->state);
 
 	if (work_params->nexus->state == XIO_NEXUS_STATE_CONNECTED)
 		xio_observable_notify_observer(
