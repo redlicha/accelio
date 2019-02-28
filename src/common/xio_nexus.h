@@ -182,6 +182,8 @@ struct xio_nexus {
 /*---------------------------------------------------------------------------*/
 void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer);
 
+void xio_nexus_disconnect(struct xio_nexus *nexus, struct xio_observer *observer);
+
 void xio_nexus_force_close(struct xio_nexus *nexus);
 
 /*---------------------------------------------------------------------------*/

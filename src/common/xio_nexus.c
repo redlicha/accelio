@@ -2352,6 +2352,17 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_nexus_disconnect		                                             */
+/*---------------------------------------------------------------------------*/
+void xio_nexus_disconnect(struct xio_nexus *nexus, struct xio_observer *observer)
+{
+	DEBUG_LOG("%s - nexus:%p,  state:%d\n", 
+		  __func__, nexus, nexus->state);
+	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
+	xio_nexus_close(nexus, observer);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_nexus_force_close						     */
 /*---------------------------------------------------------------------------*/
 void xio_nexus_force_close(struct xio_nexus *nexus)

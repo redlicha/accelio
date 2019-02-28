@@ -202,6 +202,19 @@ static void xio_connection_nexus_safe_close(struct xio_connection *connection,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_connection_nexus_safe_disconnect					     */
+/*---------------------------------------------------------------------------*/
+static void xio_connection_nexus_safe_disconnect(struct xio_connection *connection,
+					    struct xio_observer *observer)
+{
+	if (connection->nexus) {
+		struct xio_nexus *nexus = connection->nexus;
+		connection->nexus = NULL;
+		xio_nexus_disconnect(nexus, observer);
+	}
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_connection_create						     */
 /*---------------------------------------------------------------------------*/
 struct xio_connection *xio_connection_create(struct xio_session *session,
@@ -1974,8 +1987,8 @@ static void xio_fin_msg_timeout(struct xio_connection *connection, bool is_req)
 	/* flush all messages back to user */
 	xio_connection_notify_msgs_flush(connection);
 
-	xio_connection_nexus_safe_close(connection,
-					&connection->session->observer);
+	xio_connection_nexus_safe_disconnect(connection,
+					     &connection->session->observer);
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
@@ -2829,8 +2842,8 @@ void xio_connection_disconnect_handler(void *_connection)
 				  __func__,
 				  connection, connection->nexus);
 			xio_connection_flush_tasks(connection);
-			xio_connection_nexus_safe_close(connection,
-							&connection->session->observer);
+			xio_connection_nexus_safe_disconnect(connection,
+					&connection->session->observer);
 		}
 	}
 
@@ -3864,7 +3877,7 @@ int xio_connection_force_disconnect(struct xio_connection *connection,
 	xio_session_notify_connection_error(connection->session, connection,
 			reason);
 
-	xio_connection_nexus_safe_close(connection,
+	xio_connection_nexus_safe_disconnect(connection,
 			&connection->session->observer);
 
 	/* flush all messages from in flight message queue to in queue */
