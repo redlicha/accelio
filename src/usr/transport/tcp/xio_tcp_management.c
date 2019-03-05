@@ -971,25 +971,34 @@ void xio_tcp_handle_pending_conn(int fd,
 	int cfd = 0, dfd = 0, is_single = 1;
 	socklen_t len = 0;
 	struct xio_tcp_transport *child_hndl = NULL;
-	union xio_transport_event_data ev_data;
+	union xio_transport_event_data ev_data = {};
+	uint32_t no = 0;
+
+	DEBUG_LOG("[%d]-[%s] - start, fd:%d, parent_hndl:%p, error:%d\n",
+		  no++, __func__,
+		  fd, parent_hndl, error);
 
 	list_for_each_entry_safe(pconn, next_pconn,
 				 &parent_hndl->pending_conns,
 				 conns_list_entry) {
 		if (pconn->fd == fd) {
 			pending_conn = pconn;
+			DEBUG_LOG("[%d]-[%s] - pconn found, fd:%d, pending_conn:%p\n",
+				  no++, __func__,
+				  pending_conn->fd, pending_conn);
 			break;
 		}
 	}
 
 	if (!pending_conn) {
-		ERROR_LOG("could not find pending fd [%d] on the list\n", fd);
+		ERROR_LOG("[%d]-[%s] - could not find pending fd [%d] on the list\n",
+			  no++, __func__, fd);
 		goto cleanup2;
 	}
 
 	if (error) {
-		DEBUG_LOG("epoll returned with error=%d for fd=%d\n",
-			  error, fd);
+		DEBUG_LOG("[%d]-[%s] - epoll returned with error:%d for fd:%d\n",
+			  no++, __func__, error, fd);
 		goto cleanup1;
 	}
 
@@ -997,24 +1006,30 @@ void xio_tcp_handle_pending_conn(int fd,
 	inc_ptr(buf, sizeof(struct xio_tcp_connect_msg) -
 			pending_conn->waiting_for_bytes);
 	while (pending_conn->waiting_for_bytes) {
-		retval = recv(fd, (char *)buf,
+		ssize_t rxbytes = recv(fd, (char *)buf,
 			      pending_conn->waiting_for_bytes, 0);
-		if (retval > 0) {
-			pending_conn->waiting_for_bytes -= retval;
-			inc_ptr(buf, retval);
-		} else if (retval == 0) {
-			ERROR_LOG("got EOF while establishing connection\n");
+		DEBUG_LOG("[%d]-[%s] - recv - rxbytes:%zd, pending_conn:%p, waiting_for_bytes:%d for fd:%d\n",
+			  no++, __func__, rxbytes, pending_conn, pending_conn->waiting_for_bytes, fd);
+		if (rxbytes > 0) {
+			pending_conn->waiting_for_bytes -= rxbytes;
+			inc_ptr(buf, rxbytes);
+		} else if (rxbytes == 0) {
+			ERROR_LOG("[%d]-[%s] - got EOF while establishing connection. fd:%d\n",
+				  no++, __func__, fd);
 			goto cleanup1;
 		} else {
 			if (xio_get_last_socket_error() != XIO_EAGAIN) {
-				ERROR_LOG("recv return with errno=%d\n",
-					  xio_get_last_socket_error());
+				ERROR_LOG("[%d]-[%s] - recv return with errno:%d, fd:%d\n",
+					  no++, __func__, xio_get_last_socket_error(), fd);
 				goto cleanup1;
 			}
+			DEBUG_LOG("[%d]-[%s] - end, fd:%d\n",
+				  no++, __func__,
+				  fd);
+
 			return;
 		}
 	}
-
 	pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
 				ntohl((uint32_t)pending_conn->msg.sock_type);
 	UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, second_port);
@@ -1022,6 +1037,8 @@ void xio_tcp_handle_pending_conn(int fd,
 
 	if (pending_conn->msg.sock_type == XIO_TCP_SINGLE_SOCK) {
 		ctl_conn = pending_conn;
+		DEBUG_LOG("[%d]-[%s] - match single socket. fd:%d\n",
+			  no++, __func__, fd);
 		goto single_sock;
 	}
 
@@ -1030,9 +1047,10 @@ void xio_tcp_handle_pending_conn(int fd,
 	list_for_each_entry_safe(pconn, next_pconn,
 				 &parent_hndl->pending_conns,
 				 conns_list_entry) {
+		DEBUG_LOG("[%d]-[%s] - pconn:%p, pconn->fd:%d, waiting_for_bytes:%d for fd:%d\n",
+			  no++, __func__, pconn, pconn->fd, pconn->waiting_for_bytes, fd);
 		if (pconn->waiting_for_bytes)
 			continue;
-
 		if (pconn->sa.sa.sa_family == AF_INET) {
 			if ((pconn->msg.second_port ==
 			    ntohs(pending_conn->sa.sa_in.sin_port)) &&
@@ -1041,10 +1059,15 @@ void xio_tcp_handle_pending_conn(int fd,
 				matching_conn = pconn;
 				if (ntohs(matching_conn->sa.sa_in.sin_port) !=
 				    pending_conn->msg.second_port) {
-					ERROR_LOG("ports mismatch\n");
+					ERROR_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
+					no++, __func__, fd, matching_conn);
 					cfd = pending_conn->fd;
 					goto cleanup1;
 				}
+				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, pconn->fd:%d, " \
+					  "waiting_for_bytes:%d for fd:%d\n",
+					  no++, __func__, pconn, pconn->fd,
+					  pconn->waiting_for_bytes, fd);
 				break;
 			}
 		} else if (pconn->sa.sa.sa_family == AF_INET6) {
@@ -1056,10 +1079,16 @@ void xio_tcp_handle_pending_conn(int fd,
 				matching_conn = pconn;
 				if (ntohs(matching_conn->sa.sa_in6.sin6_port)
 				    != pending_conn->msg.second_port) {
-					ERROR_LOG("ports mismatch\n");
+					ERROR_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
+						  no++, __func__, fd);
 					cfd = pending_conn->fd;
 					goto cleanup1;
 				}
+				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, " \
+					  "pconn->fd:%d, waiting_for_bytes:%d " \
+					  "for fd:%d\n",
+					  no++, __func__, pconn, pconn->fd,
+					  pconn->waiting_for_bytes, fd);
 				break;
 			}
 		} else {
@@ -1067,9 +1096,14 @@ void xio_tcp_handle_pending_conn(int fd,
 				  pconn->sa.sa.sa_family);
 		}
 	}
-
-	if (!matching_conn)
+	if (!matching_conn) {
+		DEBUG_LOG("[%d]-[%s] - end - fd:%d, cfd:%d, dfd:%d,  " \
+			  "data_conn:%p, ctl_conn:%p, pending_conn:%p, " \
+			  "matching_conn:%p\n",
+			  no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,
+			  pending_conn, matching_conn);
 		return;
+	}
 
 	if (pending_conn->msg.sock_type == XIO_TCP_CTL_SOCK) {
 		ctl_conn = pending_conn;
@@ -1081,6 +1115,10 @@ void xio_tcp_handle_pending_conn(int fd,
 	cfd = ctl_conn->fd;
 	dfd = data_conn->fd;
 
+	DEBUG_LOG("[%d]-[%s] - del data_conn:%p, fd:%d, ctl_conn:%p, " \
+		  "pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, data_conn, fd, ctl_conn,
+		  pending_conn, matching_conn);
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx,
 					    data_conn->fd);
 	list_del(&data_conn->conns_list_entry);
@@ -1089,9 +1127,12 @@ void xio_tcp_handle_pending_conn(int fd,
 			  xio_get_last_socket_error());
 	}
 	xio_context_ufree(parent_hndl->base.ctx, data_conn);
-
+        data_conn = NULL;
 single_sock:
-
+	DEBUG_LOG("[%d]-[%s] - single_sock - delete ctl_conn:%p, fd:%d, "
+		  "data_conn:%p, pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, ctl_conn, fd, data_conn,
+		  pending_conn, matching_conn);
 	list_del(&ctl_conn->conns_list_entry);
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx,
 					    ctl_conn->fd);
@@ -1116,7 +1157,7 @@ single_sock:
 	       &ctl_conn->sa.sa_stor,
 	       sizeof(child_hndl->base.peer_addr));
 	xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
-
+	ctl_conn = NULL;
 	if (is_single) {
 		child_hndl->sock.cfd = fd;
 		child_hndl->sock.dfd = fd;
@@ -1158,18 +1199,36 @@ single_sock:
 				      XIO_TRANSPORT_EVENT_NEW_CONNECTION,
 				      &ev_data);
 
+	DEBUG_LOG("[%d]-[%s] - end - fd:%d, cfd:%d, dfd:%d,  data_conn:%p, " \
+		  "ctl_conn:%p, pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,
+		  pending_conn, matching_conn);
 	return;
 
 cleanup1:
+	DEBUG_LOG("[%d]-[%s] - cleanup1 - fd:%d, data_conn:%p, ctl_conn:%p, " \
+		  "pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, fd, data_conn, ctl_conn,
+		  pending_conn, matching_conn);
+
 	if (matching_conn && matching_conn != pending_conn) {
-		ERROR_LOG("removing matching conn\n");
+		DEBUG_LOG("[%d]-[%s] - del matching_conn:%p, fd:%d, data_conn:%p, " \
+			  "pending_conn:%p, ctl_conn:%p\n",
+			   no++, __func__, matching_conn, fd, data_conn,
+			   pending_conn, ctl_conn);
 		list_del(&matching_conn->conns_list_entry);
 		xio_context_ufree(parent_hndl->base.ctx, matching_conn);
+		matching_conn = NULL;
 	}
 	list_del(&pending_conn->conns_list_entry);
 	xio_context_ufree(parent_hndl->base.ctx, pending_conn);
+	pending_conn = NULL;
 cleanup2:
-	/* remove from epoll */
+	DEBUG_LOG("[%d]-[%s] - cleanup2. fd:%d, data_conn:%p, ctl_conn:%p," \
+		  " pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, fd, data_conn, ctl_conn,
+		  pending_conn, matching_conn);
+		/* remove from epoll */
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx, fd);
 	if (retval) {
 		ERROR_LOG(
@@ -1177,6 +1236,10 @@ cleanup2:
 		xio_get_last_socket_error());
 	}
 cleanup3:
+	DEBUG_LOG("[%d]-[%s] - cleanup3. is_single:%d, fd:%d, data_conn:%p, " \
+		  "ctl_conn:%p, pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, is_single, fd, data_conn, ctl_conn,
+		  pending_conn, matching_conn);
 	if (is_single) {
 		xio_closesocket(fd);
 	} else {
@@ -1186,6 +1249,10 @@ cleanup3:
 
 	if (child_hndl)
 		xio_tcp_post_close(child_hndl);
+
+	DEBUG_LOG("[%d]-[%s] - end - fd:%d, cfd:%d, dfd:%d,  data_conn:%p, ctl_conn:%p, pending_conn:%p, matching_conn:%p\n",
+		  no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,  pending_conn, matching_conn);
+
 }
 
 /*---------------------------------------------------------------------------*/
