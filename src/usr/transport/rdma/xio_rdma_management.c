@@ -3162,7 +3162,12 @@ static void xio_rdma_close(struct xio_transport_base *transport)
 	case XIO_TRANSPORT_STATE_INIT:
 	case XIO_TRANSPORT_STATE_CONNECTING:
 		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
-		on_cm_timewait_exit(transport);
+		memset(&rdma_hndl->timewait_exit_event, 0,
+		       sizeof(rdma_hndl->timewait_exit_event));
+		rdma_hndl->timewait_exit_event.handler = on_cm_timewait_exit;
+		rdma_hndl->timewait_exit_event.data = rdma_hndl;
+		xio_context_add_event(rdma_hndl->base.ctx,
+				      &rdma_hndl->timewait_exit_event);
 		return;
 	case XIO_TRANSPORT_STATE_LISTEN:
 		rdma_hndl->state = XIO_TRANSPORT_STATE_CLOSED;
