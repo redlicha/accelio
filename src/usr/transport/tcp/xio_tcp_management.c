@@ -1056,14 +1056,13 @@ void xio_tcp_handle_pending_conn(int fd,
 			    ntohs(pending_conn->sa.sa_in.sin_port)) &&
 			    (pconn->sa.sa_in.sin_addr.s_addr ==
 			    pending_conn->sa.sa_in.sin_addr.s_addr)) {
-				matching_conn = pconn;
-				if (ntohs(matching_conn->sa.sa_in.sin_port) !=
+				if (ntohs(pconn->sa.sa_in.sin_port) !=
 				    pending_conn->msg.second_port) {
-					ERROR_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
+					DEBUG_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
 					no++, __func__, fd, matching_conn);
-					cfd = pending_conn->fd;
-					goto cleanup1;
+					continue;
 				}
+				matching_conn = pconn;
 				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, pconn->fd:%d, " \
 					  "waiting_for_bytes:%d for fd:%d\n",
 					  no++, __func__, pconn, pconn->fd,
@@ -1076,14 +1075,13 @@ void xio_tcp_handle_pending_conn(int fd,
 			     !memcmp(&pconn->sa.sa_in6.sin6_addr,
 				     &pending_conn->sa.sa_in6.sin6_addr,
 				     sizeof(pconn->sa.sa_in6.sin6_addr))) {
-				matching_conn = pconn;
 				if (ntohs(matching_conn->sa.sa_in6.sin6_port)
 				    != pending_conn->msg.second_port) {
-					ERROR_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
+					DEBUG_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
 						  no++, __func__, fd);
-					cfd = pending_conn->fd;
-					goto cleanup1;
+					continue;
 				}
+				matching_conn = pconn;
 				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, " \
 					  "pconn->fd:%d, waiting_for_bytes:%d " \
 					  "for fd:%d\n",
@@ -1126,8 +1124,11 @@ void xio_tcp_handle_pending_conn(int fd,
 		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
 			  xio_get_last_socket_error());
 	}
+	if (data_conn == ctl_conn)
+		ctl_conn = NULL;
 	xio_context_ufree(parent_hndl->base.ctx, data_conn);
         data_conn = NULL;
+
 single_sock:
 	DEBUG_LOG("[%d]-[%s] - single_sock - delete ctl_conn:%p, fd:%d, "
 		  "data_conn:%p, pending_conn:%p, matching_conn:%p\n",
@@ -1211,15 +1212,6 @@ cleanup1:
 		  no++, __func__, fd, data_conn, ctl_conn,
 		  pending_conn, matching_conn);
 
-	if (matching_conn && matching_conn != pending_conn) {
-		DEBUG_LOG("[%d]-[%s] - del matching_conn:%p, fd:%d, data_conn:%p, " \
-			  "pending_conn:%p, ctl_conn:%p\n",
-			   no++, __func__, matching_conn, fd, data_conn,
-			   pending_conn, ctl_conn);
-		list_del(&matching_conn->conns_list_entry);
-		xio_context_ufree(parent_hndl->base.ctx, matching_conn);
-		matching_conn = NULL;
-	}
 	list_del(&pending_conn->conns_list_entry);
 	xio_context_ufree(parent_hndl->base.ctx, pending_conn);
 	pending_conn = NULL;
