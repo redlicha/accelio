@@ -1134,12 +1134,14 @@ single_sock:
 		  "data_conn:%p, pending_conn:%p, matching_conn:%p\n",
 		  no++, __func__, ctl_conn, fd, data_conn,
 		  pending_conn, matching_conn);
-	list_del(&ctl_conn->conns_list_entry);
-	retval = xio_context_del_ev_handler(parent_hndl->base.ctx,
-					    ctl_conn->fd);
-	if (retval) {
-		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
-			  xio_get_last_socket_error());
+	if (ctl_conn) {
+		list_del(&ctl_conn->conns_list_entry);
+		retval = xio_context_del_ev_handler(parent_hndl->base.ctx,
+				ctl_conn->fd);
+		if (retval) {
+			ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
+					xio_get_last_socket_error());
+		}
 	}
 
 	child_hndl = xio_tcp_transport_create(parent_hndl->transport,
@@ -1150,15 +1152,19 @@ single_sock:
 		ERROR_LOG("failed to create tcp child\n");
 		xio_transport_notify_observer_error(&parent_hndl->base,
 						    xio_errno());
-		xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
+		if (ctl_conn)
+			xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
 		goto cleanup3;
 	}
 
 	memcpy(&child_hndl->base.peer_addr,
 	       &ctl_conn->sa.sa_stor,
 	       sizeof(child_hndl->base.peer_addr));
-	xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
-	ctl_conn = NULL;
+
+	if (ctl_conn) {
+		xio_context_ufree(parent_hndl->base.ctx, ctl_conn);
+		ctl_conn = NULL;
+	}
 	if (is_single) {
 		child_hndl->sock.cfd = fd;
 		child_hndl->sock.dfd = fd;
