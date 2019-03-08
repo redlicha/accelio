@@ -334,7 +334,10 @@ pool_exhausted:
 /*---------------------------------------------------------------------------*/
 static inline void xio_tasks_pool_put(struct xio_task *task)
 {
-       if (unlikely(task->on_hold &&
+      if (unlikely(atomic_read(&task->kref.refcount) == 0))
+	       return;
+
+      if (unlikely(task->on_hold &&
 		    atomic_read(&task->kref.refcount) == 1))
 	       return;
 
@@ -346,7 +349,7 @@ static inline void xio_tasks_pool_put(struct xio_task *task)
 /*---------------------------------------------------------------------------*/
 static inline void xio_tasks_pool_put_on_hold(struct xio_task *task)
 {
-	if (!task->on_hold)
+	if (!task->on_hold || atomic_read(&task->kref.refcount) == 0)
 		return;
 
 	if (unlikely(atomic_read(&task->kref.refcount) == 1)) {
