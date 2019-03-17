@@ -2154,7 +2154,7 @@ static int xio_session_on_context_event(void *observer, void *sender, int event,
 /*---------------------------------------------------------------------------*/
 /* xio_session_pre_teardown						     */
 /*---------------------------------------------------------------------------*/
-static void xio_session_pre_teardown(void *_session)
+static void xio_session_pre_teardown(int actual_timeout_ms, void *_session)
 {
 	struct xio_session	*session = (struct xio_session *)_session;
 	int			destroy_session = 0;

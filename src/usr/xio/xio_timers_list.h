@@ -271,6 +271,7 @@ static inline void xio_timers_list_expire(struct xio_timers_list *timers_list)
 	uint64_t			current_time;
 	xio_delayed_work_handle_t	*dwork;
 	xio_work_handle_t		*work;
+	int				time_passed_msecs;
 
 	xio_timers_list_lock(timers_list);
 	while (!list_empty(&timers_list->timers_head)) {
@@ -289,8 +290,10 @@ static inline void xio_timers_list_expire(struct xio_timers_list *timers_list)
 					     timer);
 			work = &dwork->work;
 			work->flags &= ~XIO_WORK_PENDING;
+			time_passed_msecs = (int)((get_cycles() -
+				work->start_cycle)/(1000*g_mhz) + 0.5);
 
-			work->function(work->data);
+			work->function(time_passed_msecs, work->data);
 
 			xio_timers_list_post_dispatch(timers_list,
 						      tentry);

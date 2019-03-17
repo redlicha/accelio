@@ -32,6 +32,7 @@ DISTFILES = Makefile.in configure.ac configure ../install-sh \
 	../../common/xio_sessions_cache.c \
 	../../common/xio_observer.c \
 	../../common/xio_idr.c \
+	../../common/xio_crc16.c \
 	../../common/xio_utils.c \
 	../transport/xio_ktransport.c
 
@@ -115,6 +116,7 @@ xio_core-objs := \
 	$(PRIVATE_COMMON)/xio_sessions_cache.o \
 	$(PRIVATE_COMMON)/xio_observer.o \
 	$(PRIVATE_COMMON)/xio_idr.o \
+	$(PRIVATE_COMMON)/xio_crc16.o \
 	$(PRIVATE_COMMON)/xio_utils.o
 
 $(PRIVATE_COMMON):

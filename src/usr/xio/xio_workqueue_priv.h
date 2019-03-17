@@ -49,7 +49,7 @@ struct xio_timers_list_entry {
 };
 
 typedef struct xio_work_struct {
-	void			(*function)(void *data);
+	void			(*function)(int actual_timeout_ms, void *data);
 	void			*data;
 
 	void	(*destructor)(void *data);
@@ -57,6 +57,7 @@ typedef struct xio_work_struct {
 
 	volatile uint32_t	flags;
 	uint32_t		pad;
+	cycles_t		start_cycle;
 } xio_work_handle_t;
 
 typedef struct xio_delayed_work_struct {

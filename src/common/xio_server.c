@@ -179,7 +179,7 @@ static int xio_on_new_message(struct xio_server *server,
 		xio_connection_set_state(connection,
 					 XIO_CONNECTION_STATE_ONLINE);
 
-		xio_connection_keepalive_start(connection);
+		xio_connection_keepalive_start(0, connection);
 
 		task->session		= session;
 		task->connection	= connection;
@@ -241,7 +241,7 @@ static int xio_on_new_message(struct xio_server *server,
 		xio_connection_set_state(connection,
 					 XIO_CONNECTION_STATE_ONLINE);
 
-		xio_connection_keepalive_start(connection);
+		xio_connection_keepalive_start(0, connection);
 
 		xio_idr_add_uobj(usr_idr, connection, "xio_connection");
 	} else {

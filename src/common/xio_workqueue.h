@@ -59,7 +59,7 @@ int xio_workqueue_destroy(struct xio_workqueue *work_queue);
 /*---------------------------------------------------------------------------*/
 int xio_workqueue_add_delayed_work(struct xio_workqueue *work_queue,
 				   int msec_duration, void *data,
-				   void (*function)(void *data),
+				   void (*function)(int actual_timeout, void *data),
 				   xio_delayed_work_handle_t *work);
 
 /*---------------------------------------------------------------------------*/
@@ -73,7 +73,7 @@ int xio_workqueue_del_delayed_work(struct xio_workqueue *work_queue,
 /*---------------------------------------------------------------------------*/
 int xio_workqueue_add_work(struct xio_workqueue *work_queue,
 			   void *data,
-			   void (*function)(void *data),
+			   void (*function)(int actual_timeout, void *data),
 			   xio_work_handle_t *work);
 
 /*---------------------------------------------------------------------------*/

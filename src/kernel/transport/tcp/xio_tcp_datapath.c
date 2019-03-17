@@ -2031,7 +2031,6 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 	XIO_TO_TCP_TASK(task, tcp_task);
 	unsigned int		i, vec_size = 0;
 	int			retval;
-	int			user_assign_flag = 0;
 	size_t			rlen = 0, llen = 0;
 	struct xio_sg_table_ops	*sgtbl_ops;
 	void			*sgtbl;
@@ -2070,8 +2069,8 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 	sgtbl		= xio_sg_table_get(&task->imsg.in);
 	sgtbl_ops	= xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
-	xio_transport_assign_in_buf(tcp_hndl, task);
-	if (tcp->is_assigned) {
+	xio_transport_assign_in_buf(&tcp_hndl->base, task);
+	if (task->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {
 			WARN_LOG("application has not provided buffers\n");
@@ -2576,7 +2575,7 @@ static int xio_tcp_on_recv_rsp_data(struct xio_tcp_transport *tcp_hndl,
 				tbl_copy(osgtbl_ops, osgtbl,
 					 isgtbl_ops, isgtbl);
 				/* put buffers back to pool */
-				xio_free_rdma_read_mem(tcp_hndl, tcp_sender_task);
+				xio_free_rdma_read_mem(tcp_hndl, task->sender_task);
 			} else {
 				/* use provided only length - set user
 				 * pointers */
@@ -3156,7 +3155,7 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr,
 			DEBUG_LOG("tcp transport got EOF, tcp_hndl=%p\n",
 				  tcp_hndl);
 			if (tcp_task->out_tcp_op == XIO_TCP_READ) { /*TODO needed?*/
-				xio_free_rdma_read_mem(tcp_hndl, tcp_task);
+				xio_free_rdma_read_mem(tcp_hndl, task);
 			}
 			xio_tcp_disconnect_helper(tcp_hndl);
 			return -1;

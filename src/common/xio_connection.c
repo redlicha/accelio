@@ -121,10 +121,10 @@ static struct xio_transition xio_transition_table[][2] = {
 };
 
 static void xio_connection_post_destroy(struct kref *kref);
-static void xio_connection_teardown_handler(void *connection_);
-static void xio_connection_keepalive_time(void *_connection);
-static void xio_close_time_wait(void *data);
-static void xio_close_time_wait_handler(void *data);
+static void xio_connection_teardown_handler(int actual_timeout_ms, void *connection_);
+static void xio_connection_keepalive_time(int actual_timeout_ms, void *_connection);
+static void xio_close_time_wait(int actual_timeout_ms, void *data);
+static void xio_close_time_wait_handler(int actual_timeout_ms, void *data);
 static void xio_handle_last_ack(void *data);
 
 struct xio_managed_rkey {
@@ -1403,6 +1403,7 @@ int xio_connection_send_read_receipt(struct xio_connection *connection,
 	rsp = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!rsp)) {
 		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		  __func__,
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2010,7 +2011,7 @@ static void xio_fin_msg_timeout(struct xio_connection *connection, bool is_req)
 /*---------------------------------------------------------------------------*/
 /* xio_fin_req_timeout							     */
 /*---------------------------------------------------------------------------*/
-static void xio_fin_req_timeout(void *conn)
+static void xio_fin_req_timeout(int actual_timeout_ms, void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
 
@@ -2023,7 +2024,7 @@ static void xio_fin_req_timeout(void *conn)
 /*---------------------------------------------------------------------------*/
 /* xio_fin_ack_timeout							     */
 /*---------------------------------------------------------------------------*/
-static void xio_fin_ack_timeout(void *conn)
+static void xio_fin_ack_timeout(int actual_timeout_ms, void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
 
@@ -2043,7 +2044,7 @@ int xio_send_fin_req(struct xio_connection *connection)
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2089,7 +2090,7 @@ int xio_send_fin_ack(struct xio_connection *connection, struct xio_task *task)
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2146,7 +2147,7 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2197,7 +2198,7 @@ int xio_disconnect_initial_connection(struct xio_connection *connection)
 	return  retval;
 }
 
-static void xio_pre_disconnect(void *conn)
+static void xio_pre_disconnect(int actual_timeout_ms, void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
 	bool expedite_disconnection = true;
@@ -2252,7 +2253,7 @@ static void xio_pre_disconnect(void *conn)
 			kref_put(&connection->kref, xio_connection_post_destroy);
 		} else {
 			connection->state = XIO_CONNECTION_STATE_TIME_WAIT;
-			xio_close_time_wait(connection);
+			xio_close_time_wait(0, connection);
 		}
 	}
 }
@@ -2530,7 +2531,7 @@ int xio_connection_send_hello_req(struct xio_connection *connection)
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2562,7 +2563,7 @@ int xio_connection_send_hello_rsp(struct xio_connection *connection,
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -2792,7 +2793,7 @@ EXPORT_SYMBOL(xio_connection_destroy);
 /*---------------------------------------------------------------------------*/
 /* xio_connection_teardown_handler					     */
 /*---------------------------------------------------------------------------*/
-static void xio_connection_teardown_handler(void *connection_)
+static void xio_connection_teardown_handler(int actual_timeout_ms, void *connection_)
 {
 	struct xio_connection *connection =
 					(struct xio_connection *)connection_;
@@ -2981,20 +2982,20 @@ int xio_on_fin_req_send_comp(struct xio_connection *connection,
 	return 0;
 }
 
-static void xio_close_time_wait_handler(void *data)
+static void xio_close_time_wait_handler(int actual_timeout_ms, void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
 	DEBUG_LOG("%s. session:%p, connection:%p\n",
 		  __func__, connection->session, connection);
 
-	xio_connection_teardown_handler(data);
+	xio_connection_teardown_handler(actual_timeout_ms, data);
 
 	/* this should set the kref for destruction */
 	kref_put(&connection->kref, xio_connection_post_destroy);
 }
 
-static void xio_close_time_wait(void *data)
+static void xio_close_time_wait(int actual_timeout_ms, void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
@@ -3180,7 +3181,7 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 			xio_ctx_del_delayed_work(connection->ctx,
 						 &connection->fin_ack_timeout_work);
 			connection->state = XIO_CONNECTION_STATE_TIME_WAIT;
-			xio_close_time_wait(connection);
+			xio_close_time_wait(0, connection);
 			return 0;
 		}
 	}
@@ -3304,7 +3305,7 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 /* xio_xmit_messages							     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_xmit_messages(void *connection)
+static inline void xio_xmit_messages(int actual_timeout_ms, void *connection)
 {
 	xio_connection_xmit_msgs((struct xio_connection *)connection);
 }
@@ -3361,7 +3362,7 @@ int xio_on_connection_hello_rsp_recv(struct xio_connection *connection,
 				connection,
 				XIO_CONNECTION_STATE_ONLINE);
 
-		xio_connection_keepalive_start(connection);
+		xio_connection_keepalive_start(0, connection);
 
 		xio_ctx_add_work(
 				connection->ctx,
@@ -3406,7 +3407,7 @@ int xio_on_connection_hello_req_recv(struct xio_connection *connection,
 		xio_connection_set_state(connection,
 					 XIO_CONNECTION_STATE_ONLINE);
 
-		xio_connection_keepalive_start(connection);
+		xio_connection_keepalive_start(0, connection);
 	}
 	xio_connection_send_hello_rsp(connection, task);
 
@@ -3443,7 +3444,7 @@ int xio_send_credits_ack(struct xio_connection *connection)
 
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -3583,7 +3584,7 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 #endif
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -3621,7 +3622,7 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 #endif
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
-		DEBUG_LOG("%s - xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
+		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
 		  connection, connection->ctx);
 		return -1;
 	}
@@ -3729,7 +3730,7 @@ int xio_on_connection_ka_rsp_send_comp(struct xio_connection *connection,
 /*---------------------------------------------------------------------------*/
 /* xio_connection_keepalive_intvl					     */
 /*---------------------------------------------------------------------------*/
-void xio_connection_keepalive_intvl(void *_connection)
+void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 {
 	struct xio_connection *connection =
 					(struct xio_connection *)_connection;
@@ -3794,7 +3795,7 @@ void xio_connection_keepalive_intvl(void *_connection)
 /*---------------------------------------------------------------------------*/
 /* xio_connection_keepalive_time					     */
 /*---------------------------------------------------------------------------*/
-static void xio_connection_keepalive_time(void *_connection)
+static void xio_connection_keepalive_time(int actual_timeout_ms, void *_connection)
 {
 	struct xio_connection *connection =
 					(struct xio_connection *)_connection;
@@ -3836,7 +3837,7 @@ static void xio_connection_keepalive_time(void *_connection)
 /*---------------------------------------------------------------------------*/
 /* xio_connection_keepalive_start					     */
 /*---------------------------------------------------------------------------*/
-void xio_connection_keepalive_start(void *_connection)
+void xio_connection_keepalive_start(int actual_timeout_ms, void *_connection)
 {
 	struct xio_connection *connection =
 					(struct xio_connection *)_connection;

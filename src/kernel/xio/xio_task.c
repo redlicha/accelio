@@ -373,6 +373,7 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 			}
 	}
 }
+EXPORT_SYMBOL(xio_tasks_pool_dump_used);
 
 /*---------------------------------------------------------------------------*/
 /* xio_tasks_pool_dump_tasks_queues					     */

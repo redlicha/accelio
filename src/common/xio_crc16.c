@@ -161,4 +161,5 @@ void xio_vmsg_calc_crc(struct xio_vmsg *xio_vmsg)
 					      xio_vmsg->crc);
 	}
 }
+EXPORT_SYMBOL(xio_vmsg_calc_crc);
 

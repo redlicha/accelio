@@ -924,7 +924,7 @@ static int xio_tcp_on_req_send_comp(struct xio_tcp_transport *tcp_hndl,
 /*---------------------------------------------------------------------------*/
 /* xio_tcp_tx_comp_handler						     */
 /*---------------------------------------------------------------------------*/
-static void xio_tcp_tx_completion_handler(void *xio_task)
+static void xio_tcp_tx_completion_handler(int actual_timeout_ms, void *xio_task)
 {
 	struct xio_task		*ptask, *next_ptask;
 	int			found = 0;

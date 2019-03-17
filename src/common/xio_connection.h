@@ -286,7 +286,7 @@ int xio_on_connection_ka_rsp_send_comp(struct xio_connection *connection,
 int xio_on_connection_ka_rsp_recv(struct xio_connection *connection,
 				  struct xio_task *task);
 
-void xio_connection_keepalive_start(void *_connection);
+void xio_connection_keepalive_start(int actual_timeout_ms, void *_connection);
 
 int xio_connection_force_disconnect(struct xio_connection *connection,
                                     enum xio_status reason);

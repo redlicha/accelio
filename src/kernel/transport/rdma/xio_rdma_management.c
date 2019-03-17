@@ -1345,7 +1345,7 @@ static int xio_rdma_phantom_pool_create(struct xio_rdma_transport *rdma_hndl)
 
 	memset(&params, 0, sizeof(params));
 
-	params.pool_name		   = xio_context_kstrdup(rdma_hndl->base.ctx, "phantom_pool");
+	params.pool_name		   = xio_context_kstrdup(rdma_hndl->base.ctx, "phantom_pool", GFP_KERNEL);
 	params.start_nr			   = NUM_START_PHANTOM_POOL_TASKS;
 	params.max_nr			   = NUM_MAX_PHANTOM_POOL_TASKS;
 	params.alloc_nr			   = NUM_ALLOC_PHANTOM_POOL_TASKS;
@@ -1433,7 +1433,7 @@ static int xio_rdma_primary_pool_post_create(
 		struct xio_transport_base *transport_hndl,
 		void *pool, void *pool_dd_data)
 {
-	in retval;
+	int retval;
 	struct xio_rdma_transport *rdma_hndl =
 		(struct xio_rdma_transport *)transport_hndl;
 	struct xio_rdma_tasks_pool *rdma_pool =

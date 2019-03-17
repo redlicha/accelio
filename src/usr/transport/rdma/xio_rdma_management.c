@@ -120,7 +120,7 @@ static void on_cm_error(struct rdma_cm_event *ev,
 static void  on_cm_disconnected(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl);
 static void on_cm_timewait_exit(void *trans_hndl);
-static void on_post_disconnected(void *trans_hndl);
+static void on_post_disconnected(int actual_timeout_ms, void *trans_hndl);
 int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl, int send_beacon);
 
 /*---------------------------------------------------------------------------*/
@@ -991,7 +991,7 @@ static int xio_rdma_context_shutdown(struct xio_transport_base *trans_hndl,
 	xio_rdma_close(trans_hndl);
 	/* expedite the close */
 	on_cm_disconnected(NULL, rdma_hndl);
-	on_post_disconnected(trans_hndl);
+	on_post_disconnected(0, trans_hndl);
 	on_cm_timewait_exit(trans_hndl);
 
 	return 0;
@@ -2133,7 +2133,8 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 /*---------------------------------------------------------------------------*/
 /* xio_connect_timeout_handler						     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_connect_timeout_handler(void *rdma_handle)
+static inline void xio_connect_timeout_handler(int actual_timeout_ms, 
+					       void *rdma_handle)
 {
 	struct xio_rdma_transport *rdma_hndl =
 				(struct xio_rdma_transport *)rdma_handle;
@@ -2473,7 +2474,7 @@ static void  on_cm_established(struct rdma_cm_event *ev,
 /*---------------------------------------------------------------------------*/
 /* on_post_disconnected						     */
 /*---------------------------------------------------------------------------*/
-static void on_post_disconnected(void *trans_hndl)
+static void on_post_disconnected(int actual_timeout_ms, void *trans_hndl)
 {
 	struct xio_rdma_transport *rdma_hndl =
 				(struct xio_rdma_transport *)trans_hndl;
@@ -2522,7 +2523,7 @@ static void on_cm_timewait_exit(void *trans_hndl)
 	rdma_hndl->timewait_nr = 1;
 
 	on_cm_disconnected(NULL, rdma_hndl);
-	on_post_disconnected(trans_hndl);
+	on_post_disconnected(0, trans_hndl);
 
 	/* if beacon was sent but was never received as wc error then reduce
 	   ref count */
@@ -2664,7 +2665,8 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 /*---------------------------------------------------------------------------*/
 /* xio_disconnect_timeout_handler					     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_disconnect_timeout_handler(void *rdma_handle)
+static inline void xio_disconnect_timeout_handler(int actual_timeout_ms, 
+					          void *rdma_handle)
 {
 	struct xio_rdma_transport *rdma_hndl =
 				(struct xio_rdma_transport *)rdma_handle;
@@ -2775,7 +2777,7 @@ void xio_close_handler(void *hndl)
 /*---------------------------------------------------------------------------*/
 /* on_cm_addr_change							     */
 /*---------------------------------------------------------------------------*/
-static void on_cm_addr_change(void *trans_hndl)
+static void on_cm_addr_change(int actual_timeout_ms, void *trans_hndl)
 {
 	struct xio_rdma_transport *rdma_hndl =
 				(struct xio_rdma_transport *)trans_hndl;

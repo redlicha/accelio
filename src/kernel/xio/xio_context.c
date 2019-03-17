@@ -388,7 +388,7 @@ EXPORT_SYMBOL(xio_context_destroy);
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_delayed_work(struct xio_context *ctx,
 			     int msec_duration, void *data,
-			     void (*timer_fn)(void *data),
+			     void (*timer_fn)(int actual_timeout_ms, void *data),
 			     xio_ctx_delayed_work_t *work)
 {
 	int retval;
@@ -497,7 +497,7 @@ EXPORT_SYMBOL(xio_context_is_loop_stopping);
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_work(struct xio_context *ctx,
 		     void *data,
-		     void (*function)(void *data),
+		     void (*function)(int actual_timeout_ms, void *data),
 		     xio_ctx_work_t *work)
 {
 	int retval;
@@ -774,40 +774,54 @@ void xio_context_kfree(struct xio_context *ctx, const void *ptr)
 {
 	kfree((void *) ptr);
 }
+EXPORT_SYMBOL(xio_context_kfree);
 
 void *xio_context_kmalloc(struct xio_context *ctx, size_t size, gfp_t flags)
 {
 	return kmalloc(size, flags);
 }
+EXPORT_SYMBOL(xio_context_kmalloc);
 
 void *xio_context_kcalloc(struct xio_context *ctx, size_t n, size_t size, gfp_t flags)
 {
 	return kcalloc(n, size, flags);
 }
+EXPORT_SYMBOL(xio_context_kcalloc);
 
 void *xio_context_kzalloc(struct xio_context *ctx, size_t size, gfp_t flags)
 {
 	return kzalloc(size, flags);
 }
+EXPORT_SYMBOL(xio_context_kzalloc);
 
 void *xio_context_vmalloc(struct xio_context *ctx, unsigned long size)
 {
 	return vmalloc(size);
 }
+EXPORT_SYMBOL(xio_context_vmalloc);
 
 void *xio_context_vzalloc(struct xio_context *ctx, unsigned long size)
 {
 	return vzalloc(size);
 }
+EXPORT_SYMBOL(xio_context_vzalloc);
 
 void xio_context_vfree(struct xio_context *ctx, const void *addr)
 {
 	vfree((void *) addr);
 }
+EXPORT_SYMBOL(xio_context_vfree);
 
 char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp)
 {
 	/* Make sure code transfered to kernel will work as expected */
 	return kstrdup(s, gfp);
 }
+EXPORT_SYMBOL(xio_context_kstrdup);
 
+char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp)
+{
+	/* Make sure code transfered to kernel will work as expected */
+	return kstrndup(s, len, gfp);
+}
+EXPORT_SYMBOL(xio_context_kstrndup);

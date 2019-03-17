@@ -201,7 +201,7 @@ static inline void xio_stat_inc(struct xio_statistics *stats, int counter)
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_delayed_work(struct xio_context *ctx,
 			     int msec_duration, void *data,
-			     void (*timer_fn)(void *data),
+			     void (*timer_fn)(int actual_timeout_ms, void *data),
 			     xio_ctx_delayed_work_t *work);
 
 /*---------------------------------------------------------------------------*/
@@ -214,7 +214,7 @@ int xio_ctx_del_delayed_work(struct xio_context *ctx,
 /* xio_ctx_add_work							     */
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_work(struct xio_context *ctx, void *data,
-		     void (*function)(void *data),
+		     void (*function)(int actual_timeout_ms, void *data),
 		     xio_ctx_work_t *work);
 
 /*---------------------------------------------------------------------------*/
@@ -340,7 +340,7 @@ char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gf
 static inline void xio_context_set_prv_event(struct xio_context *ctx, void *prv_evt, void (*ack_evt)(void *prv_evt))
 {
 	if (ctx->prv_evt)
-		abort();
+		return;
 	ctx->prv_evt = prv_evt;
 	ctx->ack_evt = ack_evt;
 }

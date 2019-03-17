@@ -330,7 +330,7 @@ EXPORT_SYMBOL(xio_context_destroy);
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_delayed_work(struct xio_context *ctx,
 			     int msec_duration, void *data,
-			     void (*timer_fn)(void *data),
+			     void (*timer_fn)(int actual_timeout_ms, void *data),
 			     xio_ctx_delayed_work_t *work)
 {
 	int retval;
@@ -548,7 +548,7 @@ inline int xio_context_is_loop_stopping(struct xio_context *ctx)
 /*---------------------------------------------------------------------------*/
 int xio_ctx_add_work(struct xio_context *ctx,
 		     void *data,
-		     void (*function)(void *data),
+		     void (*function)(int actual_timeout_ms, void *data),
 		     xio_ctx_work_t *work)
 {
 	int retval;

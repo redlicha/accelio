@@ -2195,12 +2195,14 @@ static int xio_tcp_task_pre_put(struct xio_transport_base *trans_hndl,
 				struct xio_task *task)
 {
 	XIO_TO_TCP_TASK(task, tcp_task);
+	struct xio_tcp_transport *tcp_hndl =
+		(struct xio_tcp_transport *)trans_hndl;
 	unsigned int	i;
 
 	/* recycle TCP  buffers back to pool */
 
 	/* put buffers back to pool */
-	xio_free_rdma_read_mem(tcp_hndl, tcp_task);
+	xio_free_rdma_read_mem(tcp_hndl, task);
 
 	for (i = 0; i < tcp_task->write_num_mp_mem; i++) {
 		if (tcp_task->write_mp_mem[i].cache) {

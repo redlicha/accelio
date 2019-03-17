@@ -226,10 +226,11 @@ static void xio_work_action_handler(int fd, int events, void *user_context)
 		}
 
 		if (test_bits(XIO_WORK_PENDING, &work->flags)) {
+			int time_passed_msecs = (int)((get_cycles() -
+				work->start_cycle)/(1000*g_mhz) + 0.5);
 			clr_bits(XIO_WORK_PENDING, &work->flags);
-
 			set_bits(XIO_WORK_IN_HANDLER, &work->flags);
-			work->function(work->data);
+			work->function(time_passed_msecs, work->data);
 			clr_bits(XIO_WORK_IN_HANDLER, &work->flags);
 			if (work->destructor)
 				work->destructor(work->destructor_data);
@@ -339,7 +340,7 @@ int xio_workqueue_destroy(struct xio_workqueue *work_queue)
 /*---------------------------------------------------------------------------*/
 int xio_workqueue_add_delayed_work(struct xio_workqueue *work_queue,
 				   int msec_duration, void *data,
-				   void (*function)(void *data),
+				   void (*function)(int actual_timeout, void *data),
 				   xio_delayed_work_handle_t *dwork)
 {
 	int			retval = 0;
@@ -357,6 +358,7 @@ int xio_workqueue_add_delayed_work(struct xio_workqueue *work_queue,
 	work->function	= function;
 	work->data	= data;
 	work->flags	|= XIO_WORK_PENDING;
+	work->start_cycle = get_cycles(); 
 
 	rc = xio_timers_list_add_duration(
 			&work_queue->timers_list,
@@ -420,7 +422,7 @@ unlock:
 /*---------------------------------------------------------------------------*/
 int xio_workqueue_add_work(struct xio_workqueue *work_queue,
 			   void *data,
-			   void (*function)(void *data),
+			   void (*function)(int actual_timeout_ms, void *data),
 			   xio_work_handle_t *work)
 {
 	uint64_t	exp = uint64_from_ptr(work);
@@ -429,6 +431,7 @@ int xio_workqueue_add_work(struct xio_workqueue *work_queue,
 	work->function	= function;
 	work->data	= data;
 	work->flags	|= XIO_WORK_PENDING;
+	work->start_cycle = get_cycles(); 
 
 	s = xio_write(work_queue->pipe_fd[1], &exp, sizeof(exp));
 	if (s < 0) {

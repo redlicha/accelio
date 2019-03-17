@@ -1108,7 +1108,7 @@ static int xio_nexus_primary_pool_recreate(struct xio_nexus *nexus)
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_release_cb							     */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_release_cb(void *data)
+static void xio_nexus_release_cb(int actual_timeout_ms, void *data)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)data;
 
@@ -1153,7 +1153,7 @@ static void xio_nexus_release(void *data)
 	xio_ctx_del_delayed_work(nexus->ctx,
 				 &nexus->close_time_hndl);
 
-	xio_nexus_release_cb(data);
+	xio_nexus_release_cb(0, data);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2115,7 +2115,7 @@ int xio_nexus_reconnect(struct xio_nexus *nexus)
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_notify_observer_work                                            */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_notify_observer_work(void *_work_params)
+static void xio_nexus_notify_observer_work(int actual_timeout_ms, void *_work_params)
 {
 	struct xio_nexus_observer_work  *work_params =
                 (struct xio_nexus_observer_work *) _work_params;
@@ -2676,7 +2676,7 @@ int xio_nexus_cancel_rsp(struct xio_nexus *nexus, struct xio_task *task,
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_server_reconnect_timeout					     */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_server_reconnect_timeout(void *data)
+static void xio_nexus_server_reconnect_timeout(int actual_timeout_ms, void *data)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)data;
 
@@ -2716,7 +2716,7 @@ static int xio_nexus_server_reconnect(struct xio_nexus *nexus)
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_client_reconnect_timeout					     */
 /*---------------------------------------------------------------------------*/
-static void xio_nexus_client_reconnect_timeout(void *data)
+static void xio_nexus_client_reconnect_timeout(int actual_timeout_ms, void *data)
 {
 	struct xio_nexus *nexus = (struct xio_nexus *)data;
 	int retval;

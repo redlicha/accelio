@@ -3770,7 +3770,6 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
 	int			i, retval;
-	int			user_assign_flag = 0;
 	size_t			rlen = 0, llen = 0;
 	size_t			rsg_out_list_len = 0;
 	int			tasks_used = 0;

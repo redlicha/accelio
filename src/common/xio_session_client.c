@@ -771,7 +771,7 @@ int xio_on_client_nexus_established(struct xio_session *session,
 		} else {
 			xio_connection_set_state(connection,
 						 XIO_CONNECTION_STATE_ONLINE);
-			xio_connection_keepalive_start(connection);
+			xio_connection_keepalive_start(0, connection);
 			xio_connection_xmit_msgs(connection);
 		}
 		break;
@@ -877,19 +877,21 @@ int xio_client_on_nexus_event(void *observer, void *sender, int event,
 	return 0;
 }
 
-static inline void xio_session_refuse_connection(void *conn)
+static inline void xio_session_refuse_connection(int actual_timeout_ms, void *conn)
 {
 	struct xio_connection *connection = (struct xio_connection *)conn;
 
 	xio_connection_refused(connection);
 }
 
-static void xio_connect_timeout(void *data)
+static void xio_connect_timeout(int actual_timeout_ms, void *data)
 {
 	struct xio_connection *connection = (struct xio_connection *)data;
 
-	WARN_LOG("xio_connect timedout. connection:%p timeout:%d secs\n",
-	         connection, (connection->connect_timeout/1000));
+	WARN_LOG("xio_connect timedout. connection:%p timeout:%d secs, " \
+		 "actual timeout:%d secs\n",
+	         connection, (connection->connect_timeout/1000), 
+		 actual_timeout_ms/1000);
 
 	xio_connection_force_disconnect(connection, XIO_E_TIMEOUT);
 }
