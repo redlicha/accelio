@@ -2409,7 +2409,7 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 	struct xio_task *task;
 
 	if (!nexus->transport) {
-		ERROR_LOG("transport not initialized\n");
+		ERROR_LOG("transport not initialized. nexus:%p\n", nexus);
 		return -1;
 	}
 	if (!nexus->transport->send || !nexus->transport_hndl)
@@ -2462,14 +2462,17 @@ int xio_nexus_send(struct xio_nexus *nexus, struct xio_task *task)
 	int		retval;
 
 	if (!nexus->transport) {
-		ERROR_LOG("transport not initialized\n");
+		ERROR_LOG("transport not initialized. nexus:%p\n", nexus);
 		return -1;
 	}
 	if (!nexus->transport->send)
 		return 0;
 
-	/* push to end of the queue */
-	list_move_tail(&task->tasks_list_entry, &nexus->tx_queue);
+	/* push to end of the queue - prioritize ka */
+	if (IS_KEEPALIVE(task->tlv_type))
+		list_move(&task->tasks_list_entry, &nexus->tx_queue);
+	else
+		list_move_tail(&task->tasks_list_entry, &nexus->tx_queue);
 
 	/* xmit it to the transport */
 	retval = xio_nexus_xmit(nexus);

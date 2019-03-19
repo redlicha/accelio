@@ -265,6 +265,7 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 	uint16_t		window = 0;
 	uint16_t		retval;
 	uint16_t		req_nr = 0;
+	int			is_ka = 0;
 
 
 	if (rdma_hndl->state != XIO_TRANSPORT_STATE_CONNECTED)
@@ -286,7 +287,14 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 		  rdma_hndl->peer_credits,
 		  rdma_hndl->sqe_avail);
 	*/
-	if (window == 0) {
+	if (rdma_hndl->tx_ready_tasks_num) {
+		task = list_first_entry(
+				&rdma_hndl->tx_ready_list,
+				struct xio_task,  tasks_list_entry);
+		is_ka = IS_KEEPALIVE(task->tlv_type);
+	}
+
+	if (!is_ka &&  window == 0) {
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -330,8 +338,12 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 
 			rdma_task->txd.send_wr.send_flags &= ~IBV_SEND_SIGNALED;
 
-			list_move_tail(&task->tasks_list_entry,
-				       &rdma_hndl->in_flight_list);
+			if (IS_KEEPALIVE(task->tlv_type))
+				list_move(&task->tasks_list_entry,
+					  &rdma_hndl->in_flight_list);
+			else
+				list_move_tail(&task->tasks_list_entry,
+					       &rdma_hndl->in_flight_list);
 			continue;
 		}
 		if (rdma_task->out_ib_op == XIO_IB_RDMA_WRITE) {
@@ -388,8 +400,12 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 		prev_rdma_task = rdma_task;
 		req_nr++;
 		rdma_hndl->tx_ready_tasks_num--;
-		list_move_tail(&task->tasks_list_entry,
-			       &rdma_hndl->in_flight_list);
+		if (IS_KEEPALIVE(task->tlv_type))
+			list_move(&task->tasks_list_entry,
+					&rdma_hndl->in_flight_list);
+		else
+			list_move_tail(&task->tasks_list_entry,
+					&rdma_hndl->in_flight_list);
 	}
 	if (req_nr) {
 		first_wr = container_of(rdma_hndl->dummy_wr.send_wr.next,
@@ -2942,6 +2958,11 @@ static int kick_send_and_read(struct xio_rdma_transport *rdma_hndl,
 {
 	int retval = 0;
 
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		retval = xio_rdma_xmit(rdma_hndl);
+		return retval;
+	}
+
 	/* transmit only if available */
 	if (test_bits(XIO_MSG_FLAG_LAST_IN_BATCH, &task->omsg->flags) ||
 	    task->is_control) {
@@ -2950,6 +2971,7 @@ static int kick_send_and_read(struct xio_rdma_transport *rdma_hndl,
 		if (tx_window_sz(rdma_hndl) >= SEND_THRESHOLD)
 			must_send = 1;
 	}
+
 
 	/* resource are now available and rdma rd  requests are pending kick
 	 * them
@@ -3010,7 +3032,8 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc = 0;
 
-	if (unlikely(verify_req_send_limits(rdma_hndl)))
+	if (unlikely(!IS_KEEPALIVE(task->tlv_type) &&
+		     verify_req_send_limits(rdma_hndl)))
 		return -1;
 
 	/* prepare buffer for RDMA response  */
@@ -3077,7 +3100,10 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 
 	rdma_task->out_ib_op = XIO_IB_SEND;
 
-	list_move_tail(&task->tasks_list_entry, &rdma_hndl->tx_ready_list);
+	if (IS_KEEPALIVE(task->tlv_type))
+		list_move(&task->tasks_list_entry, &rdma_hndl->tx_ready_list);
+	else
+		list_move_tail(&task->tasks_list_entry, &rdma_hndl->tx_ready_list);
 
 	rdma_hndl->tx_ready_tasks_num++;
 
@@ -3101,7 +3127,8 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc;
 
-	if (unlikely(verify_rsp_send_limits(rdma_hndl)))
+	if (unlikely(!IS_KEEPALIVE(task->tlv_type) &&
+		     verify_rsp_send_limits(rdma_hndl)))
 		return -1;
 
 	if (task->on_hold) {
@@ -3163,8 +3190,13 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 		if (sge_len < (size_t)rdma_hndl->max_inline_data)
 			txd->send_wr.send_flags |= IBV_SEND_INLINE;
 
-		list_move_tail(&task->tasks_list_entry,
-			       &rdma_hndl->tx_ready_list);
+		if (IS_KEEPALIVE(task->tlv_type))
+			list_move(&task->tasks_list_entry,
+				  &rdma_hndl->tx_ready_list);
+		else
+			list_move_tail(&task->tasks_list_entry,
+				       &rdma_hndl->tx_ready_list);
+
 		rdma_hndl->tx_ready_tasks_num++;
 	}
 
@@ -4530,17 +4562,19 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 	/* must delay the send due to pending rdma read requests
 	 * if not user will get out of order messages - need fence
 	 */
-	if (!list_empty(&rdma_hndl->rdma_rd_req_list)) {
-		list_move_tail(&task->tasks_list_entry,
-			       &rdma_hndl->rdma_rd_req_list);
-		rdma_hndl->kick_rdma_rd_req = 1;
-		return 0;
-	}
-	if (rdma_hndl->rdma_rd_req_in_flight) {
-		rdma_hndl->rdma_rd_req_in_flight++;
-		list_move_tail(&task->tasks_list_entry,
-			       &rdma_hndl->rdma_rd_req_in_flight_list);
-		return 0;
+	if (!IS_KEEPALIVE(task->tlv_type)) {
+		if (!list_empty(&rdma_hndl->rdma_rd_req_list)) {
+			list_move_tail(&task->tasks_list_entry,
+					&rdma_hndl->rdma_rd_req_list);
+			rdma_hndl->kick_rdma_rd_req = 1;
+			return 0;
+		}
+		if (rdma_hndl->rdma_rd_req_in_flight) {
+			rdma_hndl->rdma_rd_req_in_flight++;
+			list_move_tail(&task->tasks_list_entry,
+					&rdma_hndl->rdma_rd_req_in_flight_list);
+			return 0;
+		}
 	}
 	/* fill notification event */
 	event_data.msg.op	= XIO_WC_OP_RECV;

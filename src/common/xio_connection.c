@@ -3574,6 +3574,7 @@ EXPORT_SYMBOL(xio_connection_ioctl);
 int xio_connection_send_ka_req(struct xio_connection *connection)
 {
 	struct xio_msg *msg;
+	int retval;
 
 	if (connection->state != XIO_CONNECTION_STATE_ONLINE ||
 	    connection->ka.req_sent)
@@ -3597,11 +3598,15 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	connection->ka.req_sent = 1;
 	connection->ka.io_rcv = 0;
 
-	/* insert to the tail of the queue */
-	xio_msg_list_insert_tail(&connection->reqs_msgq, msg, pdata);
-
-	/* do not xmit until connection is assigned */
-	return xio_connection_xmit(connection);
+	/* prioritize keep alive  - send directly */
+	retval = xio_connection_send(connection, msg);
+	if (unlikely(retval)) {
+		ERROR_LOG("%s - xio_connection_send failed. connection:%p\n",
+			   __func__, connection);
+		xio_context_msg_pool_put(msg);
+		return -1;
+	}
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -3611,6 +3616,7 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 			       struct xio_task *task)
 {
 	struct xio_msg	*msg;
+	int retval;
 
 	if (connection->state != XIO_CONNECTION_STATE_ONLINE) {
 	    xio_tasks_pool_put(task);
@@ -3633,11 +3639,15 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 	msg->in.data_tbl.nents	= 0;
 	msg->out.data_tbl.nents	= 0;
 
-	/* insert to the tail of the queue */
-	xio_msg_list_insert_tail(&connection->rsps_msgq, msg, pdata);
-
-	/* do not xmit until connection is assigned */
-	return xio_connection_xmit(connection);
+	/* prioritize keep alive  - send directly */
+	retval = xio_connection_send(connection, msg);
+	if (unlikely(retval)) {
+		ERROR_LOG("%s - xio_connection_send failed. connection:%p\n",
+			   __func__, connection);
+		xio_context_msg_pool_put(msg);
+		return -1;
+	}
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*/

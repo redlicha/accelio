@@ -1551,7 +1551,10 @@ static int xio_tcp_send_req(struct xio_tcp_transport *tcp_hndl,
 
 	tcp_task->out_tcp_op = XIO_TCP_SEND;
 
-	list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
+	if (IS_KEEPALIVE(task->tlv_type))
+		list_move(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
+	else
+		list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
 
 	tcp_hndl->tx_ready_tasks_num++;
 
@@ -1936,7 +1939,10 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, tlv_len, crc) != 0)
 		goto cleanup;
 
-	list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
+	if (IS_KEEPALIVE(task->tlv_type))
+		list_move(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
+	else
+		list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
 
 	tcp_hndl->tx_ready_tasks_num++;
 
