@@ -338,12 +338,8 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 
 			rdma_task->txd.send_wr.send_flags &= ~IBV_SEND_SIGNALED;
 
-			if (IS_KEEPALIVE(task->tlv_type))
-				list_move(&task->tasks_list_entry,
-					  &rdma_hndl->in_flight_list);
-			else
-				list_move_tail(&task->tasks_list_entry,
-					       &rdma_hndl->in_flight_list);
+			list_move_tail(&task->tasks_list_entry,
+				       &rdma_hndl->in_flight_list);
 			continue;
 		}
 		if (rdma_task->out_ib_op == XIO_IB_RDMA_WRITE) {
@@ -400,12 +396,8 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 		prev_rdma_task = rdma_task;
 		req_nr++;
 		rdma_hndl->tx_ready_tasks_num--;
-		if (IS_KEEPALIVE(task->tlv_type))
-			list_move(&task->tasks_list_entry,
-					&rdma_hndl->in_flight_list);
-		else
-			list_move_tail(&task->tasks_list_entry,
-					&rdma_hndl->in_flight_list);
+		list_move_tail(&task->tasks_list_entry,
+			       &rdma_hndl->in_flight_list);
 	}
 	if (req_nr) {
 		first_wr = container_of(rdma_hndl->dummy_wr.send_wr.next,
