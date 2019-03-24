@@ -512,6 +512,7 @@ struct xio_rdma_transport {
 
 struct xio_cm_channel {
 	struct rdma_event_channel	*cm_channel;
+	struct rdma_cm_event		*cm_event;
 	struct xio_context		*ctx;
 	struct list_head		channels_list_entry;
 	struct kref			kref;       /* utilization counter */
