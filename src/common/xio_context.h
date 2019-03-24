@@ -335,5 +335,7 @@ void xio_context_vfree(struct xio_context *ctx, const void *addr);
 char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp);
 char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp);
 
+void xio_context_poll_delayed_work(struct xio_context *ctx);
+
 #endif /*XIO_CONTEXT_H */
 
