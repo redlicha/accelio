@@ -2936,7 +2936,6 @@ static void xio_cma_handler(int fd, int events, void *user_context)
 		(struct rdma_event_channel *)(user_context);
 	struct rdma_cm_event		*ev;
 	struct xio_rdma_transport	*rdma_hndl;
-	struct xio_context		*ctx;
 	struct xio_cm_channel		*cm_channel;
 	int				retval;
 
@@ -2952,7 +2951,6 @@ static void xio_cma_handler(int fd, int events, void *user_context)
 			break;
 		}
 		rdma_hndl = (struct xio_rdma_transport *)ev->id->context;
-		ctx = rdma_hndl->base.ctx;
 		cm_channel = rdma_hndl->cm_channel;
 		if (cm_channel->cm_event)
 			xio_cm_channel_ack_event(cm_channel);
@@ -2962,9 +2960,6 @@ static void xio_cma_handler(int fd, int events, void *user_context)
 		xio_handle_cm_event(ev, rdma_hndl);
 
 		xio_cm_channel_ack_event(cm_channel);
-
-		/* poll timer events */
-		xio_context_poll_delayed_work(ctx);
 	} while (1);
 }
 

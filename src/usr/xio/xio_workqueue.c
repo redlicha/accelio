@@ -490,16 +490,3 @@ int xio_workqueue_is_work_in_handler(struct xio_workqueue *work_queue,
 	return test_bits(XIO_WORK_IN_HANDLER, &work->flags);
 }
 
-/*---------------------------------------------------------------------------*/
-/* xio_workqueue_poll_delayed_work					     */
-/*---------------------------------------------------------------------------*/
-void xio_worqueue_poll_delayed_work(struct xio_workqueue *work_queue)
-{
-	if (xio_timers_list_is_empty(&work_queue->timers_list))
-		return;
-
-	work_queue->flags |= XIO_WORKQUEUE_IN_POLL;
-	xio_timers_list_expire(&work_queue->timers_list);
-	work_queue->flags &= ~XIO_WORKQUEUE_IN_POLL;
-}
-

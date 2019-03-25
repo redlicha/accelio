@@ -96,7 +96,5 @@ int xio_workqueue_set_work_destructor(struct xio_workqueue *work_queue,
 int xio_workqueue_is_work_in_handler(struct xio_workqueue *work_queue,
 				     xio_work_handle_t *work);
 
-void xio_worqueue_poll_delayed_work(struct xio_workqueue *work_queue);
-
 #endif /* XIO_WORKQUEUE_H */
 

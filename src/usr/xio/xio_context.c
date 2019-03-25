@@ -1039,8 +1039,3 @@ void xio_context_unuma_free(struct xio_context *ctx, void *ptr)
 		unuma_free(ptr);
 }
 
-void xio_context_poll_delayed_work(struct xio_context *ctx) 
-{
-	xio_worqueue_poll_delayed_work(ctx->workqueue);
-}
-

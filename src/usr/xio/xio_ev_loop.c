@@ -466,9 +466,6 @@ retry:
 				/* (fd != loop->wakeup_event) */
 				tev->ev_handler(tev->fd, out_events,
 						tev->data);
-				/* poll timer events */;
-				xio_context_poll_delayed_work(loop->ctx);
-
 			} else {
 				/* wakeup event auto-removed from epoll
 				 * due to ONESHOT
