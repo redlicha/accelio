@@ -291,6 +291,29 @@ int xio_query_context(struct xio_context *ctx,
 EXPORT_SYMBOL(xio_query_context);
 
 /*---------------------------------------------------------------------------*/
+/* xio_ctx_task_pools_orphans_or_on_hold_list_empty			     */
+/*---------------------------------------------------------------------------*/
+static inline int xio_ctx_task_pools_orphans_or_on_hold_list_empty(
+							struct xio_context *ctx)
+{
+	int i;
+
+	for (i = 0; i < XIO_PROTO_LAST; i++) {
+		if (ctx->initial_tasks_pool[i]) {
+			if (!xio_tasks_pool_orphans_or_on_hold_list_empty(
+						ctx->initial_tasks_pool[i]))
+				return 0;
+		}
+		if (ctx->primary_tasks_pool[i]) {
+			if (!xio_tasks_pool_orphans_or_on_hold_list_empty(
+						ctx->primary_tasks_pool[i]))
+				return 0;
+		}
+	}
+	return 1;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_ctx_tasks_pools_destroy						     */
 /*---------------------------------------------------------------------------*/
 static void xio_ctx_task_pools_destroy(struct xio_context *ctx)
@@ -300,11 +323,13 @@ static void xio_ctx_task_pools_destroy(struct xio_context *ctx)
 	for (i = 0; i < XIO_PROTO_LAST; i++) {
 		if (ctx->initial_tasks_pool[i]) {
 			xio_tasks_pool_free_tasks(ctx->initial_tasks_pool[i]);
+			xio_tasks_pool_orphan_tasks_clear_unassign(ctx->initial_tasks_pool[i]);
 			xio_tasks_pool_destroy(ctx->initial_tasks_pool[i]);
 			ctx->initial_tasks_pool[i] = NULL;
 		}
 		if (ctx->primary_tasks_pool[i]) {
 			xio_tasks_pool_free_tasks(ctx->primary_tasks_pool[i]);
+			xio_tasks_pool_orphan_tasks_clear_unassign(ctx->primary_tasks_pool[i]);
 			xio_tasks_pool_destroy(ctx->primary_tasks_pool[i]);
 			ctx->primary_tasks_pool[i] = NULL;
 		}
@@ -348,6 +373,10 @@ void xio_destroy_context_continue(struct work_struct *work)
 
 	XIO_OBSERVABLE_DESTROY(&ctx->observable);
 
+	if (!xio_ctx_task_pools_orphans_or_on_hold_list_empty(ctx))
+		ERROR_LOG("%s failed. orphans or on_hold tasks still exists\n",
+			  __func__);
+
 	xio_ctx_task_pools_destroy(ctx);
 
 	if (ctx->mempool) {
@@ -359,7 +388,7 @@ void xio_destroy_context_continue(struct work_struct *work)
 }
 EXPORT_SYMBOL(xio_destroy_context_continue);
 
-void xio_context_destroy(struct xio_context *ctx)
+int xio_context_destroy(struct xio_context *ctx)
 {
 	int found;
 
@@ -380,6 +409,8 @@ void xio_context_destroy(struct xio_context *ctx)
 		xio_context_run_loop(ctx);
 	if (ctx->run_private == 0)
 		xio_destroy_context_continue(&ctx->destroy_ctx_work.work);
+
+	return 0;
 }
 EXPORT_SYMBOL(xio_context_destroy);
 

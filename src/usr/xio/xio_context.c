@@ -226,6 +226,29 @@ static inline void xio_context_reset_stop(struct xio_context *ctx)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_ctx_task_pools_orphans_or_on_hold_list_empty			     */
+/*---------------------------------------------------------------------------*/
+static inline int xio_ctx_task_pools_orphans_or_on_hold_list_empty(
+							struct xio_context *ctx)
+{
+	int i;
+
+	for (i = 0; i < XIO_PROTO_LAST; i++) {
+		if (ctx->initial_tasks_pool[i]) {
+			if (!xio_tasks_pool_orphans_or_on_hold_list_empty(
+						ctx->initial_tasks_pool[i]))
+				return 0;
+		}
+		if (ctx->primary_tasks_pool[i]) {
+			if (!xio_tasks_pool_orphans_or_on_hold_list_empty(
+						ctx->primary_tasks_pool[i]))
+				return 0;
+		}
+	}
+	return 1;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_ctx_tasks_pools_destroy						     */
 /*---------------------------------------------------------------------------*/
 static void xio_ctx_task_pools_destroy(struct xio_context *ctx)
@@ -235,11 +258,13 @@ static void xio_ctx_task_pools_destroy(struct xio_context *ctx)
 	for (i = 0; i < XIO_PROTO_LAST; i++) {
 		if (ctx->initial_tasks_pool[i]) {
 			xio_tasks_pool_free_tasks(ctx->initial_tasks_pool[i]);
+			xio_tasks_pool_orphan_tasks_clear_unassign(ctx->initial_tasks_pool[i]);
 			xio_tasks_pool_destroy(ctx->initial_tasks_pool[i]);
 			ctx->initial_tasks_pool[i] = NULL;
 		}
 		if (ctx->primary_tasks_pool[i]) {
 			xio_tasks_pool_free_tasks(ctx->primary_tasks_pool[i]);
+			xio_tasks_pool_orphan_tasks_clear_unassign(ctx->primary_tasks_pool[i]);
 			xio_tasks_pool_destroy(ctx->primary_tasks_pool[i]);
 			ctx->primary_tasks_pool[i] = NULL;
 		}
@@ -249,18 +274,21 @@ static void xio_ctx_task_pools_destroy(struct xio_context *ctx)
 /*---------------------------------------------------------------------------*/
 /* xio_context_destroy	                                                     */
 /*---------------------------------------------------------------------------*/
-void xio_context_destroy(struct xio_context *ctx)
+int xio_context_destroy(struct xio_context *ctx)
 {
 	int i;
 	int found;
+	int retval = 0;
 
-	if (unlikely(!ctx))
-		return;
+	if (unlikely(!ctx)) {
+		xio_set_error(EINVAL);
+		return -1;
+	}
 
 	if (unlikely(ctx->is_running && !ctx->defered_destroy)) {
 		ctx->defered_destroy = 1;
 		xio_ev_loop_stop(ctx->ev_loop);
-		return;
+		return retval;
 	}
 
 	found = xio_idr_lookup_uobj(usr_idr, ctx);
@@ -269,7 +297,7 @@ void xio_context_destroy(struct xio_context *ctx)
 	} else {
 		ERROR_LOG("context not found:%p\n", ctx);
 		xio_set_error(XIO_E_USER_OBJ_NOT_FOUND);
-		return;
+		return -1;
 	}
 	ctx->run_private = 0;
 	xio_observable_notify_all_observers(&ctx->observable,
@@ -308,20 +336,30 @@ void xio_context_destroy(struct xio_context *ctx)
 
 	xio_objpool_destroy(ctx->msg_pool);
 
+	xio_ev_loop_destroy(ctx->ev_loop);
+	ctx->ev_loop = NULL;
+
+	if (!xio_ctx_task_pools_orphans_or_on_hold_list_empty(ctx)) {
+		xio_set_error(EBUSY);
+		ERROR_LOG("%s failed. orphans or on_hold tasks still exists\n",
+			  __func__);
+		retval = -1;
+	}
+
+	xio_ctx_task_pools_destroy(ctx);
+
 	if (ctx->mempool) {
 		xio_mempool_destroy((struct xio_mempool *)ctx->mempool);
 		ctx->mempool = NULL;
 	}
-	xio_ev_loop_destroy(ctx->ev_loop);
-	ctx->ev_loop = NULL;
-
-	xio_ctx_task_pools_destroy(ctx);
 #ifdef XIO_THREAD_SAFE_DEBUG
 	pthread_mutex_destroy(&ctx->dbg_thread_mutex);
 #endif
 
 	XIO_OBSERVABLE_DESTROY(&ctx->observable);
 	xio_context_ufree(NULL, ctx);
+
+	return retval;
 }
 EXPORT_SYMBOL(xio_context_destroy);
 

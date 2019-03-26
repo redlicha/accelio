@@ -350,8 +350,10 @@ struct xio_context_attr {
  *
  * @param[in] ctx	Pointer to the xio context handle
  *
+ * @return 0 on success, or -1 on error.  If an error occurs, call
+ *	    xio_errno function to get the failure reason.
  */
-void xio_context_destroy(struct xio_context *ctx);
+int xio_context_destroy(struct xio_context *ctx);
 
 /**
  * modify context parameters

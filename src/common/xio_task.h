@@ -519,11 +519,27 @@ static inline void xio_tasks_pool_flush_orphan_tasks(struct xio_tasks_pool *pool
 		cnt++;
 	}
 	if (cnt)
-		ERROR_LOG("%s - ctx%p, flushing %d orphan tasks\n",
+		ERROR_LOG("%s - ctx:%p, flushing %d orphan tasks\n",
 			  pool->params.pool_name,
 			  pool->params.xio_context, cnt);
 
 	xio_tasks_list_flush(&pool->orphans_list);
+}
+
+static inline void xio_tasks_pool_orphan_tasks_clear_unassign(struct xio_tasks_pool *pool)
+{
+	struct xio_task *ptask;
+
+	list_for_each_entry(ptask,
+			    &pool->orphans_list,
+			    tasks_list_entry) {
+		ptask->unassign_data_in_buf = NULL;
+	}
+}
+
+static inline int xio_tasks_pool_orphans_or_on_hold_list_empty(struct xio_tasks_pool *pool)
+{
+	return list_empty(&pool->orphans_list) && list_empty(&pool->on_hold_list);
 }
 
 #endif
