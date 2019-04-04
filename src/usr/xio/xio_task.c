@@ -361,7 +361,7 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 
 	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
 		for (i = 0; i < pslab->nr; i++)
-			if (pslab->array[i]->tlv_type != 0xdead ||
+			if (pslab->array[i]->tlv_type != 0xdead &&
 			    pslab->array[i]->tlv_type != 0xbeef) {
 				pool_name = q->params.pool_name ?
 					q->params.pool_name : "unknown";

@@ -2716,6 +2716,8 @@ int xio_connection_destroy(struct xio_connection *connection)
 						 tasks_list_entry) {
 				if (!ptask->on_hold)
 					pending++;
+				else
+					xio_tasks_pool_put(ptask);
 				xio_tasks_pool_add_orphan_task(ptask);
 			}
 			if (pending)
