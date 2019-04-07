@@ -687,7 +687,7 @@ retry:
 	return 0;
 
 cleanup:
-        ERROR_LOG("%s failed. pool:%p, size:%zd\n", p, length);
+        ERROR_LOG("%s failed. pool:%p, size:%zd\n", __func__, p, length);
 	xio_mempool_dump(p);
 	xio_set_error(err);
 	return -1;
