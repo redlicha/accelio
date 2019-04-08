@@ -2868,13 +2868,14 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 {
-	if (rdma_hndl->reqs_in_flight_nr + rdma_hndl->rsps_in_flight_nr >
-	    rdma_hndl->max_tx_ready_tasks_num) {
+	if (rdma_hndl->reqs_in_flight_nr + rdma_hndl->rsps_in_flight_nr >=
+	    rdma_hndl->max_tx_ready_tasks_num - 1) {
 		DEBUG_LOG("over limits reqs_in_flight_nr=%u, "\
-			  "rsps_in_flight_nr=%u, max_tx_ready_tasks_num=%u\n",
+			  "rsps_in_flight_nr=%u, max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->reqs_in_flight_nr,
 			  rdma_hndl->rsps_in_flight_nr,
-			  rdma_hndl->max_tx_ready_tasks_num);
+			  rdma_hndl->max_tx_ready_tasks_num,
+			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2882,10 +2883,9 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->reqs_in_flight_nr >=
 			rdma_hndl->max_tx_ready_tasks_num - 1) {
 		DEBUG_LOG("over limits reqs_in_flight_nr=%u, " \
-			  "max_tx_ready_tasks_num=%u\n",
+			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->reqs_in_flight_nr,
-			  rdma_hndl->max_tx_ready_tasks_num);
-
+			  rdma_hndl->max_tx_ready_tasks_num, rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2893,9 +2893,10 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
 		DEBUG_LOG("over limits tx_ready_tasks_num=%u, "\
-			  "max_tx_ready_tasks_num=%u\n",
+			  "max_tx_ready_tasks_num=%u rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
-			  rdma_hndl->max_tx_ready_tasks_num);
+			  rdma_hndl->max_tx_ready_tasks_num,
+			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2910,10 +2911,12 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->reqs_in_flight_nr + rdma_hndl->rsps_in_flight_nr >
 	    rdma_hndl->max_tx_ready_tasks_num) {
 		DEBUG_LOG("over limits reqs_in_flight_nr=%u, "\
-			  "rsps_in_flight_nr=%u, max_tx_ready_tasks_num=%u\n",
+			  "rsps_in_flight_nr=%u, max_tx_ready_tasks_num=%u, " \
+			  "rdma_hndl=%p\n",
 			  rdma_hndl->reqs_in_flight_nr,
 			  rdma_hndl->rsps_in_flight_nr,
-			  rdma_hndl->max_tx_ready_tasks_num);
+			  rdma_hndl->max_tx_ready_tasks_num,
+			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2921,10 +2924,10 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->rsps_in_flight_nr >=
 			rdma_hndl->max_tx_ready_tasks_num - 1) {
 		DEBUG_LOG("over limits rsps_in_flight_nr=%u, " \
-			  "max_tx_ready_tasks_num=%u\n",
+			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->rsps_in_flight_nr,
-			  rdma_hndl->max_tx_ready_tasks_num);
-
+			  rdma_hndl->max_tx_ready_tasks_num,
+			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2932,9 +2935,9 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
 		DEBUG_LOG("over limits tx_ready_tasks_num=%u, "\
-			  "max_tx_ready_tasks_num=%u\n",
+			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
-			  rdma_hndl->max_tx_ready_tasks_num);
+			  rdma_hndl->max_tx_ready_tasks_num, rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -3024,8 +3027,7 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc = 0;
 
-	if (unlikely(!IS_KEEPALIVE(task->tlv_type) &&
-		     verify_req_send_limits(rdma_hndl)))
+	if (unlikely(verify_req_send_limits(rdma_hndl)))
 		return -1;
 
 	/* prepare buffer for RDMA response  */
@@ -3119,8 +3121,7 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc;
 
-	if (unlikely(!IS_KEEPALIVE(task->tlv_type) &&
-		     verify_rsp_send_limits(rdma_hndl)))
+	if (unlikely(verify_rsp_send_limits(rdma_hndl)))
 		return -1;
 
 	if (task->on_hold) {

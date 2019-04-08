@@ -2400,6 +2400,16 @@ static int xio_nexus_flush_all_tasks(struct xio_nexus *nexus)
 	return 0;
 }
 
+static struct xio_task *find_first_response_task(struct xio_nexus *nexus)
+{
+	struct xio_task *task;
+	list_for_each_entry(task,&nexus->tx_queue, tasks_list_entry) {
+		if (IS_RESPONSE(task->tlv_type))
+			return task;
+	}
+	return NULL;
+}
+
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_xmit							     */
 /*---------------------------------------------------------------------------*/
@@ -2428,8 +2438,20 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 		if (retval != 0) {
 			union xio_nexus_event_data nexus_event_data;
 
-			if (xio_errno() == EAGAIN)
-				return 0;
+			if (xio_errno() == EAGAIN) {
+				if (IS_REQUEST(task->tlv_type)) {
+					task = find_first_response_task(nexus);
+					if (!task)
+						return 0;
+
+					retval = nexus->transport->send(
+							nexus->transport_hndl, task);
+					if (!retval || xio_errno() == EAGAIN)
+						return 0;
+				} else {
+					return 0;
+				}
+			}
 
 			ERROR_LOG("transport send failed err:%d\n",
 				  xio_errno());
