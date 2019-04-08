@@ -1223,7 +1223,7 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 
 }
 
-
+#define XIO_RSP_ERROR_PRIVATE_HINT 0x1234
 /*---------------------------------------------------------------------------*/
 /* xio_send_response_error						     */
 /*---------------------------------------------------------------------------*/
@@ -1234,7 +1234,7 @@ int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 		ERROR_LOG("xio_send_response_error. sending type %d", msg->type);
 
 	DEBUG_LOG("xio_send_response_error. status: %s\n", xio_strerror(result));
-	msg->hints = 0;
+	msg->hints = XIO_RSP_ERROR_PRIVATE_HINT;
 	msg->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
 	msg->request = msg;
 	msg->in.data_tbl.nents = 0;
@@ -1244,8 +1244,8 @@ int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 	/* same task that use to request -now used for response too */
 	task	   = container_of(msg->request, struct xio_task, imsg);
 	task->status = result;
-	xio_send_single_rsp(msg, task);
-	return 0;
+
+	return xio_send_response(msg);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1275,12 +1275,16 @@ int xio_send_response(struct xio_msg *msg)
 #endif
 
 	while (pmsg) {
-		if (pmsg == pmsg->request) {
+		if (pmsg->hints != XIO_RSP_ERROR_PRIVATE_HINT &&
+		    pmsg == pmsg->request) {
 			ERROR_LOG("response message must be different then request message. " \
 				  "connection:%p, response:%p, request:%p\n",
 				  connection, pmsg, pmsg->request);
 			xio_set_error(EINVAL);
 			return -1;
+		} else {
+			if (pmsg->hints == XIO_RSP_ERROR_PRIVATE_HINT)
+				pmsg->hints = 0;
 		}
 		task	   = container_of(pmsg->request, struct xio_task, imsg);
 		connection = task->connection;
