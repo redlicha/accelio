@@ -1622,13 +1622,8 @@ static void xio_poll_cq_armable(struct xio_cq *tcq)
 	if (++tcq->num_poll_cq < NUM_POLL_CQ)
 		err = xio_poll_cq(tcq, MAX_POLL_WC, tcq->ctx->polling_timeout);
 	if (unlikely(err < 0)) {
-		struct xio_rdma_transport *rdma_hndl;
-
 		xio_rearm_completions(tcq);
-		list_for_each_entry(rdma_hndl,
-				    &tcq->trans_list, trans_list_entry) {
-			xio_rdma_idle_handler(rdma_hndl);
-		}
+		xio_rdma_idle_handler(tcq->rdma_hndl);
 		return;
 	}
 
@@ -1683,15 +1678,10 @@ static void xio_sched_consume_cq(void *data)
    the interrupts are re-armed */
 static void xio_sched_poll_cq(void *data)
 {
-	struct xio_rdma_transport	*rdma_hndl;
 	struct xio_cq			*tcq = (struct xio_cq *)data;
 
 	xio_poll_cq_armable(tcq);
-
-	list_for_each_entry(rdma_hndl,
-			    &tcq->trans_list, trans_list_entry) {
-		xio_rdma_idle_handler(rdma_hndl);
-	}
+	xio_rdma_idle_handler(tcq->rdma_hndl);
 }
 
 /*
@@ -1739,7 +1729,6 @@ void xio_rdma_poll_completions(struct xio_cq *tcq, int timeout_us)
 	void				*cq_context;
 	struct ibv_cq			*cq;
 	int				err;
-	struct xio_rdma_transport	*rdma_hndl;
 	int				cq_rearmed = 0;
 
 	err = ibv_get_cq_event(tcq->channel, &cq, &cq_context);
@@ -1766,9 +1755,7 @@ void xio_rdma_poll_completions(struct xio_cq *tcq, int timeout_us)
 				  errno);
 		}
 	}
-	list_for_each_entry(rdma_hndl,
-			    &tcq->trans_list, trans_list_entry)
-		xio_rdma_idle_handler(rdma_hndl);
+	xio_rdma_idle_handler(tcq->rdma_hndl);
 
 	/* accumulate number of cq events that need to
 	 * be acked, and periodically ack them

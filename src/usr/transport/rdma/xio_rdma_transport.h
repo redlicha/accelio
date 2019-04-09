@@ -303,6 +303,7 @@ struct xio_cq  {
 	struct xio_device		*dev;
 	struct xio_ev_data		consume_cq_event;
 	struct xio_ev_data		poll_cq_event;
+	struct xio_rdma_transport	*rdma_hndl;
 	struct ibv_wc			*wc_array;
 	int32_t				wc_array_len;
 	int32_t				cq_events_that_need_ack;
@@ -310,16 +311,8 @@ struct xio_cq  {
 	int32_t				cq_depth;     /* current cq depth  */
 	int32_t				alloc_sz;     /* allocation factor  */
 	int32_t				cqe_avail;    /* free elements  */
-	struct kref			kref;       /* utilization counter */
 	int32_t				num_delayed_arm;
 	int32_t				num_poll_cq;
-	int32_t				pad;
-	struct list_head		trans_list;   /* list of all transports
-						       * attached to this cq
-						       */
-	struct list_head		cq_list_entry; /* list of all
-						       cq per device */
-	struct xio_observer		observer;
 	struct xio_srq			*srq;
 };
 
@@ -337,7 +330,6 @@ struct xio_device {
 	struct list_head		cq_list;
 	struct list_head		dev_list_entry;    /* list of all
 							      xio devices */
-	pthread_rwlock_t		cq_lock;
 	struct xio_context		*ctx;
 	struct ibv_context		*verbs;
 	struct ibv_pd			*pd;
@@ -383,8 +375,6 @@ struct xio_rdma_transport {
 	struct xio_mempool		*rdma_mempool;
 	struct xio_tasks_pool		*phantom_tasks_pool;
 	void				*peer_rdma_hndl;
-
-	struct list_head		trans_list_entry;
 
 	/*  tasks queues */
 	struct list_head		tx_ready_list;
