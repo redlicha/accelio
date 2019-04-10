@@ -2868,7 +2868,7 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	}
 
 	if (rdma_hndl->reqs_in_flight_nr >=
-			rdma_hndl->max_tx_ready_tasks_num - 1) {
+			rdma_hndl->max_tx_ready_tasks_num - 2) {
 		DEBUG_LOG("over limits reqs_in_flight_nr=%u, " \
 			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->reqs_in_flight_nr,
@@ -2895,8 +2895,8 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 /*---------------------------------------------------------------------------*/
 static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 {
-	if (rdma_hndl->reqs_in_flight_nr + rdma_hndl->rsps_in_flight_nr >
-	    rdma_hndl->max_tx_ready_tasks_num) {
+	if (rdma_hndl->reqs_in_flight_nr + rdma_hndl->rsps_in_flight_nr >=
+	    rdma_hndl->max_tx_ready_tasks_num - 1) {
 		DEBUG_LOG("over limits reqs_in_flight_nr=%u, "\
 			  "rsps_in_flight_nr=%u, max_tx_ready_tasks_num=%u, " \
 			  "rdma_hndl=%p\n",
@@ -2909,7 +2909,7 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	}
 
 	if (rdma_hndl->rsps_in_flight_nr >=
-			rdma_hndl->max_tx_ready_tasks_num - 1) {
+			rdma_hndl->max_tx_ready_tasks_num - 2) {
 		DEBUG_LOG("over limits rsps_in_flight_nr=%u, " \
 			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
 			  rdma_hndl->rsps_in_flight_nr,
@@ -3014,8 +3014,10 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc = 0;
 
-	if (unlikely(verify_req_send_limits(rdma_hndl)))
+	if (unlikely(verify_req_send_limits(rdma_hndl))) {
+		xio_rdma_xmit(rdma_hndl);
 		return -1;
+	}
 
 	/* prepare buffer for RDMA response  */
 	retval = xio_rdma_prep_req_in_data(rdma_hndl, task);
@@ -3108,8 +3110,10 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 	int			must_send = 0;
 	uint16_t		crc;
 
-	if (unlikely(verify_rsp_send_limits(rdma_hndl)))
+	if (unlikely(verify_rsp_send_limits(rdma_hndl))) {
+		xio_rdma_xmit(rdma_hndl);
 		return -1;
+	}
 
 	if (task->on_hold) {
 		/* dynamically initialize header */
@@ -3929,8 +3933,10 @@ static int xio_rdma_perform_direct_rdma(struct xio_rdma_transport *rdma_hndl,
 	size_t			rsg_out_list_len = 0;
 	int			tasks_used = 0;
 
-	if (unlikely(verify_req_send_limits(rdma_hndl)))
+	if (unlikely(verify_req_send_limits(rdma_hndl))) {
+		xio_rdma_xmit(rdma_hndl);
 		return -1;
+	}
 
 	init_lsg_list(rdma_hndl, task, lsg_list, &lsg_list_len, &llen);
 	if (unlikely(task->omsg->rdma.length < llen)) {
