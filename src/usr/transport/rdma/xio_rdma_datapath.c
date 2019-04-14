@@ -265,7 +265,6 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 	uint16_t		window = 0;
 	uint16_t		retval;
 	uint16_t		req_nr = 0;
-	int			is_ka = 0;
 
 
 	if (rdma_hndl->state != XIO_TRANSPORT_STATE_CONNECTED)
@@ -287,14 +286,12 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 		  rdma_hndl->peer_credits,
 		  rdma_hndl->sqe_avail);
 	*/
-	if (rdma_hndl->tx_ready_tasks_num) {
+	if (rdma_hndl->tx_ready_tasks_num)
 		task = list_first_entry(
 				&rdma_hndl->tx_ready_list,
 				struct xio_task,  tasks_list_entry);
-		is_ka = IS_KEEPALIVE(task->tlv_type);
-	}
 
-	if (!is_ka &&  window == 0) {
+	if (window == 0) {
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2850,6 +2847,15 @@ cleanup:
 	return -1;
 }
 
+static inline int xio_tasks_list_count(const struct list_head *target_list)
+{
+	int count = 0;
+	struct xio_task *task;
+	list_for_each_entry(task, target_list, tasks_list_entry)
+		count++;
+	return count;
+}
+
 /*---------------------------------------------------------------------------*/
 /* verify_req_send_limits						     */
 /*---------------------------------------------------------------------------*/
@@ -2879,10 +2885,17 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	/* tx ready is full - refuse request */
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
-		DEBUG_LOG("over limits tx_ready_tasks_num=%u, "\
-			  "max_tx_ready_tasks_num=%u rdma_hndl=%p\n",
+		int count = xio_tasks_list_count(&rdma_hndl->tx_ready_list);
+		DEBUG_LOG("over limits tx_ready_tasks_num=%u, " \
+			  "max_tx_ready_tasks_num=%u, " \
+			  "actual_max_tx_ready_tasks_num=%u " \
+			  "reqs_in_flight_nr=%u, " \
+			  "rsps_in_flight_nr=%u, rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
 			  rdma_hndl->max_tx_ready_tasks_num,
+			  count,
+			  rdma_hndl->reqs_in_flight_nr,
+			  rdma_hndl->rsps_in_flight_nr,
 			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
@@ -2921,10 +2934,18 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	/* tx ready is full - refuse request */
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
-		DEBUG_LOG("over limits tx_ready_tasks_num=%u, "\
-			  "max_tx_ready_tasks_num=%u, rdma_hndl=%p\n",
+		int count = xio_tasks_list_count(&rdma_hndl->tx_ready_list);
+		DEBUG_LOG("over limits tx_ready_tasks_num=%u, " \
+			  "max_tx_ready_tasks_num=%u, " \
+			  "actual_max_tx_ready_tasks_num=%u " \
+			  "reqs_in_flight_nr=%u, " \
+			  "rsps_in_flight_nr=%u, rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
-			  rdma_hndl->max_tx_ready_tasks_num, rdma_hndl);
+			  rdma_hndl->max_tx_ready_tasks_num,
+			  count,
+			  rdma_hndl->reqs_in_flight_nr,
+			  rdma_hndl->rsps_in_flight_nr,
+			  rdma_hndl);
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2939,11 +2960,6 @@ static int kick_send_and_read(struct xio_rdma_transport *rdma_hndl,
 			      int must_send)
 {
 	int retval = 0;
-
-	if (IS_KEEPALIVE(task->tlv_type)) {
-		retval = xio_rdma_xmit(rdma_hndl);
-		return retval;
-	}
 
 	/* transmit only if available */
 	if (test_bits(XIO_MSG_FLAG_LAST_IN_BATCH, &task->omsg->flags) ||
