@@ -3027,6 +3027,9 @@ static void xio_close_time_wait(int actual_timeout_ms, void *data)
 
 	connection->state = XIO_CONNECTION_STATE_CLOSED;
 
+	/* this should set the kref for destruction */
+	kref_init(&connection->kref);
+	kref_get(&connection->kref);
 	if (!connection->disable_notify) {
 		xio_ctx_add_work(
 				connection->ctx,
