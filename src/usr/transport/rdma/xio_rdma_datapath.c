@@ -278,11 +278,14 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->peer_credits > 1) {
 		window = min(rdma_hndl->peer_credits - 1, tx_window);
 		window = min(window, rdma_hndl->sqe_avail);
-	} else if (rdma_hndl->peer_credits == 1) {
+	} /* else if (rdma_hndl->peer_credits == 1) {
 		xio_rdma_rearm_rq(rdma_hndl);
-		xio_rdma_send_nop(rdma_hndl);
-		return 0;
+		if (rdma_hndl->credits) {
+			xio_rdma_send_nop(rdma_hndl);
+			return 0;
+		}
 	}
+	*/
 #endif
 	/*
 	TRACE_LOG("XMIT: tx_window:%d, peer_credits:%d, sqe_avail:%d\n",
@@ -810,7 +813,8 @@ static int xio_rdma_idle_handler(struct xio_rdma_transport *rdma_hndl)
 	/* If we have real messages to send there is no need for
 	 * a special NOP message as credits are piggybacked
 	 */
-	if (rdma_hndl->tx_ready_tasks_num) {
+	if (rdma_hndl->tx_ready_tasks_num &&
+	    rdma_hndl->peer_credits > 1) {
 		xio_rdma_xmit(rdma_hndl);
 		return 0;
 	}
@@ -2918,7 +2922,7 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 			window = min(window, rdma_hndl->sqe_avail);
 		}
 		DEBUG_LOG("%s - XMIT: tx_window:%d, window:%d, max_sn:%d, sn:%d, " \
-			  "peer_credits:%d, credits:%d, sqe_avail:%d\n",
+			  "peer_credits:%d, credits:%d, sqe_avail:%d, rqe_avail:%d\n",
 			  __func__,
 			  tx_window,
 			  window,
@@ -2926,6 +2930,7 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 			  rdma_hndl->sn,
 			  rdma_hndl->peer_credits,
 			  rdma_hndl->credits,
+			  rdma_hndl->rqe_avail,
 			  rdma_hndl->sqe_avail);
 		}
 		xio_set_error(EAGAIN);
@@ -2991,7 +2996,7 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 			window = min(window, rdma_hndl->sqe_avail);
 		}
 		DEBUG_LOG("%s - XMIT: tx_window:%d, window:%d, max_sn:%d, sn:%d, " \
-			  "peer_credits:%d, credits:%d, sqe_avail:%d\n",
+			  "peer_credits:%d, credits:%d, sqe_avail:%d, rqe_avail:%d\n",
 			  __func__,
 			  tx_window,
 			  window,
@@ -2999,6 +3004,7 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 			  rdma_hndl->sn,
 			  rdma_hndl->credits,
 			  rdma_hndl->peer_credits,
+			  rdma_hndl->rqe_avail,
 			  rdma_hndl->sqe_avail);
 		}
 		xio_set_error(EAGAIN);
