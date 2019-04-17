@@ -278,14 +278,7 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 	if (rdma_hndl->peer_credits > 1) {
 		window = min(rdma_hndl->peer_credits - 1, tx_window);
 		window = min(window, rdma_hndl->sqe_avail);
-	} /* else if (rdma_hndl->peer_credits == 1) {
-		xio_rdma_rearm_rq(rdma_hndl);
-		if (rdma_hndl->credits) {
-			xio_rdma_send_nop(rdma_hndl);
-			return 0;
-		}
 	}
-	*/
 #endif
 	/*
 	TRACE_LOG("XMIT: tx_window:%d, peer_credits:%d, sqe_avail:%d\n",
@@ -2850,23 +2843,6 @@ cleanup:
 	return -1;
 }
 
-static inline int xio_tasks_list_count(const struct list_head *target_list, int *req, int *rsp)
-{
-	int count = 0, request = 0, response = 0;
-	struct xio_task *task;
-	list_for_each_entry(task, target_list, tasks_list_entry) {
-		count++;
-		if (IS_REQUEST(task->tlv_type)) 
-			request++;
-		else if (IS_RESPONSE(task->tlv_type))
-			response++;
-
-	}
-	*req = request;
-	*rsp = response;
-	return count;
-}
-
 /*---------------------------------------------------------------------------*/
 /* verify_req_send_limits						     */
 /*---------------------------------------------------------------------------*/
@@ -2896,43 +2872,15 @@ static int verify_req_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	/* tx ready is full - refuse request */
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
-		int req =0, rsp = 0;
-		int count = xio_tasks_list_count(&rdma_hndl->in_flight_list, 
-						 &req, &rsp);
 		DEBUG_LOG("over limits tx_ready_tasks_num=%u, " \
 			  "max_tx_ready_tasks_num=%u, " \
-			  "inflight_tasks=%u " \
-			  "inflight_reqs=%u " \
-			  "inflight_rsps=%u " \
 			  "reqs_in_flight_nr=%u, " \
 			  "rsps_in_flight_nr=%u, rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
 			  rdma_hndl->max_tx_ready_tasks_num,
-			  count,
-			  req, rsp,
 			  rdma_hndl->reqs_in_flight_nr,
 			  rdma_hndl->rsps_in_flight_nr,
 			  rdma_hndl);
-		{
-		int tx_window = rdma_hndl->max_sn - rdma_hndl->sn;
-		int window = 0;
-		/* save one credit for nop */
-		if (rdma_hndl->peer_credits > 1) {
-			window = min(rdma_hndl->peer_credits - 1, tx_window);
-			window = min(window, rdma_hndl->sqe_avail);
-		}
-		DEBUG_LOG("%s - XMIT: tx_window:%d, window:%d, max_sn:%d, sn:%d, " \
-			  "peer_credits:%d, credits:%d, sqe_avail:%d, rqe_avail:%d\n",
-			  __func__,
-			  tx_window,
-			  window,
-			  rdma_hndl->max_sn, 
-			  rdma_hndl->sn,
-			  rdma_hndl->peer_credits,
-			  rdma_hndl->credits,
-			  rdma_hndl->rqe_avail,
-			  rdma_hndl->sqe_avail);
-		}
 		xio_set_error(EAGAIN);
 		return -1;
 	}
@@ -2970,43 +2918,15 @@ static int verify_rsp_send_limits(const struct xio_rdma_transport *rdma_hndl)
 	/* tx ready is full - refuse request */
 	if (rdma_hndl->tx_ready_tasks_num >=
 			rdma_hndl->max_tx_ready_tasks_num) {
-		int req =0, rsp = 0;
-		int count = xio_tasks_list_count(&rdma_hndl->in_flight_list, 
-						 &req, &rsp);
 		DEBUG_LOG("over limits tx_ready_tasks_num=%u, " \
 			  "max_tx_ready_tasks_num=%u, " \
-			  "inflight_tasks=%u " \
-			  "inflight_reqs=%u " \
-			  "inflight_rsps=%u " \
 			  "reqs_in_flight_nr=%u, " \
 			  "rsps_in_flight_nr=%u, rdma_hndl=%p\n",
 			  rdma_hndl->tx_ready_tasks_num,
 			  rdma_hndl->max_tx_ready_tasks_num,
-			  count,
-			  req, rsp,
 			  rdma_hndl->reqs_in_flight_nr,
 			  rdma_hndl->rsps_in_flight_nr,
 			  rdma_hndl);
-		{
-		int tx_window = rdma_hndl->max_sn - rdma_hndl->sn;
-		int window = 0;
-		/* save one credit for nop */
-		if (rdma_hndl->peer_credits > 1) {
-			window = min(rdma_hndl->peer_credits - 1, tx_window);
-			window = min(window, rdma_hndl->sqe_avail);
-		}
-		DEBUG_LOG("%s - XMIT: tx_window:%d, window:%d, max_sn:%d, sn:%d, " \
-			  "peer_credits:%d, credits:%d, sqe_avail:%d, rqe_avail:%d\n",
-			  __func__,
-			  tx_window,
-			  window,
-			  rdma_hndl->max_sn, 
-			  rdma_hndl->sn,
-			  rdma_hndl->credits,
-			  rdma_hndl->peer_credits,
-			  rdma_hndl->rqe_avail,
-			  rdma_hndl->sqe_avail);
-		}
 		xio_set_error(EAGAIN);
 		return -1;
 	}
