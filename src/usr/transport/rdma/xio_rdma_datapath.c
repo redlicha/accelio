@@ -4076,8 +4076,15 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 	sgtbl_ops	= (struct xio_sg_table_ops *)
 				xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
+	/* use both to get info from above */
 	task->is_assigned = 0;
+	task->status = 0;
 	xio_transport_assign_in_buf(&rdma_hndl->base, task);
+	if (task->status) {
+		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n", 
+			  task->status);
+		return -1;
+	}
 	if (task->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {

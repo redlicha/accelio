@@ -2329,7 +2329,13 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 				xio_sg_table_ops_get(task->imsg.in.sgl_type);
 
 	task->is_assigned = 0;
+	task->status = 0;
 	xio_transport_assign_in_buf(&tcp_hndl->base, task);
+	if (task->status) {
+		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n", 
+			  task->status);
+		return -1;
+	}
 	if (task->is_assigned) {
 		/* if user does not have buffers ignore */
 		if (tbl_nents(sgtbl_ops, sgtbl) == 0) {

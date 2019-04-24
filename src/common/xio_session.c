@@ -1594,6 +1594,7 @@ int xio_on_assign_in_buf(struct xio_session *session,
 				  session, nexus,
 				  event_data->msg.op);
 			task->is_assigned = 0;
+			task->status = EINVAL;
 			return -1;
 		}
 	}
@@ -1607,6 +1608,7 @@ int xio_on_assign_in_buf(struct xio_session *session,
 				  session, nexus,
 				  event_data->msg.op);
 			task->is_assigned = 0;
+			task->status = EINVAL;
 			return -1;
 		}
 	}
@@ -1623,13 +1625,18 @@ int xio_on_assign_in_buf(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
-		task->is_assigned = (retval == 0);
-		if (task->is_assigned)
+		task->is_assigned = 1;
+		if (retval) {
+			task->status = XIO_E_INSUFFICIENT_RESOURCES;
+		} else {
+			task->status = 0;
 			task->unassign_data_in_buf =
 				connection->ses_ops.unassign_data_in_buf;
+		}
 		return 0;
 	}
 	task->is_assigned = 0;
+	task->status = 0;
 
 	return 0;
 }
