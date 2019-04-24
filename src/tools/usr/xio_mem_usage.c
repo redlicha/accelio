@@ -91,14 +91,12 @@ int main(int argc, char **argv)
 	PRINT_SIZE(struct xio_sge);
 	PRINT_SIZE(struct xio_tlv);
 	PRINT_SIZE(struct xio_session_hdr);
-	PRINT_SIZE(struct xio_session_cancel_hdr);
 	PRINT_SIZE(struct xio_nexus_setup_req);
 	PRINT_SIZE(struct xio_nexus_setup_rsp);
 
 #ifdef HAVE_INFINIBAND_VERBS_H
 	printf("\nRDMA Transport:\n");
 	PRINT_SIZE(struct xio_rdma_setup_msg);
-	PRINT_SIZE(struct xio_rdma_cancel_hdr);
 	PRINT_SIZE(struct xio_rdma_req_hdr);
 	PRINT_SIZE(struct xio_rdma_rsp_hdr);
 	PRINT_SIZE(struct xio_nop_hdr);
@@ -114,7 +112,6 @@ int main(int argc, char **argv)
 	PRINT_SIZE(struct xio_tcp_connect_msg);
 	PRINT_SIZE(struct xio_tcp_pending_conn);
 	PRINT_SIZE(struct xio_tcp_setup_msg);
-	PRINT_SIZE(struct xio_tcp_cancel_hdr);
 	PRINT_SIZE(struct xio_tcp_req_hdr);
 	PRINT_SIZE(struct xio_tcp_rsp_hdr);
 	PRINT_SIZE(struct xio_tcp_task);

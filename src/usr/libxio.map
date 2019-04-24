@@ -6,8 +6,6 @@ XIO_1.0 {
 		xio_send_request;
 		xio_send_msg;
 		xio_send_rdma;
-		xio_cancel_request;
-		xio_cancel;
 		xio_release_msg;
 		xio_set_opt;
 		xio_get_opt;

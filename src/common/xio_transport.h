@@ -66,8 +66,6 @@ enum xio_transport_event {
 	XIO_TRANSPORT_EVENT_NEW_MESSAGE,
 	XIO_TRANSPORT_EVENT_SEND_COMPLETION,
 	XIO_TRANSPORT_EVENT_ASSIGN_IN_BUF,
-	XIO_TRANSPORT_EVENT_CANCEL_REQUEST,
-	XIO_TRANSPORT_EVENT_CANCEL_RESPONSE,
 	XIO_TRANSPORT_EVENT_MESSAGE_ERROR,
 	XIO_TRANSPORT_EVENT_ERROR,
 	XIO_TRANSPORT_EVENT_DIRECT_RDMA_COMPLETION
@@ -93,13 +91,6 @@ union xio_transport_event_data {
 	struct {
 		struct xio_task		*task;
 	} assign_in_buf;
-	struct {
-		void			*ulp_msg;
-		size_t			ulp_msg_sz;
-		struct xio_task		*task;
-		enum xio_status		result;
-		int			pad;
-	} cancel;
 	struct {
 		struct xio_transport_base	*child_trans_hndl;
 	} new_connection;
@@ -261,14 +252,6 @@ struct xio_transport {
 	int	(*get_opt)(void *xio_obj,
 			   int optname, void *optval, int *optlen);
 
-	int	(*cancel_req)(struct xio_transport_base *trans_hndl,
-			      struct xio_msg *req, uint64_t stag,
-			      void *ulp_msg, size_t ulp_msg_len);
-
-	int	(*cancel_rsp)(struct xio_transport_base *trans_hndl,
-			      struct xio_task *task, enum xio_status result,
-			      void *ulp_msg, size_t ulp_msg_len);
-
 	int	(*modify)(struct xio_transport_base *trans_hndl,
 			  struct xio_transport_attr *attr,
 			  int attr_mask);
@@ -366,13 +349,5 @@ void xio_unreg_transport(struct xio_transport *transport);
 /* xio_get_transport							     */
 /*---------------------------------------------------------------------------*/
 struct xio_transport *xio_get_transport(const char *name);
-
-int xio_rdma_cancel_req(struct xio_transport_base *transport,
-			struct xio_msg *req, uint64_t stag,
-			void *ulp_msg, size_t ulp_msg_sz);
-
-int xio_rdma_cancel_rsp(struct xio_transport_base *transport,
-			struct xio_task *task, enum xio_status result,
-			void *ulp_msg, size_t ulp_msg_sz);
 
 #endif /*XIO_TRANSPORT_H */

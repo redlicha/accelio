@@ -216,12 +216,6 @@ struct __attribute__((__packed__)) xio_rdma_read_ack_hdr {
 	uint32_t		rtid;		 /* remote task id	*/
 };
 
-struct __attribute__((__packed__)) xio_rdma_cancel_hdr {
-	uint16_t		hdr_len;	 /* req header length	*/
-	uint16_t		sn;		 /* serial number	*/
-	uint32_t		result;
-};
-
 struct xio_work_req {
 	union {
 		struct ib_send_wr	send_wr;

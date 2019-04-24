@@ -636,35 +636,6 @@ struct xio_session_ops {
 			    struct xio_msg  *msg,
 			    void *conn_user_context);
 
-	/**
-	 * requester's message cancellation notification
-	 *
-	 *  @param[in] session			the session
-	 *  @param[in] result			the result code
-	 *  @param[in] msg			the message to cancel
-	 *  @param[in] conn_user_context	user private data provided in
-	 *					connection open on which
-	 *					the message send
-	 *  @return 0
-	 */
-	int (*on_cancel)(struct xio_session *session,
-			 struct xio_msg  *msg,
-			 enum xio_status result,
-			 void *conn_user_context);
-
-	/**
-	 * responder's message cancellation notification
-	 *
-	 *  @param[in] session			the session
-	 *  @param[in] req			the request to cancel
-	 *  @param[in] conn_user_context	user private data provided in
-	 *					connection open on which
-	 *					the message send
-	 *  @return 0
-	 */
-	int (*on_cancel_request)(struct xio_session *session,
-				 struct xio_msg  *msg,
-				 void *conn_user_context);
 
 	/**
 	 * notify the user to assign a data buffer for incoming read
@@ -967,30 +938,6 @@ int xio_send_response(struct xio_msg *rsp);
  *	    xio_errno function to get the failure reason.
  */
 int xio_send_response_error(struct xio_msg *msg, enum xio_status result);
-
-
-/**
- * cancel an outstanding asynchronous I/O request
- *
- * @param[in] conn	The xio connection handle on which the message was
- *			sent
- * @param[in] req	request message to cancel
- *
- * @return 0 on success, or -1 on error.  If an error occurs, call
- *	    xio_errno function to get the failure reason.
- */
-int xio_cancel_request(struct xio_connection *conn,
-		       struct xio_msg *req);
-/**
- * responder cancellation response
- *
- * @param[in] req	the outstanding request to cancel
- * @param[in] result	responder cancellation code
- *
- * @return 0 on success, or -1 on error.  If an error occurs, call
- *	    xio_errno function to get the failure reason.
- */
-int xio_cancel(struct xio_msg *req, enum xio_status result);
 
 /**
  * release response resources back to xio

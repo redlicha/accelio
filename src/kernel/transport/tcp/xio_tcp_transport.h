@@ -233,12 +233,6 @@ struct __attribute__((__packed__)) xio_tcp_setup_msg {
 	uint32_t		pad;
 };
 
-struct __attribute__((__packed__)) xio_tcp_cancel_hdr {
-	uint16_t		hdr_len;	 /* req header length	*/
-	uint16_t		sn;		 /* msg serial number	*/
-	uint32_t		result;
-};
-
 struct xio_tcp_work_req {
 	struct iovec			*msg_iov;
 	uint32_t			msg_len;
@@ -467,14 +461,6 @@ struct xio_task *xio_tcp_primary_task_alloc(
 
 void on_sock_disconnected(struct xio_tcp_transport *tcp_hndl,
 			  int notify_observer);
-
-int xio_tcp_cancel_req(struct xio_transport_base *transport,
-		       struct xio_msg *req, uint64_t stag,
-		       void *ulp_msg, size_t ulp_msg_sz);
-
-int xio_tcp_cancel_rsp(struct xio_transport_base *transport,
-		       struct xio_task *task, enum xio_status result,
-		       void *ulp_msg, size_t ulp_msg_sz);
 
 int xio_tcp_send_connect_msg(struct socket *sock,
 			     struct xio_tcp_connect_msg *msg);

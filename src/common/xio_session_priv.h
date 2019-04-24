@@ -99,20 +99,6 @@ int xio_on_assign_in_buf(struct xio_session *session,
 			 union xio_nexus_event_data *event_data);
 
 /*---------------------------------------------------------------------------*/
-/* xio_on_cancel_request						     */
-/*---------------------------------------------------------------------------*/
-int xio_on_cancel_request(struct xio_session *sess,
-			  struct xio_nexus *nexus,
-			  union xio_nexus_event_data *event_data);
-
-/*---------------------------------------------------------------------------*/
-/* xio_on_cancel_response						     */
-/*---------------------------------------------------------------------------*/
-int xio_on_cancel_response(struct xio_session *sess,
-			   struct xio_nexus *nexus,
-			   union xio_nexus_event_data *event_data);
-
-/*---------------------------------------------------------------------------*/
 /* xio_on_nexus_message_error						     */
 /*---------------------------------------------------------------------------*/
 int xio_on_nexus_message_error(struct xio_session *session,

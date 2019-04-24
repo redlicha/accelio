@@ -1670,52 +1670,6 @@ static int xio_nexus_on_assign_in_buf(struct xio_nexus *nexus,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_nexus_on_cancel_request						     */
-/*---------------------------------------------------------------------------*/
-static int xio_nexus_on_cancel_request(struct xio_nexus *nexus,
-				       union xio_transport_event_data
-				       *event_data)
-{
-	union xio_nexus_event_data nexus_event_data = {};
-
-	nexus_event_data.cancel.ulp_msg = event_data->cancel.ulp_msg;
-	nexus_event_data.cancel.ulp_msg_sz = event_data->cancel.ulp_msg_sz;
-	nexus_event_data.cancel.task = event_data->cancel.task;
-	nexus_event_data.cancel.result = event_data->cancel.result;
-
-	/* route the message to any of the sessions */
-	xio_observable_notify_any_observer(
-			&nexus->observable,
-			XIO_NEXUS_EVENT_CANCEL_REQUEST,
-			&nexus_event_data);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_on_assign_in_buf						     */
-/*---------------------------------------------------------------------------*/
-static int xio_nexus_on_cancel_response(struct xio_nexus *nexus,
-					union xio_transport_event_data
-					*event_data)
-{
-	union xio_nexus_event_data nexus_event_data = {};
-
-	nexus_event_data.cancel.ulp_msg = event_data->cancel.ulp_msg;
-	nexus_event_data.cancel.ulp_msg_sz = event_data->cancel.ulp_msg_sz;
-	nexus_event_data.cancel.task = event_data->cancel.task;
-	nexus_event_data.cancel.result = event_data->cancel.result;
-
-	/* route the message to any of the sessions */
-	xio_observable_notify_any_observer(
-			&nexus->observable,
-			XIO_NEXUS_EVENT_CANCEL_RESPONSE,
-			&nexus_event_data);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
 /* xio_nexus_on_transport_event		                                     */
 /*---------------------------------------------------------------------------*/
 static int xio_nexus_on_transport_event(void *observer, void *sender,
@@ -1752,16 +1706,6 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		DEBUG_LOG("nexus: [notification] - message error. " \
 			 "nexus:%p, transport:%p\n", observer, sender);
 		xio_nexus_on_message_error(nexus, ev_data);
-		break;
-	case XIO_TRANSPORT_EVENT_CANCEL_REQUEST:
-		DEBUG_LOG("nexus: [notification] - cancel request. " \
-			 "nexus:%p, transport:%p\n", observer, sender);
-		xio_nexus_on_cancel_request(nexus, ev_data);
-		break;
-	case XIO_TRANSPORT_EVENT_CANCEL_RESPONSE:
-		DEBUG_LOG("nexus: [notification] - cancel respnose. " \
-			 "nexus:%p, transport:%p\n", observer, sender);
-		xio_nexus_on_cancel_response(nexus, ev_data);
 		break;
 	case XIO_TRANSPORT_EVENT_NEW_CONNECTION:
 		DEBUG_LOG("nexus: [notification] - new transport. " \
@@ -2666,36 +2610,6 @@ int xio_nexus_get_local_addr(struct xio_nexus *nexus,
 	}
 	memcpy(sa, &nexus->transport_hndl->local_addr, len);
 	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_cancel_req							     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_cancel_req(struct xio_nexus *nexus, struct xio_msg *req,
-			 uint64_t stag, void *ulp_msg, size_t ulp_msg_sz)
-{
-	if (nexus->transport->cancel_req)
-		return nexus->transport->cancel_req(nexus->transport_hndl,
-						   req, stag,
-						   ulp_msg, ulp_msg_sz);
-
-	xio_set_error(XIO_E_NOT_SUPPORTED);
-	return -1;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_nexus_cancel_rsp							     */
-/*---------------------------------------------------------------------------*/
-int xio_nexus_cancel_rsp(struct xio_nexus *nexus, struct xio_task *task,
-			 enum xio_status result, void *ulp_msg,
-			 size_t ulp_msg_sz)
-{
-	if (nexus->transport->cancel_req)
-		return nexus->transport->cancel_rsp(nexus->transport_hndl,
-						   task, result,
-						   ulp_msg, ulp_msg_sz);
-	xio_set_error(XIO_E_NOT_SUPPORTED);
-	return -1;
 }
 
 /*---------------------------------------------------------------------------*/

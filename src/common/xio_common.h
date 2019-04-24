@@ -122,7 +122,6 @@ enum xio_msg_flags_ex {
 #define XIO_SESSION_SETUP		BIT(8)	/*  0x100 */
 #define XIO_CONNECTION_HELLO		BIT(9)	/*  0x200 */
 #define XIO_FIN				BIT(10)	/*  0x400 */
-#define XIO_CANCEL			BIT(11)	/*  0x800 */
 #define XIO_ACK				BIT(12)	/*  0x1000 */
 #define XIO_RDMA_READ			BIT(13) /*  0x2000 */
 #define XIO_CONNECTION_KA		BIT(14)	/*  0x4000 */
@@ -138,8 +137,6 @@ enum xio_msg_flags_ex {
 #define XIO_ONE_WAY_RSP		(XIO_ONE_WAY | XIO_RESPONSE)
 #define XIO_FIN_REQ		(XIO_FIN | XIO_REQUEST)
 #define XIO_FIN_RSP		(XIO_FIN | XIO_RESPONSE)
-#define XIO_CANCEL_REQ		(XIO_CANCEL | XIO_REQUEST)
-#define XIO_CANCEL_RSP		(XIO_CANCEL | XIO_RESPONSE)
 #define XIO_CONNECTION_HELLO_REQ (XIO_CONNECTION_HELLO | XIO_REQUEST)
 #define XIO_CONNECTION_HELLO_RSP (XIO_CONNECTION_HELLO | XIO_RESPONSE)
 #define XIO_CONNECTION_KA_REQ (XIO_CONNECTION_KA | XIO_REQUEST)
@@ -156,7 +153,6 @@ enum xio_msg_flags_ex {
 #define IS_NEXUS_SETUP(type)		((type) & XIO_NEXUS_SETUP)
 #define IS_ONE_WAY(type)		((type) & XIO_ONE_WAY)
 #define IS_FIN(type)			((type) & XIO_FIN)
-#define IS_CANCEL(type)			((type) & XIO_CANCEL)
 #define IS_CONNECTION_HELLO(type)	((type) & XIO_CONNECTION_HELLO)
 #define IS_KEEPALIVE(type)		((type) & XIO_CONNECTION_KA)
 #define IS_DIRECT_RDMA(type)		((type) & XIO_RDMA)
@@ -264,12 +260,6 @@ PACKED_MEMORY(struct xio_nexus_setup_rsp {
 	uint32_t		status;
 	uint16_t		version;
 	uint16_t		flags;
-});
-
-PACKED_MEMORY(struct xio_session_cancel_hdr {
-	uint32_t		requester_session_id;
-	uint32_t		responder_session_id;
-	uint64_t		sn;
 });
 
 struct xio_msg;

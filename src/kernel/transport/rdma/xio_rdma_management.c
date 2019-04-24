@@ -3091,8 +3091,6 @@ static struct xio_transport xio_rdma_transport = {
 	.poll			= NULL,
 	.set_opt		= xio_rdma_set_opt,
 	.get_opt		= xio_rdma_get_opt,
-	.cancel_req		= xio_rdma_cancel_req,
-	.cancel_rsp		= xio_rdma_cancel_rsp,
 	.get_pools_setup_ops	= xio_rdma_get_pools_ops,
 	.set_pools_cls		= xio_rdma_set_pools_cls,
 

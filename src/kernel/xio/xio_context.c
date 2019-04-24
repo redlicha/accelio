@@ -398,7 +398,7 @@ int xio_context_destroy(struct xio_context *ctx)
 	} else {
 		ERROR_LOG("context not found:%p\n", ctx);
 		xio_set_error(XIO_E_USER_OBJ_NOT_FOUND);
-		return;
+		return -1;
 	}
 
 	ctx->run_private = 0;

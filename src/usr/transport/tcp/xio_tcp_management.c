@@ -2813,8 +2813,6 @@ static void init_xio_tcp_transport(void)
 	xio_tcp_transport.poll = xio_tcp_poll;
 	xio_tcp_transport.set_opt = xio_tcp_set_opt;
 	xio_tcp_transport.get_opt = xio_tcp_get_opt;
-	xio_tcp_transport.cancel_req = xio_tcp_cancel_req;
-	xio_tcp_transport.cancel_rsp = xio_tcp_cancel_rsp;
 	xio_tcp_transport.get_pools_setup_ops = xio_tcp_get_pools_ops;
 	xio_tcp_transport.set_pools_cls = xio_tcp_set_pools_cls;
 

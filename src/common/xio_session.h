@@ -193,9 +193,6 @@ static inline int xio_session_is_valid_out_msg(struct xio_session *session,
 	return session->validators_cls->is_valid_out_msg(msg);
 }
 
-int xio_session_notify_cancel(struct xio_connection *connection,
-			      struct xio_msg *req, enum xio_status result);
-
 void xio_session_notify_new_connection(struct xio_session *session,
 				       struct xio_connection *connection);
 

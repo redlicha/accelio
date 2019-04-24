@@ -2703,8 +2703,6 @@ struct xio_transport xio_tcp_transport = {
 	.poll			= xio_tcp_poll,
 	.set_opt		= xio_tcp_set_opt,
 	.get_opt		= xio_tcp_get_opt,
-	.cancel_req		= xio_tcp_cancel_req,
-	.cancel_rsp		= xio_tcp_cancel_rsp,
 	.get_pools_setup_ops	= xio_tcp_get_pools_ops,
 	.set_pools_cls		= xio_tcp_set_pools_cls,
 

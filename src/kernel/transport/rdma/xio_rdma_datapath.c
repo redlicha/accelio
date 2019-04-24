@@ -98,10 +98,6 @@ static int xio_rdma_on_direct_rdma_comp(struct xio_rdma_transport *rdma_hndl,
 static int xio_rdma_on_recv_nop(struct xio_rdma_transport *rdma_hndl,
 				struct xio_task *task);
 static int xio_rdma_send_nop(struct xio_rdma_transport *rdma_hndl);
-static int xio_rdma_on_recv_cancel_req(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task);
-static int xio_rdma_on_recv_cancel_rsp(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task);
 static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 			     struct xio_task *task);
 static int xio_sched_rdma_wr_req(struct xio_rdma_transport *rdma_hndl,
@@ -887,12 +883,6 @@ static int xio_rdma_rx_handler(struct xio_rdma_transport *rdma_hndl,
 	case XIO_NEXUS_SETUP_RSP:
 		xio_rdma_on_setup_msg(rdma_hndl, task);
 		break;
-	case XIO_CANCEL_REQ:
-		xio_rdma_on_recv_cancel_req(rdma_hndl, task);
-		break;
-	case XIO_CANCEL_RSP:
-		xio_rdma_on_recv_cancel_rsp(rdma_hndl, task);
-		break;
 	default:
 		/* rearm the receive queue  */
 		if (rdma_hndl->rqe_avail <= rdma_hndl->rq_depth + 1)
@@ -1110,8 +1100,6 @@ static void xio_rdma_rd_req_comp_handler(struct xio_rdma_transport *rdma_hndl,
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
 	union xio_transport_event_data event_data;
-	struct xio_transport_base	*transport =
-					(struct xio_transport_base *)rdma_hndl;
 
 	rdma_hndl->rdma_rd_req_in_flight--;
 
@@ -1120,21 +1108,7 @@ static void xio_rdma_rd_req_comp_handler(struct xio_rdma_transport *rdma_hndl,
 	rdma_task->sqe_used = 0;
 
 	if (rdma_task->phantom_idx == 0) {
-		if (task->state == XIO_TASK_STATE_CANCEL_PENDING) {
-			TRACE_LOG("[%d] - **** message is canceled\n",
-				  rdma_task->sn);
-			xio_rdma_cancel_rsp(transport, task, XIO_E_MSG_CANCELED,
-					    NULL, 0);
-			xio_tasks_pool_put(task);
-			xio_xmit_rdma_rd_req(rdma_hndl);
-			if (rdma_task->rdmad.mapped)
-				xio_unmap_rxmad_work_req(rdma_hndl->dev,
-							 &rdma_task->rdmad);
-			return;
-		}
-
 		list_move_tail(&task->tasks_list_entry, &rdma_hndl->io_list);
-
 		xio_xmit_rdma_rd_req(rdma_hndl);
 
 		unmap_rdma_rd_task(rdma_hndl, task);
@@ -1185,8 +1159,6 @@ static void xio_rdma_rd_rsp_comp_handler(struct xio_rdma_transport *rdma_hndl,
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
 	union xio_transport_event_data event_data;
-	struct xio_transport_base	*transport =
-					(struct xio_transport_base *)rdma_hndl;
 
 	rdma_hndl->rdma_rd_rsp_in_flight--;
 
@@ -1195,21 +1167,7 @@ static void xio_rdma_rd_rsp_comp_handler(struct xio_rdma_transport *rdma_hndl,
 	rdma_task->sqe_used = 0;
 
 	if (rdma_task->phantom_idx == 0) {
-		if (task->state == XIO_TASK_STATE_CANCEL_PENDING) {
-			TRACE_LOG("[%d] - **** message is canceled\n",
-				  rdma_task->sn);
-			xio_rdma_cancel_rsp(transport, task, XIO_E_MSG_CANCELED,
-					    NULL, 0);
-			xio_tasks_pool_put(task);
-			xio_xmit_rdma_rd_rsp(rdma_hndl);
-			if (rdma_task->rdmad.mapped)
-				xio_unmap_rxmad_work_req(rdma_hndl->dev,
-							 &rdma_task->rdmad);
-			return;
-		}
-
 		list_move_tail(&task->tasks_list_entry, &rdma_hndl->io_list);
-
 		/* notify the peer that it can free resources */
 		xio_rdma_send_rdma_read_ack(rdma_hndl, task->rtid);
 
@@ -3380,9 +3338,6 @@ static int xio_rdma_on_rsp_send_comp(struct xio_rdma_transport *rdma_hndl,
 		xio_tasks_pool_put(task);
 		return 0;
 	}
-	if (IS_CANCEL(task->tlv_type))
-		return 0;
-
 	event_data.msg.op	= XIO_WC_OP_SEND;
 	event_data.msg.task	= task;
 
@@ -3399,9 +3354,6 @@ static int xio_rdma_on_req_send_comp(struct xio_rdma_transport *rdma_hndl,
 				     struct xio_task *task)
 {
 	union xio_transport_event_data event_data;
-
-	if (IS_CANCEL(task->tlv_type))
-		return 0;
 
 	event_data.msg.op	= XIO_WC_OP_SEND;
 	event_data.msg.task	= task;
@@ -4789,101 +4741,6 @@ static int xio_rdma_on_recv_nop(struct xio_rdma_transport *rdma_hndl,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_rdma_send_cancel							     */
-/*---------------------------------------------------------------------------*/
-static int xio_rdma_send_cancel(struct xio_rdma_transport *rdma_hndl,
-				uint32_t tlv_type,
-				struct xio_rdma_cancel_hdr *cancel_hdr,
-				void *ulp_msg, size_t ulp_msg_sz)
-{
-	uint64_t		payload;
-	uint16_t		ulp_hdr_len;
-	int			retval;
-	struct xio_task		*task;
-	struct xio_rdma_task	*rdma_task;
-	void			*buff;
-
-	task = xio_rdma_primary_task_alloc(rdma_hndl);
-	if (unlikely(!task)) {
-		ERROR_LOG("primary tasks pool is empty\n");
-		return -1;
-	}
-	xio_mbuf_reset(&task->mbuf);
-
-	/* set start of the tlv */
-	if (xio_mbuf_tlv_start(&task->mbuf) != 0)
-		return -1;
-
-	task->tlv_type			= tlv_type;
-	rdma_task			= (struct xio_rdma_task *)task->dd_data;
-	rdma_task->out_ib_op		= XIO_IB_SEND;
-	rdma_task->req_out_num_sge	= 0;
-	rdma_task->req_in_num_sge	= 0;
-	rdma_task->sqe_used		= 0;
-
-	ulp_hdr_len = sizeof(*cancel_hdr) + sizeof(uint16_t) + ulp_msg_sz;
-	rdma_hndl->dummy_msg.out.header.iov_base =
-		xio_context_kzalloc(rdma_hndl->base.ctx, ulp_hdr_len, GFP_KERNEL);
-	rdma_hndl->dummy_msg.out.header.iov_len = ulp_hdr_len;
-
-	/* write the message */
-	/* get the pointer */
-	buff = rdma_hndl->dummy_msg.out.header.iov_base;
-
-	/* pack relevant values */
-	buff += xio_write_uint16(cancel_hdr->hdr_len, 0, buff);
-	buff += xio_write_uint16(cancel_hdr->sn, 0, buff);
-	buff += xio_write_uint32(cancel_hdr->result, 0, buff);
-	buff += xio_write_uint16((uint16_t)(ulp_msg_sz), 0, buff);
-	buff += xio_write_array(ulp_msg, ulp_msg_sz, 0, buff);
-
-	task->omsg = &rdma_hndl->dummy_msg;
-
-	/* write xio header to the buffer */
-	retval = xio_rdma_prep_req_header(rdma_hndl, task,
-					  ulp_hdr_len, 0, 0,
-					  XIO_E_SUCCESS);
-	if (unlikely(retval))
-		return -1;
-
-	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
-
-	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
-		return  -1;
-
-	task->omsg = NULL;
-	xio_context_kfree(rdma_hndl->base.ctx,
-			  rdma_hndl->dummy_msg.out.header.iov_base);
-
-	rdma_task->txd.nents = 1;
-
-	/* set the length */
-	rdma_task->txd.sgt.nents = 1;
-	rdma_task->txd.sgt.sgl[0].length = xio_mbuf_data_length(&task->mbuf);
-
-	rdma_task->txd.send_wr.send_flags = IB_SEND_SIGNALED;
-	if (rdma_task->txd.sgt.sgl[0].length < rdma_hndl->max_inline_data)
-		rdma_task->txd.send_wr.send_flags |= IB_SEND_INLINE;
-
-	rdma_task->txd.send_wr.next = NULL;
-
-	/* Map the send */
-	if (unlikely(xio_map_tx_work_req(rdma_hndl->dev, &rdma_task->txd))) {
-		ERROR_LOG("DMA map to device failed\n");
-		return -1;
-	}
-	rdma_task->txd.send_wr.num_sge = rdma_task->txd.mapped;
-
-	rdma_hndl->tx_ready_tasks_num++;
-	list_move_tail(&task->tasks_list_entry, &rdma_hndl->tx_ready_list);
-
-	xio_rdma_xmit(rdma_hndl);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
 /* xio_rdma_send							     */
 /*---------------------------------------------------------------------------*/
 int xio_rdma_send(struct xio_transport_base *transport,
@@ -4918,400 +4775,3 @@ int xio_rdma_send(struct xio_transport_base *transport,
 	return retval;
 }
 
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_cancel_req_handler						     */
-/*---------------------------------------------------------------------------*/
-static int xio_rdma_cancel_req_handler(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_rdma_cancel_hdr *cancel_hdr,
-				       void *ulp_msg, size_t ulp_msg_sz)
-{
-	union xio_transport_event_data	event_data;
-	struct xio_task			*ptask, *next_ptask;
-	struct xio_rdma_task		*rdma_task;
-	int				found = 0;
-
-	/* start by looking for the task rdma_rd  */
-	list_for_each_entry_safe(ptask, next_ptask,
-				 &rdma_hndl->rdma_rd_req_list,
-				 tasks_list_entry) {
-		rdma_task = ptask->dd_data;
-		if (rdma_task->phantom_idx == 0 &&
-		    rdma_task->sn == cancel_hdr->sn) {
-			TRACE_LOG("[%d] - message found on rdma_rd_req_list\n",
-				  cancel_hdr->sn);
-			ptask->state = XIO_TASK_STATE_CANCEL_PENDING;
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found) {
-		list_for_each_entry_safe(ptask, next_ptask,
-					 &rdma_hndl->rdma_rd_req_in_flight_list,
-					 tasks_list_entry) {
-			rdma_task = ptask->dd_data;
-			if (rdma_task->phantom_idx == 0 &&
-			    rdma_task->sn == cancel_hdr->sn) {
-				TRACE_LOG("[%d] - message found on " \
-					  "rdma_rd_req_in_flight_list\n",
-					  cancel_hdr->sn);
-				ptask->state = XIO_TASK_STATE_CANCEL_PENDING;
-				found = 1;
-				break;
-			}
-		}
-	}
-
-	if (!found) {
-		TRACE_LOG("[%d] - was not found\n", cancel_hdr->sn);
-		/* fill notification event */
-		event_data.cancel.ulp_msg	   =  ulp_msg;
-		event_data.cancel.ulp_msg_sz	   =  ulp_msg_sz;
-		event_data.cancel.task		   =  NULL;
-		event_data.cancel.result	   =  0;
-
-		xio_transport_notify_observer(
-				&rdma_hndl->base,
-				XIO_TRANSPORT_EVENT_CANCEL_REQUEST,
-				&event_data);
-	}
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_cancel_req_handler						     */
-/*---------------------------------------------------------------------------*/
-static int xio_rdma_cancel_rsp_handler(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_rdma_cancel_hdr *cancel_hdr,
-				       void *ulp_msg, size_t ulp_msg_sz)
-{
-	union xio_transport_event_data	event_data;
-	struct xio_task			*ptask, *next_ptask;
-	struct xio_rdma_task		*rdma_task;
-	struct xio_task			*task_to_cancel = NULL;
-
-	if ((cancel_hdr->result ==  XIO_E_MSG_CANCELED) ||
-	    (cancel_hdr->result ==  XIO_E_MSG_CANCEL_FAILED)) {
-		/* look in the in_flight */
-		list_for_each_entry_safe(ptask, next_ptask,
-					 &rdma_hndl->in_flight_list,
-				tasks_list_entry) {
-			rdma_task = ptask->dd_data;
-			if (rdma_task->sn == cancel_hdr->sn) {
-				task_to_cancel = ptask;
-				break;
-			}
-		}
-		if (!task_to_cancel) {
-			/* look in the tx_comp */
-			list_for_each_entry_safe(ptask, next_ptask,
-						 &rdma_hndl->tx_comp_list,
-					tasks_list_entry) {
-				rdma_task = ptask->dd_data;
-				if (rdma_task->sn == cancel_hdr->sn) {
-					task_to_cancel = ptask;
-					break;
-				}
-			}
-		}
-
-		if (!task_to_cancel)  {
-			ERROR_LOG("[%d] - Failed to found canceled message\n",
-				  cancel_hdr->sn);
-			/* fill notification event */
-			event_data.cancel.ulp_msg	=  ulp_msg;
-			event_data.cancel.ulp_msg_sz	=  ulp_msg_sz;
-			event_data.cancel.task		=  NULL;
-			event_data.cancel.result	=  XIO_E_MSG_NOT_FOUND;
-
-			xio_transport_notify_observer(
-					&rdma_hndl->base,
-					XIO_TRANSPORT_EVENT_CANCEL_RESPONSE,
-					&event_data);
-			return 0;
-		}
-	}
-
-	/* fill notification event */
-	event_data.cancel.ulp_msg	   =  ulp_msg;
-	event_data.cancel.ulp_msg_sz	   =  ulp_msg_sz;
-	event_data.cancel.task		   =  task_to_cancel;
-	event_data.cancel.result	   =  cancel_hdr->result;
-
-	xio_transport_notify_observer(&rdma_hndl->base,
-				      XIO_TRANSPORT_EVENT_CANCEL_RESPONSE,
-				      &event_data);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_on_recv_cancel_rsp						     */
-/*---------------------------------------------------------------------------*/
-static int xio_rdma_on_recv_cancel_rsp(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task)
-{
-	int			retval = 0;
-	struct xio_rdma_rsp_hdr	rsp_hdr;
-	struct xio_msg		*imsg;
-	void			*ulp_hdr;
-	void			*buff;
-	uint16_t		ulp_msg_sz;
-	struct xio_rdma_task	*rdma_task = task->dd_data;
-	struct xio_rdma_cancel_hdr cancel_hdr;
-	struct xio_sg_table_ops	*sgtbl_ops;
-	void			*sgtbl;
-	void			*sg;
-
-	/* read the response header */
-	retval = xio_rdma_read_rsp_header(rdma_hndl, task, &rsp_hdr);
-	if (retval != 0) {
-		xio_set_error(XIO_E_MSG_INVALID);
-		goto cleanup;
-	}
-	/* update receive + send window */
-	if (rdma_hndl->exp_sn == rsp_hdr.sn) {
-		rdma_hndl->exp_sn++;
-		rdma_hndl->ack_sn = rsp_hdr.sn;
-		rdma_hndl->peer_credits += rsp_hdr.credits;
-	} else {
-		ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d\n",
-			  rdma_hndl->exp_sn, rsp_hdr.sn);
-	}
-	/* read the sn */
-	rdma_task->sn = rsp_hdr.sn;
-
-	imsg		= &task->imsg;
-	sgtbl		= xio_sg_table_get(&imsg->in);
-	sgtbl_ops	= xio_sg_table_ops_get(imsg->in.sgl_type);
-	sg		= sge_first(sgtbl_ops, sgtbl);
-
-	ulp_hdr = xio_mbuf_get_curr_ptr(&task->mbuf);
-
-	imsg->type = task->tlv_type;
-	imsg->in.header.iov_len		= rsp_hdr.ulp_hdr_len;
-	imsg->in.header.iov_base	= ulp_hdr;
-	sge_set_addr(sgtbl_ops, sg, NULL);
-	tbl_set_nents(sgtbl_ops, sgtbl, 0);
-
-	buff = imsg->in.header.iov_base;
-	buff += xio_read_uint16(&cancel_hdr.hdr_len, 0, buff);
-	buff += xio_read_uint16(&cancel_hdr.sn, 0, buff);
-	buff += xio_read_uint32(&cancel_hdr.result, 0, buff);
-	buff += xio_read_uint16(&ulp_msg_sz, 0, buff);
-
-	xio_rdma_cancel_rsp_handler(rdma_hndl, &cancel_hdr,
-				    buff, ulp_msg_sz);
-	/* return the the cancel response task to pool */
-	xio_tasks_pool_put(task);
-
-	return 0;
-cleanup:
-	return -1;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_on_recv_cancel_req						     */
-/*---------------------------------------------------------------------------*/
-static int xio_rdma_on_recv_cancel_req(struct xio_rdma_transport *rdma_hndl,
-				       struct xio_task *task)
-{
-	XIO_TO_RDMA_TASK(task, rdma_task);
-	int			retval = 0;
-	struct xio_rdma_cancel_hdr cancel_hdr;
-	struct xio_rdma_req_hdr	req_hdr;
-	struct xio_msg		*imsg;
-	void			*ulp_hdr;
-	void			*buff;
-	uint16_t		ulp_msg_sz;
-	struct xio_sg_table_ops	*sgtbl_ops;
-	void			*sgtbl;
-	void			*sg;
-	int			header_err = 1; /* temporary do not activate */
-
-	/* read header */
-	retval = xio_rdma_read_req_header(rdma_hndl, task, &req_hdr);
-	if (retval != 0) {
-		xio_set_error(XIO_E_MSG_INVALID);
-		header_err = 1;
-		goto cleanup;
-	}
-	if (rdma_hndl->exp_sn == req_hdr.sn) {
-		rdma_hndl->exp_sn++;
-		rdma_hndl->ack_sn = req_hdr.sn;
-		rdma_hndl->peer_credits += req_hdr.credits;
-	} else {
-		ERROR_LOG("ERROR: sn expected:%d, sn arrived:%d\n",
-			  rdma_hndl->exp_sn, req_hdr.sn);
-	}
-
-	/* read the sn */
-	rdma_task->sn = req_hdr.sn;
-
-	imsg		= &task->imsg;
-	sgtbl		= xio_sg_table_get(&imsg->in);
-	sgtbl_ops	= xio_sg_table_ops_get(imsg->in.sgl_type);
-	sg		= sge_first(sgtbl_ops, sgtbl);
-
-	ulp_hdr = xio_mbuf_get_curr_ptr(&task->mbuf);
-
-	/* set header pointers */
-	imsg->type = task->tlv_type;
-	imsg->in.header.iov_len		= req_hdr.ulp_hdr_len;
-	imsg->in.header.iov_base	= ulp_hdr;
-	sge_set_addr(sgtbl_ops, sg, NULL);
-	tbl_set_nents(sgtbl_ops, sgtbl, 0);
-
-	buff = imsg->in.header.iov_base;
-	buff += xio_read_uint16(&cancel_hdr.hdr_len, 0, buff);
-	buff += xio_read_uint16(&cancel_hdr.sn, 0, buff);
-	buff += xio_read_uint32(&cancel_hdr.result, 0, buff);
-	buff += xio_read_uint16(&ulp_msg_sz, 0, buff);
-
-	xio_rdma_cancel_req_handler(rdma_hndl, &cancel_hdr,
-				    buff, ulp_msg_sz);
-	/* return the the cancel request task to pool */
-	xio_tasks_pool_put(task);
-
-	return 0;
-
-cleanup:
-	retval = xio_errno();
-	ERROR_LOG("xio_rdma_on_recv_req failed. (errno=%d %s)\n", retval,
-		  xio_strerror(retval));
-	if (header_err)
-		xio_transport_notify_observer_error(&rdma_hndl->base, retval);
-	else
-		xio_transport_notify_message_error(&rdma_hndl->base, task,
-				XIO_MSG_DIRECTION_IN, (enum xio_status)retval);
-
-
-	return -1;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_cancel_req							     */
-/*---------------------------------------------------------------------------*/
-int xio_rdma_cancel_req(struct xio_transport_base *transport,
-			struct xio_msg *req, uint64_t stag,
-			void *ulp_msg, size_t ulp_msg_sz)
-{
-	struct xio_rdma_transport *rdma_hndl =
-		(struct xio_rdma_transport *)transport;
-	struct xio_task			*ptask, *next_ptask;
-	union xio_transport_event_data	event_data;
-	struct xio_rdma_task		*rdma_task;
-	struct  xio_rdma_cancel_hdr	cancel_hdr = {
-		.hdr_len	= sizeof(cancel_hdr),
-		.result		= 0
-	};
-
-	/* look in the tx_ready */
-	list_for_each_entry_safe(ptask, next_ptask, &rdma_hndl->tx_ready_list,
-				 tasks_list_entry) {
-		if (ptask->omsg &&
-		    (ptask->omsg->sn == req->sn) &&
-		    (ptask->stag == stag)) {
-			TRACE_LOG("[%llu] - message found on tx_ready_list\n",
-				  req->sn);
-
-			/* return decrease ref count from task */
-			xio_tasks_pool_put(ptask);
-			rdma_hndl->tx_ready_tasks_num--;
-			list_move_tail(&ptask->tasks_list_entry,
-				       &rdma_hndl->tx_comp_list);
-
-			/* fill notification event */
-			event_data.cancel.ulp_msg	=  ulp_msg;
-			event_data.cancel.ulp_msg_sz	=  ulp_msg_sz;
-			event_data.cancel.task		=  ptask;
-			event_data.cancel.result	=  XIO_E_MSG_CANCELED;
-
-			xio_transport_notify_observer(
-					&rdma_hndl->base,
-					XIO_TRANSPORT_EVENT_CANCEL_RESPONSE,
-					&event_data);
-			return 0;
-		}
-	}
-	/* look in the in_flight */
-	list_for_each_entry_safe(ptask, next_ptask, &rdma_hndl->in_flight_list,
-				 tasks_list_entry) {
-		if (ptask->omsg &&
-		    (ptask->omsg->sn == req->sn) &&
-		    (ptask->stag == stag) &&
-		    (ptask->state != XIO_TASK_STATE_RESPONSE_RECV)) {
-			TRACE_LOG("[%llu] - message found on in_flight_list\n",
-				  req->sn);
-
-			rdma_task	= ptask->dd_data;
-			cancel_hdr.sn	= rdma_task->sn;
-
-			xio_rdma_send_cancel(rdma_hndl, XIO_CANCEL_REQ,
-					     &cancel_hdr,
-					     ulp_msg, ulp_msg_sz);
-			return 0;
-		}
-	}
-	/* look in the tx_comp */
-	list_for_each_entry_safe(ptask, next_ptask, &rdma_hndl->tx_comp_list,
-				 tasks_list_entry) {
-		if (ptask->omsg &&
-		    (ptask->omsg->sn == req->sn) &&
-		    (ptask->stag == stag) &&
-		    (ptask->state != XIO_TASK_STATE_RESPONSE_RECV)) {
-			TRACE_LOG("[%llu] - message found on tx_comp_list\n",
-				  req->sn);
-			rdma_task	= ptask->dd_data;
-			cancel_hdr.sn	= rdma_task->sn;
-
-			xio_rdma_send_cancel(rdma_hndl, XIO_CANCEL_REQ,
-					     &cancel_hdr,
-					     ulp_msg, ulp_msg_sz);
-			return 0;
-		}
-	}
-	TRACE_LOG("[%llu] - message not found on tx path\n", req->sn);
-
-	/* fill notification event */
-	event_data.cancel.ulp_msg	   =  ulp_msg;
-	event_data.cancel.ulp_msg_sz	   =  ulp_msg_sz;
-	event_data.cancel.task		   =  NULL;
-	event_data.cancel.result	   =  XIO_E_MSG_NOT_FOUND;
-
-	xio_transport_notify_observer(&rdma_hndl->base,
-				      XIO_TRANSPORT_EVENT_CANCEL_RESPONSE,
-				      &event_data);
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_rdma_cancel_rsp							     */
-/*---------------------------------------------------------------------------*/
-int xio_rdma_cancel_rsp(struct xio_transport_base *transport,
-			struct xio_task *task, enum xio_status result,
-			void *ulp_msg, size_t ulp_msg_sz)
-{
-	struct xio_rdma_transport *rdma_hndl =
-		(struct xio_rdma_transport *)transport;
-	struct xio_rdma_task	*rdma_task;
-
-	struct  xio_rdma_cancel_hdr cancel_hdr = {
-		.hdr_len	= sizeof(cancel_hdr),
-		.result		= result,
-	};
-
-	if (task) {
-		rdma_task = task->dd_data;
-		cancel_hdr.sn = rdma_task->sn;
-	} else {
-		cancel_hdr.sn = 0;
-	}
-
-	/* fill dummy transport header since was handled by upper layer
-	 */
-	return xio_rdma_send_cancel(rdma_hndl, XIO_CANCEL_RSP,
-				    &cancel_hdr, ulp_msg, ulp_msg_sz);
-}

@@ -816,16 +816,6 @@ int xio_client_on_nexus_event(void *observer, void *sender, int event,
 */
 		xio_on_assign_in_buf(session, nexus, event_data);
 		break;
-	case XIO_NEXUS_EVENT_CANCEL_REQUEST:
-		DEBUG_LOG("session: [notification] - cancel request. " \
-			 "session:%p, nexus:%p\n", observer, sender);
-		xio_on_cancel_request(session, nexus, event_data);
-		break;
-	case XIO_NEXUS_EVENT_CANCEL_RESPONSE:
-		DEBUG_LOG("session: [notification] - cancel response. " \
-			 "session:%p, nexus:%p\n", observer, sender);
-		xio_on_cancel_response(session, nexus, event_data);
-		break;
 	case XIO_NEXUS_EVENT_ESTABLISHED:
 		DEBUG_LOG("session: [notification] - nexus established. " \
 			 "session:%p, nexus:%p\n", observer, sender);
