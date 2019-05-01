@@ -3514,7 +3514,6 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 		retval = xio_sched_rdma_rd(rdma_hndl, task);
 		if (retval == 0)
 			return 0;
-		ERROR_LOG("scheduling rdma read failed\n");
 		task->status = xio_errno();
 		break;
 	default:
@@ -4496,7 +4495,6 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		retval = xio_sched_rdma_rd(rdma_hndl, task);
 		if (retval == 0)
 			return 0;
-		ERROR_LOG("scheduling rdma read failed\n");
 		task->status = xio_errno();
 		break;
 	default:

@@ -2542,10 +2542,8 @@ static int xio_tcp_on_recv_req_header(struct xio_tcp_transport *tcp_hndl,
 				(uint32_t)req_hdr.ulp_imm_len);
 		/* handle RDMA READ equivalent. */
 		retval = xio_tcp_rd_req_header(tcp_hndl, task);
-		if (unlikely(retval)) {
-			ERROR_LOG("tcp read header failed\n");
+		if (unlikely(retval))
 			goto cleanup;
-		}
 		break;
 	default:
 		ERROR_LOG("unexpected opcode\n");
@@ -3262,7 +3260,6 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 					ERROR_LOG("unknown message type:0x%x\n",
 						  task->tlv_type);
 				if (unlikely(retval < 0)) {
-					ERROR_LOG("error reading header\n");
 					return retval;
 				}
 			}
