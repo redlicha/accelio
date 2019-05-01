@@ -2208,12 +2208,6 @@ static void xio_pre_disconnect(int actual_timeout_ms, void *conn)
 	bool expedite_disconnection = true;
 	int retval, send_fin_error = 0;
 
-	/* now we are on the right context, reaffirm that in the mean time,
-	 * state was not changed
-	 */
-	if (connection->state != XIO_CONNECTION_STATE_ONLINE)
-		return;
-
 	kref_get(&connection->kref);  /* for time wait */
 
 	/* on keep alive timeout, assume fin is also timeout and bypass  */
@@ -2277,20 +2271,29 @@ int xio_disconnect(struct xio_connection *connection)
 			  connection);
 		return -1;
 	}
-
-	DEBUG_LOG("xio_disconnect. session:%p connection:%p state:%s\n",
+	DEBUG_LOG("xio_disconnect. session:%p connection:%p state:%s, disconnect:%d\n",
 		  connection->session, connection,
 		  xio_connection_state_str((enum xio_connection_state)
-					   connection->state));
+					   connection->state),
+		  connection->disconnecting);
+
+	if (connection->disconnecting)
+		return 0;
 
 	xio_ctx_del_delayed_work(connection->ctx, &connection->connect_work);
 
-	if ((connection->state != XIO_CONNECTION_STATE_ONLINE &&
-	     connection->state != XIO_CONNECTION_STATE_ESTABLISHED) ||
-	    connection->disconnecting) {
-		/* delay the disconnection to when connection become online */
-		connection->disconnecting = 1;
-		return 0;
+	switch(connection->state) {
+		case XIO_CONNECTION_STATE_ONLINE:
+		case XIO_CONNECTION_STATE_ESTABLISHED:
+			break;
+		case XIO_CONNECTION_STATE_ERROR:
+			xio_connection_nexus_safe_disconnect(connection,
+							      &connection->session->observer);
+			connection->disconnecting = 1;
+			return 0;
+		default:
+			/* delay the disconnection to when connection become online */
+			return 0;
 	}
 	connection->disconnecting = 1;
 	retval = xio_ctx_add_work(
@@ -2299,7 +2302,7 @@ int xio_disconnect(struct xio_connection *connection)
 			xio_pre_disconnect,
 			&connection->disconnect_work);
 	if (retval != 0) {
-		ERROR_LOG("xio_ctx_timer_add failed.\n");
+		ERROR_LOG("xio_ctx_add_work failed. connection:%p\n", connection);
 
 		return retval;
 	}
