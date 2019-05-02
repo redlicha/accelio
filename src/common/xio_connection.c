@@ -2850,6 +2850,12 @@ int xio_connection_error_event(struct xio_connection *connection,
 	xio_session_notify_connection_error(connection->session, connection,
 					    reason);
 
+	/* stop further processing of events immediately  */
+	if (connection->nexus) {
+		xio_nexus_force_close(connection->nexus);
+		connection->nexus = NULL;
+	}
+
 	/* flush all messages from in flight message queue to in queue */
 	xio_connection_flush_msgs(connection);
 
