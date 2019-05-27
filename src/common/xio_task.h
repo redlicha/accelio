@@ -191,8 +191,6 @@ static inline void xio_task_reset(struct xio_task *task)
 	task->status		= 0;
 	task->context		= NULL;
 	task->dd_data		= ((char *)task) +  sizeof(struct xio_task);
-	task->imsg.in.crc	= 0;
-	task->imsg.out.crc	= 0;
 
 	if (task->imsg.user_context)
 		task->imsg.user_context	= NULL;

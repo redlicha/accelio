@@ -733,25 +733,6 @@ static int xio_on_req_recv(struct xio_connection *connection,
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
 			connection->latest_delivered = msg->sn;
-
-			if (xio_mbuf_tlv_crc(&task->mbuf)) {
-				xio_vmsg_calc_crc(&msg->in);
-				if (xio_mbuf_tlv_crc(&task->mbuf) != msg->in.crc) {
-					ERROR_LOG("CRC ERROR: connection:%p, expected CRC:0x%x, calculated CRC:0x%x\n",
-						  connection,
-						  xio_mbuf_tlv_crc(&task->mbuf),  msg->in.crc);
-					xio_send_response_error(msg, XIO_E_CRC_REQ_ERROR);
-#ifdef XIO_THREAD_SAFE_DEBUG
-					xio_ctx_debug_thread_lock(connection->ctx);
-#endif
-					return 0;
-				} else {
-				/*	TRACE_LOG("CRC. connection:%p, msg:%p, calculated CRC:0x%x\n",
-						   connection, msg, msg->in.crc);
-				*/
-				}
-			}
-			msg->in.crc = 0;
 			connection->ses_ops.on_msg(
 					connection->session, msg,
 					task->last_in_rxq,
@@ -978,26 +959,6 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 				xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
-				if (xio_mbuf_tlv_crc(&task->mbuf)) {
-					xio_vmsg_calc_crc(&omsg->in);
-					if (xio_mbuf_tlv_crc(&task->mbuf) != omsg->in.crc) {
-						ERROR_LOG("CRC ERROR: connection:%p, expected CRC:0x%x, calculated CRC:0x%x\n",
-							connection,
-							xio_mbuf_tlv_crc(&task->mbuf),  omsg->in.crc);
-						xio_session_notify_msg_error(
-								connection, omsg,
-								XIO_E_CRC_RSP_ERROR,
-								XIO_MSG_DIRECTION_IN);
-#ifdef XIO_THREAD_SAFE_DEBUG
-						xio_ctx_debug_thread_lock(connection->ctx);
-#endif
-						return 0;
-					}
-				}
-
-
-				 omsg->in.crc = 0;
-				 omsg->request->out.crc = 0;
 				/*if (connection->ses_ops.on_msg) */
 					connection->ses_ops.on_msg(
 						connection->session,
@@ -1022,8 +983,6 @@ static int xio_on_rsp_send_comp(
 		struct xio_connection *connection,
 		struct xio_task *task)
 {
-	int internal_error_msg = (task->status == XIO_E_CRC_REQ_ERROR);
-
 	if (connection->is_flushed) {
 		xio_tasks_pool_put(task);
 		goto exit;
@@ -1046,8 +1005,7 @@ static int xio_on_rsp_send_comp(
 		 */
 
 		xio_clear_ex_flags(&task->omsg->flags);
-		if (connection->ses_ops.on_msg_send_complete &&
-		    !internal_error_msg) {
+		if (connection->ses_ops.on_msg_send_complete) {
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif

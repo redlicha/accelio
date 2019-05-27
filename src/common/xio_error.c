@@ -127,10 +127,6 @@ static const char *xio_gen_status_str(enum xio_status ev)
 		return "Response buffer is smaller then actual response";
 	case XIO_E_INSUFFICIENT_RESOURCES:
 		return "Insufficient resources to reply";
-	case XIO_E_CRC_REQ_ERROR:
-		return "CRC Request error";
-	case XIO_E_CRC_RSP_ERROR:
-		return "CRC Response error";
 	default:
 		return "Unknown error";
 	};

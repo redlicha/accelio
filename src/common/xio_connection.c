@@ -1148,11 +1148,6 @@ int xio_send_request(struct xio_connection *connection,
 			nr++;
 			xio_msg_list_insert_tail(&reqs_msgq, pmsg, pdata);
 		}
-		if (connection->enable_crc)
-			xio_vmsg_calc_crc(&pmsg->out);
-		else
-			pmsg->out.crc = 0;
-
 		pmsg = pmsg->next;
 	}
 	if (nr > 0)
@@ -1365,10 +1360,6 @@ int xio_send_response(struct xio_msg *msg)
 			connection->credits_msgs++;
 			connection->credits_bytes += bytes;
 		}
-		if (pmsg->request->in.crc) {
-			xio_vmsg_calc_crc(&pmsg->out);
-		} else
-			pmsg->out.crc = 0;
 
 		xio_send_single_rsp(pmsg, task);
 		pmsg = pmsg->next;
@@ -1536,10 +1527,6 @@ static int xio_send_typed_msg(struct xio_connection *connection,
 			nr++;
 			xio_msg_list_insert_tail(&reqs_msgq, pmsg, pdata);
 		}
-		if (connection->enable_crc)
-			xio_vmsg_calc_crc(&pmsg->out);
-		else
-			pmsg->out.crc = 0;
 
 		pmsg = pmsg->next;
 	}

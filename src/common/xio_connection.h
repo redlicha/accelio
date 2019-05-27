@@ -102,8 +102,7 @@ struct xio_connection {
 
 	uint8_t				fin_req_timeout;
 	uint8_t				fin_ack_timeout;
-	uint8_t				disable_notify;
-	uint8_t				enable_crc;
+	uint16_t			disable_notify;
 	uint16_t			disconnecting;
 	uint16_t			restarted;
 

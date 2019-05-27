@@ -212,8 +212,6 @@ PACKED_MEMORY(struct xio_tlv {
 	uint32_t		magic;
 	uint32_t		type;
 	uint64_t		len;
-	uint16_t		crc;
-	uint16_t		pad[3];
 });
 
 #ifdef XIO_SESSION_DEBUG
@@ -309,11 +307,10 @@ int		xio_uri_to_ss(const char *uri, struct sockaddr_storage *ss);
 int		xio_host_port_to_ss(const char *buf,
 				    struct sockaddr_storage *ss);
 
-size_t		xio_write_tlv(uint32_t type, uint64_t len, uint16_t crc,
-			      uint8_t *buffer);
+size_t		xio_write_tlv(uint32_t type, uint64_t len, uint8_t *buffer);
 
-size_t		xio_read_tlv(uint32_t *type, uint64_t *len, uint16_t *crc,
-			     void **value, uint8_t *buffer);
+size_t		xio_read_tlv(uint32_t *type, uint64_t *len, void **value,
+			     uint8_t *buffer);
 
 size_t		memcpyv(struct xio_iovec *dst, int dsize,
 			struct xio_iovec *src, int ssize);
@@ -338,16 +335,6 @@ int		xio_dump_task_list(const char *obj_name, void *obj,
 /* xio_options.c							     */
 /*---------------------------------------------------------------------------*/
 struct xio_options *xio_get_options(void);
-
-
-/*---------------------------------------------------------------------------*/
-/* xio_crc16.c								     */
-/*---------------------------------------------------------------------------*/
-uint16_t xio_str_crc16(const char *str);
-
-uint16_t xio_mem_crc16(const void *buffer, size_t len, uint16_t crc);
-
-void xio_vmsg_calc_crc(struct xio_vmsg *xio_vmsg);
 
 #ifdef __cplusplus
 }

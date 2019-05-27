@@ -135,7 +135,6 @@ libxio_la_SOURCES =	$(libxio_headers)		\
 			../common/xio_options.c		\
 			../common/xio_error.c		\
 			../common/xio_utils.c		\
-			../common/xio_crc16.c		\
 			../common/xio_server.c		\
 			../common/xio_session.c		\
 			../common/xio_session_server.c	\

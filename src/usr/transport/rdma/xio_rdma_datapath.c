@@ -2972,7 +2972,6 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 	size_t			sge_len;
 	int			i;
 	int			must_send = 0;
-	uint16_t		crc = 0;
 
 	if (unlikely(verify_req_send_limits(rdma_hndl))) {
 		xio_rdma_xmit(rdma_hndl);
@@ -2993,10 +2992,9 @@ static int xio_rdma_send_req(struct xio_rdma_transport *rdma_hndl,
 	}
 
 	payload = xio_mbuf_tlv_payload_len(mbuf);
-	crc = task->omsg ? task->omsg->out.crc : 0;
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(mbuf, task->tlv_type, payload, crc) != 0) {
+	if (xio_mbuf_write_tlv(mbuf, task->tlv_type, payload) != 0) {
 		ERROR_LOG("write tlv failed\n");
 		xio_set_error(EOVERFLOW);
 		return -1;
@@ -3068,7 +3066,6 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 	uint64_t		payload;
 	int			i;
 	int			must_send = 0;
-	uint16_t		crc;
 
 	if (unlikely(verify_rsp_send_limits(rdma_hndl))) {
 		xio_rdma_xmit(rdma_hndl);
@@ -3096,10 +3093,9 @@ static int xio_rdma_send_rsp(struct xio_rdma_transport *rdma_hndl,
 	}
 
 	payload = xio_mbuf_tlv_payload_len(mbuf);
-	crc = task->omsg ? task->omsg->out.crc : 0;
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(mbuf, task->tlv_type, payload, crc) != 0)
+	if (xio_mbuf_write_tlv(mbuf, task->tlv_type, payload) != 0)
 		goto cleanup;
 
 	txd = &rdma_task->txd;
@@ -4703,7 +4699,7 @@ static int xio_rdma_send_setup_req(struct xio_rdma_transport *rdma_hndl,
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
 	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
@@ -4754,7 +4750,7 @@ static int xio_rdma_send_setup_rsp(struct xio_rdma_transport *rdma_hndl,
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
 	DEBUG_LOG("%s - rdma_hndl:%p\n", __func__, rdma_hndl);
@@ -4902,7 +4898,6 @@ static int xio_rdma_send_rdma_read_ack(struct xio_rdma_transport *rdma_hndl,
 		.hdr_len	= sizeof(rra),
 		.rtid		= rtid,
 	};
-	uint16_t crc;
 
 	task = xio_rdma_primary_task_alloc(rdma_hndl);
 	if (!task) {
@@ -4920,8 +4915,7 @@ static int xio_rdma_send_rdma_read_ack(struct xio_rdma_transport *rdma_hndl,
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	crc = task->omsg ? task->omsg->out.crc : 0;
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, crc) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
 	/* set the length */
@@ -5068,7 +5062,7 @@ static int xio_rdma_send_nop(struct xio_rdma_transport *rdma_hndl)
 	payload = xio_mbuf_tlv_payload_len(&task->mbuf);
 
 	/* add tlv */
-	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload, 0) != 0)
+	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
 
 	/* set the length */

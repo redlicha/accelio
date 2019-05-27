@@ -828,8 +828,6 @@ int main(int argc, char *argv[])
 	cparams.enable_tos		= 1;
 	cparams.tos			= 0x58;
 #endif
-	/*cparams.enable_crc		= 1;*/
-
 	/* connect the session  */
 	test_params.connection = xio_connect(&cparams);
 	if (!test_params.connection) {
