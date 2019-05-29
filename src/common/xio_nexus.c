@@ -540,6 +540,32 @@ static int xio_nexus_swap(struct xio_nexus *old, struct xio_nexus *_new)
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_nexus_on_force_close_timeout					     */
+/*---------------------------------------------------------------------------*/
+static void xio_nexus_on_force_close_timeout(int actual_timeout_ms, void *data)
+{
+	struct xio_nexus *nexus = (struct xio_nexus *)data;
+	xio_nexus_force_close(nexus);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_nexus_schedule_force_close					     */
+/*---------------------------------------------------------------------------*/
+static int xio_nexus_schedule_force_close(struct xio_nexus *nexus)
+{
+	int retval = xio_ctx_add_delayed_work(
+			nexus->ctx,
+			1, nexus,
+			xio_nexus_on_force_close_timeout,
+			&nexus->close_time_hndl);
+
+	if (retval)
+		ERROR_LOG("%s failed. nexus:%p, retval:%d\n",
+			  __func__, nexus, retval);
+	return retval;
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_nexus_on_recv_setup_req						     */
 /*---------------------------------------------------------------------------*/
 static int xio_nexus_on_recv_setup_req(struct xio_nexus *new_nexus,
@@ -566,7 +592,7 @@ static int xio_nexus_on_recv_setup_req(struct xio_nexus *new_nexus,
 	if (req.version != XIO_VERSION) {
 		ERROR_LOG("client invalid version.cver:0x%x, sver::0x%x\n",
 			  req.version, XIO_VERSION);
-		xio_nexus_force_close(new_nexus);
+		xio_nexus_schedule_force_close(new_nexus);
 		xio_set_error(XIO_E_INVALID_VERSION);
 		return -1;
 	}
@@ -756,7 +782,7 @@ static int xio_nexus_on_recv_setup_rsp(struct xio_nexus *nexus,
 					XIO_NEXUS_EVENT_ERROR,
 					&nexus_event_data);
 		}
-		xio_nexus_force_close(nexus);
+		xio_nexus_schedule_force_close(nexus);
 		return 0;
 	}
 	DEBUG_LOG("%s: nexus:%p, trans_hndl:%p\n", __func__,
