@@ -49,7 +49,7 @@ extern "C" {
  * @def XIO_VERSION
  * @brief accelio current api version number
  */
-#define XIO_VERSION			0x0100
+#define XIO_VERSION			0x0101
 
 /**
  * @def XIO_IOVLEN
