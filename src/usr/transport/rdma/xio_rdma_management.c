@@ -523,7 +523,7 @@ static struct xio_cq *xio_cq_create(struct xio_device *dev,
 		goto cleanup1;
 	}
 
-	tcq->alloc_sz = min(dev->device_attr.max_cqe, CQE_ALLOC_SIZE);
+	tcq->alloc_sz = min(dev->device_attr.max_cqe, MAX_CQE_PER_QP);
 	tcq->max_cqe  = dev->device_attr.max_cqe;
 	alloc_sz = tcq->alloc_sz;
 
@@ -2025,15 +2025,6 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 				  rdma_hndl->cm_id, rdma_hndl, errno);
 		rdma_hndl->cm_id = NULL;
 	}
-	if (rdma_hndl->prev_cm_id) {
-		DEBUG_LOG("call rdma_destroy_id prev_cm_id:%p, rdma_hndl:%p\n",
-			  rdma_hndl->prev_cm_id, rdma_hndl);
-		retval = rdma_destroy_id(rdma_hndl->prev_cm_id);
-		if (retval)
-			ERROR_LOG("rdma_destroy_id failed. prev_cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
-				  rdma_hndl->prev_cm_id, rdma_hndl, errno);
-		rdma_hndl->cm_id = NULL;
-	}
 	xio_cm_channel_release(rdma_hndl->cm_channel);
 
 	if (rdma_hndl->rkey_tbl) {
@@ -2109,14 +2100,11 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 	int				retval = 0;
 
 
-	if (rdma_hndl->cm_id != ev->id) {
+	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
 			 ", ev->id:%p\n", __func__, rdma_hndl, 
 			 rdma_hndl->cm_id, ev->id);
 	
-		rdma_hndl->prev_cm_id = rdma_hndl->cm_id;
-		rdma_hndl->cm_id = ev->id;
-	}
 
 	rdma_hndl->dev = xio_device_lookup_init(rdma_hndl->base.ctx ,
 						rdma_hndl->cm_id->verbs);
@@ -2166,14 +2154,11 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 	int				retval = 0;
 	struct rdma_conn_param		cm_params;
 
-	if (rdma_hndl->cm_id != ev->id) {
+	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
 			 ", ev->id:%p\n", __func__, rdma_hndl, 
 			 rdma_hndl->cm_id, ev->id);
 	
-		rdma_hndl->prev_cm_id = rdma_hndl->cm_id;
-		rdma_hndl->cm_id = ev->id;
-	}
 
 	if (!rdma_hndl->cm_id || !rdma_hndl->cm_id->verbs) {
 		xio_set_error(ENODEV);
@@ -2294,15 +2279,6 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	child_hndl->client_responder_resources =
 		ev->param.conn.responder_resources;
 
-	/* initiator is dst, target is src */
-	memcpy(&child_hndl->base.peer_addr,
-	       &child_hndl->cm_id->route.addr.dst_storage,
-	       sizeof(child_hndl->base.peer_addr));
-	memcpy(&child_hndl->base.local_addr,
-	       &child_hndl->cm_id->route.addr.src_storage,
-	       sizeof(child_hndl->base.local_addr));
-	child_hndl->base.proto = XIO_PROTO_RDMA;
-
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
@@ -2321,6 +2297,14 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 		child_hndl->cm_id	= NULL;
 		goto notify_err3;
 	}
+	/* initiator is dst, target is src */
+	memcpy(&child_hndl->base.peer_addr,
+	       &child_hndl->cm_id->route.addr.dst_storage,
+	       sizeof(child_hndl->base.peer_addr));
+	memcpy(&child_hndl->base.local_addr,
+	       &child_hndl->cm_id->route.addr.src_storage,
+	       sizeof(child_hndl->base.local_addr));
+	child_hndl->base.proto = XIO_PROTO_RDMA;
 
 	event_data.new_connection.child_trans_hndl =
 		(struct xio_transport_base *)child_hndl;
@@ -2371,15 +2355,11 @@ static void  on_cm_refused(struct rdma_cm_event *ev,
 static void  on_cm_established(struct rdma_cm_event *ev,
 			       struct xio_rdma_transport *rdma_hndl)
 {
-	if (rdma_hndl->cm_id != ev->id) {
+	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
 			 ", ev->id:%p\n", __func__, rdma_hndl, 
 			 rdma_hndl->cm_id, ev->id);
 	
-		rdma_hndl->prev_cm_id = rdma_hndl->cm_id;
-		rdma_hndl->cm_id = ev->id;
-	}
-
 	/* initiator is dst, target is src */
 	memcpy(&rdma_hndl->base.peer_addr,
 	       &rdma_hndl->cm_id->route.addr.dst_storage,

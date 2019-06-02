@@ -452,7 +452,6 @@ struct xio_rdma_transport {
 	struct xio_transport		*transport;
 	struct xio_cm_channel		*cm_channel;
 	struct rdma_cm_id		*cm_id;
-	struct rdma_cm_id		*prev_cm_id;
 	struct xio_tasks_pool_cls	initial_pool_cls;
 	struct xio_tasks_pool_cls	primary_pool_cls;
 
