@@ -450,8 +450,9 @@ struct xio_rdma_transport {
 	size_t				membuf_sz;
 
 	struct xio_transport		*transport;
-	struct xio_cm_channel		*cm_channel;
+	struct rdma_event_channel	*cm_channel;
 	struct rdma_cm_id		*cm_id;
+	struct rdma_cm_event		*cm_event;
 	struct xio_tasks_pool_cls	initial_pool_cls;
 	struct xio_tasks_pool_cls	primary_pool_cls;
 
@@ -497,15 +498,6 @@ struct xio_rdma_transport {
 	union xio_sockaddr		dst_sa;
 	char 				*srv_listen_uri;
 	HT_ENTRY(rdma_hndl, xio_key_int32) rdma_hndl_htbl;
-};
-
-struct xio_cm_channel {
-	struct rdma_event_channel	*cm_channel;
-	struct rdma_cm_event		*cm_event;
-	struct xio_context		*ctx;
-	struct list_head		channels_list_entry;
-	struct kref			kref;       /* utilization counter */
-	int				pad;
 };
 
 struct xio_dev_tdata {

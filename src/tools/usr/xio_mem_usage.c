@@ -104,7 +104,6 @@ int main(int argc, char **argv)
 	PRINT_SIZE(struct xio_cq);
 	PRINT_SIZE(struct xio_device);
 	PRINT_SIZE(struct xio_rdma_transport);
-	PRINT_SIZE(struct xio_cm_channel);
 	PRINT_SIZE(struct xio_work_req);
 #endif
 
