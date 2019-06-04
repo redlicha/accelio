@@ -155,12 +155,19 @@ static int xio_post_send(struct xio_rdma_transport *rdma_hndl,
 	struct xio_task		*task = (struct xio_task *)
 				ptr_from_int64(xio_send->send_wr.wr_id);
 
-	if (!IS_KEEPALIVE(task->tlv_type) && !IS_NOP(task->tlv_type) &&
-	    !IS_APPLICATION_MSG(task->tlv_type))
-		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
-			  __func__,
-			  task->tlv_type, task->session,
-			  task->connection, rdma_hndl);
+
+	/* send it */
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	}
 
 	/*
 	TRACE_LOG("num_sge:%d, len1:%d, len2:%d, send_flags:%d\n",
@@ -1395,13 +1402,6 @@ static XIO_F_ALWAYS_INLINE void xio_handle_wc(struct ibv_wc *wc,
 			xio_tasks_pool_put(task);
 		goto cleanup;
 	}
-	if (!IS_KEEPALIVE(task->tlv_type) && !IS_NOP(task->tlv_type) &&
-	    !IS_APPLICATION_MSG(task->tlv_type))
-		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
-			  __func__,
-			  task->tlv_type, task->session,
-			  task->connection, rdma_hndl);
-
 	/*
 	TRACE_LOG("received opcode :%s [%x]\n",
 		  ibv_wc_opcode_str(wc->opcode), wc->opcode);
@@ -3175,6 +3175,17 @@ int xio_rdma_on_rsp_send_comp(struct xio_rdma_transport *rdma_hndl,
 				uint64_from_ptr(xio_mbuf_buf_head(&task->sender_task->mbuf));
 		rdma_task->txd.sge[0].lkey = data_mr->lkey;
 	}
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	}
 
 	if (rdma_task->out_ib_op == XIO_IB_RDMA_READ) {
 		xio_tasks_pool_put(task);
@@ -3198,6 +3209,18 @@ int xio_rdma_on_req_send_comp(struct xio_rdma_transport *rdma_hndl,
 			      struct xio_task *task)
 {
 	union xio_transport_event_data event_data;
+
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					rdma_hndl);
+	}
 
 	event_data.msg.op	= XIO_WC_OP_SEND;
 	event_data.msg.task	= task;
@@ -3326,6 +3349,17 @@ static int xio_rdma_on_recv_rsp(struct xio_rdma_transport *rdma_hndl,
 			  rdma_hndl);
 		xio_tasks_pool_put(task);
 		return 0;
+	}
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (sender_task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, sender_task->session, sender_task->connection,
+					rdma_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, rdma_hndl:%p\n",
+					__func__, task->tlv_type, sender_task->session, sender_task->connection,
+					rdma_hndl);
 	}
 
 	/* read the sn */

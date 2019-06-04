@@ -475,9 +475,19 @@ int xio_connection_send(struct xio_connection *connection,
 		xio_session_write_header(task, &hdr);
 	}
 	/* send it */
-	if (!IS_KEEPALIVE(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
-		DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p\n",
-			  __func__, task->tlv_type, connection->session, connection);
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		task->ka_probes = (connection->ka.probes > 0);
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, probes:[%d]\n",
+					__func__, task->tlv_type, connection->session,
+					connection, connection->ka.probes);
+	} else {
+		task->ka_probes = 0;
+		if (!IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p\n",
+					__func__, task->tlv_type, connection->session,
+					connection);
+	}
 
 	retval = xio_nexus_send(connection->nexus, task);
 	if (retval != 0) {
@@ -3472,6 +3482,11 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	struct xio_msg *msg;
 	int retval;
 
+	if (connection->ka.req_sent) {
+		DEBUG_LOG("%s - session:%p, connection:%pi probes:[%d]\n",
+				__func__, connection->session, connection, connection->ka.probes);
+	}
+
 	if (connection->state != XIO_CONNECTION_STATE_ONLINE ||
 	    connection->ka.req_sent)
 		return 0;
@@ -3521,7 +3536,12 @@ int xio_connection_send_ka_rsp(struct xio_connection *connection,
 #ifdef ENABLE_KA_LOGS
 	TRACE_LOG("send keepalive response. session:%p, connection:%p\n",
 		  connection->session, connection);
+#else
+	if (connection->ka.probes)
+		DEBUG_LOG("%s - session:%p, connection:%p\n",
+				__func__, connection->session, connection);
 #endif
+
 	msg = (struct xio_msg *)xio_context_msg_pool_get(connection->ctx);
 	if (unlikely(!msg)) {
 		DEBUG_LOG("xio_context_msg_pool_get exhausted. connection:%p, ctx:%p\n",
@@ -3557,7 +3577,12 @@ int xio_on_connection_ka_rsp_recv(struct xio_connection *connection,
 #ifdef ENABLE_KA_LOGS
 	TRACE_LOG("recv keepalive response. session:%p, connection:%p\n",
 		  connection->session, connection);
+#else
+	if (connection->ka.probes)
+		DEBUG_LOG("%s - session:%p, connection:%p\n",
+				__func__, connection->session, connection);
 #endif
+
 	xio_ctx_del_delayed_work(connection->ctx,
 				 &connection->ka.timer);
 
@@ -3595,6 +3620,10 @@ int xio_on_connection_ka_req_recv(struct xio_connection *connection,
 	/* delayed disconnect request should be done now */
 	TRACE_LOG("recv keepalive request. session:%p, connection:%p\n",
 		  connection->session, connection);
+#else
+	if (connection->ka.probes)
+		DEBUG_LOG("%s - session:%p, connection:%p\n",
+				__func__, connection->session, connection);
 #endif
 	connection->ka.timedout = 0;
 
