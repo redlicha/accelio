@@ -723,6 +723,8 @@ static int xio_on_req_recv(struct xio_connection *connection,
 	if (task->status) {
 		stat = (enum xio_status)task->status;
 		task->status = 0;
+		task->unassign_user_context = NULL;
+		task->unassign_data_in_buf = NULL;
 		xio_session_notify_msg_error(connection, msg,
 					     stat, XIO_MSG_DIRECTION_IN);
 	} else {
@@ -733,6 +735,8 @@ static int xio_on_req_recv(struct xio_connection *connection,
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
 			connection->latest_delivered = msg->sn;
+			task->unassign_user_context = NULL;
+			task->unassign_data_in_buf = NULL;
 			connection->ses_ops.on_msg(
 					connection->session, msg,
 					task->last_in_rxq,
@@ -1297,6 +1301,8 @@ int xio_on_nexus_message_error(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(task->connection->ctx);
 #endif
+		task->unassign_user_context = NULL;
+		task->unassign_data_in_buf = NULL;
 		task->session->ses_ops.on_msg_error(
 				task->session,
 				event_data->msg_error.reason,
