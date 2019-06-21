@@ -196,6 +196,8 @@ static inline void xio_task_reset(struct xio_task *task)
 	if (task->imsg.user_context)
 		task->imsg.user_context	= NULL;
 
+	task->unassign_data_in_buf = NULL;
+	task->unassign_user_context = NULL;
 }
 
 /*---------------------------------------------------------------------------*/
