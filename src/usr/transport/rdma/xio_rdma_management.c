@@ -2443,6 +2443,11 @@ int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl,
 			return -1;
 		}
 	}
+	/* clean all scheduled rdma read requests
+	 * unassign mem before the user context is no longer
+	 * valid */
+	xio_rdma_free_all_rdma_rd_tasks_mem(rdma_hndl);
+
 	if (!send_beacon)
 		return 0;
 	/* post an indication that all flush errors were consumed */

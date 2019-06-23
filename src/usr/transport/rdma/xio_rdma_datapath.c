@@ -3998,6 +3998,8 @@ void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
 			  struct xio_task *task)
 {
 	XIO_TO_RDMA_TASK(task, rdma_task);
+	struct xio_sg_table_ops	*sgtbl_ops;
+	void			*sgtbl;
 
 	unsigned int		i;
 
@@ -4009,6 +4011,10 @@ void xio_free_rdma_rd_mem(struct xio_rdma_transport *rdma_hndl,
 		task->unassign_data_in_buf = NULL;
 		task->unassign_user_context = NULL;
 		clr_bits(XIO_MSG_HINT_ASSIGNED_DATA_IN_BUF, &task->imsg.hints);
+		sgtbl = (struct xio_sg_table_ops *)xio_sg_table_get(&task->imsg.in);
+		sgtbl_ops = (struct xio_sg_table_ops *)
+			xio_sg_table_ops_get(task->imsg.in.sgl_type);
+		tbl_set_nents(sgtbl_ops, sgtbl, 0);
 	} else {
 		for (i = 0; i < rdma_task->read_num_reg_mem; i++) {
 			xio_mempool_free(&rdma_task->read_reg_mem[i]);
@@ -4042,6 +4048,47 @@ int xio_free_rdma_task_mem(struct xio_transport_base *trans_hndl,
 	}
 	return 0;
 }
+
+/*---------------------------------------------------------------------------*/
+/* xio_rdma_tasks_list_free_rdma_rd_tasks_mem				     */
+/*---------------------------------------------------------------------------*/
+static inline int xio_rdma_tasks_list_free_rdma_rd_mem(
+		struct xio_rdma_transport *rdma_hndl, struct list_head *list)
+{
+	struct xio_task *ptask;
+
+	list_for_each_entry(ptask, list, tasks_list_entry) {
+		xio_free_rdma_rd_mem(rdma_hndl, ptask);
+	}
+	return 0;
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_rdma_free_all_rdma_rd_tasks_mem					     */
+/*---------------------------------------------------------------------------*/
+int xio_rdma_free_all_rdma_rd_tasks_mem(struct xio_rdma_transport *rdma_hndl)
+{
+
+	if (!list_empty(&rdma_hndl->rdma_rd_req_in_flight_list)) {
+		xio_rdma_tasks_list_free_rdma_rd_mem(rdma_hndl,
+				&rdma_hndl->rdma_rd_req_in_flight_list);
+	}
+	if (!list_empty(&rdma_hndl->rdma_rd_req_list)) {
+		xio_rdma_tasks_list_free_rdma_rd_mem(rdma_hndl,
+				&rdma_hndl->rdma_rd_req_list);
+	}
+	if (!list_empty(&rdma_hndl->rdma_rd_rsp_in_flight_list)) {
+		xio_rdma_tasks_list_free_rdma_rd_mem(rdma_hndl,
+				&rdma_hndl->rdma_rd_rsp_in_flight_list);
+	}
+	if (!list_empty(&rdma_hndl->rdma_rd_rsp_list)) {
+		xio_rdma_tasks_list_free_rdma_rd_mem(rdma_hndl,
+				&rdma_hndl->rdma_rd_rsp_list);
+	}
+
+	return 0;
+}
+
 
 /*---------------------------------------------------------------------------*/
 /* xio_sched_rdma_rd							     */

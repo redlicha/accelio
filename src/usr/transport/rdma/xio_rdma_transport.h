@@ -584,4 +584,6 @@ void xio_rdma_poll_completions(struct xio_cq *tcq, int timeout_us);
 int xio_free_rdma_task_mem(struct xio_transport_base *trans_hndl,
 			   struct xio_task *task);
 
+int xio_rdma_free_all_rdma_rd_tasks_mem(struct xio_rdma_transport *rdma_hndl);
+
 #endif  /* XIO_RDMA_TRANSPORT_H */
