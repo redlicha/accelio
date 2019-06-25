@@ -1235,13 +1235,15 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
 {
 	struct xio_task		*task;
-	if (msg->type != XIO_MSG_TYPE_REQ)
-		ERROR_LOG("xio_send_response_error. sending type %d", msg->type);
 
-	DEBUG_LOG("xio_send_response_error. status: %s\n", xio_strerror(result));
+	DEBUG_LOG("%s. type:0x%x, status: %s\n", __func__,
+		  msg->type, xio_strerror(result));
+
 	msg->hints = XIO_RSP_ERROR_PRIVATE_HINT;
 	msg->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
-	msg->request = msg;
+	/* turn the request into response */
+	if (msg->type == XIO_MSG_TYPE_REQ)
+		msg->request = msg;
 	msg->in.data_tbl.nents = 0;
 	msg->in.header.iov_len = 0;
 	msg->out.data_tbl.nents = 0;
