@@ -1002,38 +1002,40 @@ void xio_tcp_handle_pending_conn(int fd,
 		goto cleanup1;
 	}
 
-	buf = &pending_conn->msg;
-	inc_ptr(buf, sizeof(struct xio_tcp_connect_msg) -
-			pending_conn->waiting_for_bytes);
-	while (pending_conn->waiting_for_bytes) {
-		ssize_t rxbytes = recv(fd, (char *)buf,
-			      pending_conn->waiting_for_bytes, 0);
-		DEBUG_LOG("[%d]-[%s] - recv - rxbytes:%zd, pending_conn:%p, waiting_for_bytes:%d for fd:%d\n",
-			  no++, __func__, rxbytes, pending_conn, pending_conn->waiting_for_bytes, fd);
-		if (rxbytes > 0) {
-			pending_conn->waiting_for_bytes -= rxbytes;
-			inc_ptr(buf, rxbytes);
-		} else if (rxbytes == 0) {
-			ERROR_LOG("[%d]-[%s] - got EOF while establishing connection. fd:%d\n",
-				  no++, __func__, fd);
-			goto cleanup1;
-		} else {
-			if (xio_get_last_socket_error() != XIO_EAGAIN) {
-				ERROR_LOG("[%d]-[%s] - recv return with errno:%d, fd:%d\n",
-					  no++, __func__, xio_get_last_socket_error(), fd);
+	if (pending_conn->waiting_for_bytes) {
+		buf = &pending_conn->msg;
+		inc_ptr(buf, sizeof(struct xio_tcp_connect_msg) -
+				pending_conn->waiting_for_bytes);
+		while (pending_conn->waiting_for_bytes) {
+			ssize_t rxbytes = recv(fd, (char *)buf,
+					pending_conn->waiting_for_bytes, 0);
+			DEBUG_LOG("[%d]-[%s] - recv - rxbytes:%zd, pending_conn:%p, waiting_for_bytes:%d for fd:%d\n",
+					no++, __func__, rxbytes, pending_conn, pending_conn->waiting_for_bytes, fd);
+			if (rxbytes > 0) {
+				pending_conn->waiting_for_bytes -= rxbytes;
+				inc_ptr(buf, rxbytes);
+			} else if (rxbytes == 0) {
+				ERROR_LOG("[%d]-[%s] - got EOF while establishing connection. fd:%d\n",
+						no++, __func__, fd);
 				goto cleanup1;
-			}
-			DEBUG_LOG("[%d]-[%s] - end, fd:%d\n",
-				  no++, __func__,
-				  fd);
+			} else {
+				if (xio_get_last_socket_error() != XIO_EAGAIN) {
+					ERROR_LOG("[%d]-[%s] - recv return with errno:%d, fd:%d\n",
+							no++, __func__, xio_get_last_socket_error(), fd);
+					goto cleanup1;
+				}
+				DEBUG_LOG("[%d]-[%s] - end, fd:%d\n",
+						no++, __func__,
+						fd);
 
-			return;
+				return;
+			}
 		}
+		pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
+			ntohl((uint32_t)pending_conn->msg.sock_type);
+		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, second_port);
+		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, pad);
 	}
-	pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
-				ntohl((uint32_t)pending_conn->msg.sock_type);
-	UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, second_port);
-	UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, pad);
 
 	if (pending_conn->msg.sock_type == XIO_TCP_SINGLE_SOCK) {
 		ctl_conn = pending_conn;
