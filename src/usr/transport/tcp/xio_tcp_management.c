@@ -1034,7 +1034,9 @@ void xio_tcp_handle_pending_conn(int fd,
 		pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
 			ntohl((uint32_t)pending_conn->msg.sock_type);
 		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, second_port);
-		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, pad);
+		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, port);
+		UNPACK_LVAL(&pending_conn->msg, &pending_conn->msg, unique_id);
+		UNPACK_LVAL(&pending_conn->msg, &pending_conn->msg, pad);
 	}
 
 	if (pending_conn->msg.sock_type == XIO_TCP_SINGLE_SOCK) {
@@ -1054,16 +1056,11 @@ void xio_tcp_handle_pending_conn(int fd,
 		if (pconn->waiting_for_bytes)
 			continue;
 		if (pconn->sa.sa.sa_family == AF_INET) {
-			if ((pconn->msg.second_port ==
-			    ntohs(pending_conn->sa.sa_in.sin_port)) &&
+			if ((pconn->msg.second_port == pending_conn->msg.port) &&
+			    (pconn->msg.port == pending_conn->msg.second_port) &&
+			    (pconn->msg.unique_id == pending_conn->msg.unique_id) &&
 			    (pconn->sa.sa_in.sin_addr.s_addr ==
-			    pending_conn->sa.sa_in.sin_addr.s_addr)) {
-				if (ntohs(pconn->sa.sa_in.sin_port) !=
-				    pending_conn->msg.second_port) {
-					DEBUG_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
-					no++, __func__, fd, matching_conn);
-					continue;
-				}
+			     pending_conn->sa.sa_in.sin_addr.s_addr)) {
 				matching_conn = pconn;
 				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, pconn->fd:%d, " \
 					  "waiting_for_bytes:%d for fd:%d\n",
@@ -1442,7 +1439,7 @@ exit:
 
 /*---------------------------------------------------------------------------*/
 /* xio_tcp_conn_established_helper	                                     */
-/*---------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------/-*/
 void xio_tcp_conn_established_helper(int fd,
 				     struct xio_tcp_transport *tcp_hndl,
 				     struct xio_tcp_connect_msg	*msg,
@@ -1533,6 +1530,8 @@ void xio_tcp_single_conn_established_ev_handler(int fd,
 
 	msg.sock_type = XIO_TCP_SINGLE_SOCK;
 	msg.second_port = 0;
+	msg.port = 0;
+	msg.unique_id = 0;
 	msg.pad = 0;
 	xio_tcp_conn_established_helper(
 				fd, tcp_hndl, &msg,
@@ -1552,6 +1551,8 @@ void xio_tcp_cfd_conn_established_ev_handler(int fd,
 
 	msg.sock_type = XIO_TCP_CTL_SOCK;
 	msg.second_port = tcp_hndl->sock.port_dfd;
+	msg.port = tcp_hndl->sock.port_cfd;
+	msg.unique_id = tcp_hndl->sock.unique_id;
 	msg.pad = 0;
 	xio_tcp_conn_established_helper(
 				fd, tcp_hndl, &msg,
@@ -1616,6 +1617,8 @@ void xio_tcp_dfd_conn_established_ev_handler(int fd,
 
 	msg.sock_type = XIO_TCP_DATA_SOCK;
 	msg.second_port = tcp_hndl->sock.port_cfd;
+	msg.port = tcp_hndl->sock.port_dfd;
+	msg.unique_id = tcp_hndl->sock.unique_id;
 	msg.pad = 0;
 	retval = xio_tcp_send_connect_msg(tcp_hndl->sock.dfd, &
 			msg);
@@ -1733,6 +1736,8 @@ int xio_tcp_dual_sock_connect(struct xio_tcp_transport *tcp_hndl,
 		return -1;
 	}
 	tcp_hndl->tmp_rx_buf_cur = tcp_hndl->tmp_rx_buf;
+
+	tcp_hndl->sock.unique_id = (uint32_t)(get_cycles());
 
 	retval = xio_tcp_connect_helper(tcp_hndl->sock.cfd, sa, sa_len,
 					&tcp_hndl->sock.port_cfd,

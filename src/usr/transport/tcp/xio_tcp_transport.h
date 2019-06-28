@@ -183,7 +183,9 @@ PACKED_MEMORY(struct xio_tcp_rsp_hdr {
 PACKED_MEMORY(struct xio_tcp_connect_msg {
 	enum xio_tcp_sock_type	sock_type;
 	uint16_t		second_port;
-	uint16_t		pad;
+	uint16_t		port;
+	uint32_t		unique_id;
+	uint32_t		pad;
 });
 
 PACKED_MEMORY(struct xio_tcp_setup_msg {
@@ -287,7 +289,7 @@ struct xio_tcp_socket {
 	int				dfd;
 	uint16_t			port_cfd;
 	uint16_t			port_dfd;
-	int				pad;
+	uint32_t			unique_id;
 	struct xio_tcp_socket_ops	ops[1];
 };
 

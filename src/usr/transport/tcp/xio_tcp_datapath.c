@@ -452,7 +452,9 @@ int xio_tcp_send_connect_msg(int fd, struct xio_tcp_connect_msg *msg)
 	smsg.sock_type = (enum xio_tcp_sock_type)
 				htonl((uint32_t)msg->sock_type);
 	PACK_SVAL(msg, &smsg, second_port);
-	PACK_SVAL(msg, &smsg, pad);
+	PACK_SVAL(msg, &smsg, port);
+	PACK_LVAL(msg, &smsg, unique_id);
+	PACK_LVAL(msg, &smsg, pad);
 
 	retval = xio_tcp_send_work(fd, &buf, &size, 1);
 	if (retval < 0) {
