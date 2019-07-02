@@ -119,10 +119,11 @@ static int xio_tcp_send_work(int fd, void **buf, uint32_t *len, int block)
 
 	while (*len) {
 		retval = send(fd, (const char *)*buf, *len, MSG_NOSIGNAL);
-		if (retval < 0) {
+		switch (retval) {
+		case -1:
 			if (xio_get_last_socket_error() != XIO_EAGAIN) {
 				xio_set_error(xio_get_last_socket_error());
-				ERROR_LOG("sendmsg failed. (errno=%d)\n",
+				ERROR_LOG("send failed. (errno=%d)\n",
 					  xio_get_last_socket_error());
 				/* ORK todo how to recover on remote side?*/
 				return -1;
@@ -134,12 +135,16 @@ static int xio_tcp_send_work(int fd, void **buf, uint32_t *len, int block)
 				 * before returning*/
 				return -1;
 			}
-		} else {
+			break;
+		case 0: /* Peer closed the connection */
+			ERROR_LOG("send failed. peer closed connection\n");
+			return -1;
+		default: /* successful send */
 			*len -= retval;
 			inc_ptr(*buf, retval);
+		break;
 		}
 	}
-
 	return 0;
 }
 
@@ -156,7 +161,8 @@ static int xio_tcp_sendmsg_work(int fd,
 
 	while (xio_send->tot_iov_byte_len) {
 		retval = sendmsg(fd, &xio_send->msg, MSG_NOSIGNAL);
-		if (retval < 0) {
+		switch (retval) {
+		case -1:
 			if (xio_get_last_socket_error() != XIO_EAGAIN) {
 				xio_set_error(xio_get_last_socket_error());
 				DEBUG_LOG("sendmsg failed. (errno=%d)\n",
@@ -166,7 +172,11 @@ static int xio_tcp_sendmsg_work(int fd,
 				xio_set_error(xio_get_last_socket_error());
 				return -1;
 			}
-		} else {
+		break;
+		case 0: /* Peer closed the connection */
+			ERROR_LOG("send failed. peer closed connection\n");
+			return -1;
+		default: /* successful send */
 			sent_bytes += retval;
 			xio_send->tot_iov_byte_len -= retval;
 
@@ -195,9 +205,9 @@ static int xio_tcp_sendmsg_work(int fd,
 			}
 
 			eagain_count = TX_EAGAIN_RETRY;
+			break;
 		}
 	}
-
 	return sent_bytes;
 }
 

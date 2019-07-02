@@ -1024,11 +1024,6 @@ void xio_tcp_handle_pending_conn(int fd,
 							no++, __func__, xio_get_last_socket_error(), fd);
 					goto cleanup1;
 				}
-				DEBUG_LOG("[%d]-[%s] - end, fd:%d\n",
-						no++, __func__,
-						fd);
-
-				return;
 			}
 		}
 		pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
@@ -1069,17 +1064,12 @@ void xio_tcp_handle_pending_conn(int fd,
 				break;
 			}
 		} else if (pconn->sa.sa.sa_family == AF_INET6) {
-			if ((pconn->msg.second_port ==
-			     ntohs(pending_conn->sa.sa_in6.sin6_port)) &&
+			if ((pconn->msg.second_port == pending_conn->msg.port) &&
+			    (pconn->msg.port == pending_conn->msg.second_port) &&
+			    (pconn->msg.unique_id == pending_conn->msg.unique_id) &&
 			     !memcmp(&pconn->sa.sa_in6.sin6_addr,
 				     &pending_conn->sa.sa_in6.sin6_addr,
 				     sizeof(pconn->sa.sa_in6.sin6_addr))) {
-				if (ntohs(matching_conn->sa.sa_in6.sin6_port)
-				    != pending_conn->msg.second_port) {
-					DEBUG_LOG("[%d]-[%s] - ports mismatch for fd:%d\n",
-						  no++, __func__, fd);
-					continue;
-				}
 				matching_conn = pconn;
 				DEBUG_LOG("[%d]-[%s] - match. pconn:%p, " \
 					  "pconn->fd:%d, waiting_for_bytes:%d " \
