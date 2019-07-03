@@ -180,12 +180,15 @@ PACKED_MEMORY(struct xio_tcp_rsp_hdr {
 	uint64_t		ulp_imm_len;	/* ulp data length	*/
 });
 
+#define XIO_TCP_CONNECT_MSG_VERSION	1
+
 PACKED_MEMORY(struct xio_tcp_connect_msg {
+	uint8_t			version;
+	uint8_t			pad[3];
 	enum xio_tcp_sock_type	sock_type;
 	uint16_t		second_port;
 	uint16_t		port;
 	uint32_t		unique_id;
-	uint32_t		pad;
 });
 
 PACKED_MEMORY(struct xio_tcp_setup_msg {

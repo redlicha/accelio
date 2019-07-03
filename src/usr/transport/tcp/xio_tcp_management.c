@@ -1026,12 +1026,19 @@ void xio_tcp_handle_pending_conn(int fd,
 				}
 			}
 		}
+		if (pending_conn->msg.version != XIO_TCP_CONNECT_MSG_VERSION) {
+			ERROR_LOG("[%d]-[%s] - invalid protocol version: arrived:%d, expected:%d. fd:%d\n",
+				  no++, __func__, pending_conn->msg.version,
+				  XIO_TCP_CONNECT_MSG_VERSION, fd);
+			goto cleanup1;
+		}
+			
+
 		pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
 			ntohl((uint32_t)pending_conn->msg.sock_type);
 		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, second_port);
 		UNPACK_SVAL(&pending_conn->msg, &pending_conn->msg, port);
 		UNPACK_LVAL(&pending_conn->msg, &pending_conn->msg, unique_id);
-		UNPACK_LVAL(&pending_conn->msg, &pending_conn->msg, pad);
 	}
 
 	if (pending_conn->msg.sock_type == XIO_TCP_SINGLE_SOCK) {
@@ -1518,11 +1525,12 @@ void xio_tcp_single_conn_established_ev_handler(int fd,
 							user_context;
 	struct xio_tcp_connect_msg	msg;
 
+	memset(&msg, 0, sizeof(msg));
+	msg.version = XIO_TCP_CONNECT_MSG_VERSION;
 	msg.sock_type = XIO_TCP_SINGLE_SOCK;
 	msg.second_port = 0;
 	msg.port = 0;
 	msg.unique_id = 0;
-	msg.pad = 0;
 	xio_tcp_conn_established_helper(
 				fd, tcp_hndl, &msg,
 				events &
@@ -1539,11 +1547,13 @@ void xio_tcp_cfd_conn_established_ev_handler(int fd,
 							user_context;
 	struct xio_tcp_connect_msg	msg;
 
+	memset(&msg, 0, sizeof(msg));
+	msg.version = XIO_TCP_CONNECT_MSG_VERSION;
 	msg.sock_type = XIO_TCP_CTL_SOCK;
 	msg.second_port = tcp_hndl->sock.port_dfd;
 	msg.port = tcp_hndl->sock.port_cfd;
 	msg.unique_id = tcp_hndl->sock.unique_id;
-	msg.pad = 0;
+
 	xio_tcp_conn_established_helper(
 				fd, tcp_hndl, &msg,
 				events &
@@ -1605,11 +1615,12 @@ void xio_tcp_dfd_conn_established_ev_handler(int fd,
 	}
         tcp_hndl->in_epoll[0] = 1;
 
+	memset(&msg, 0, sizeof(msg));
+	msg.version = XIO_TCP_CONNECT_MSG_VERSION;
 	msg.sock_type = XIO_TCP_DATA_SOCK;
 	msg.second_port = tcp_hndl->sock.port_cfd;
 	msg.port = tcp_hndl->sock.port_dfd;
 	msg.unique_id = tcp_hndl->sock.unique_id;
-	msg.pad = 0;
 	retval = xio_tcp_send_connect_msg(tcp_hndl->sock.dfd, &
 			msg);
 	if (retval)

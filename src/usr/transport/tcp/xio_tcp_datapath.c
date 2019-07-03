@@ -459,13 +459,16 @@ int xio_tcp_send_connect_msg(int fd, struct xio_tcp_connect_msg *msg)
 	uint32_t size = sizeof(struct xio_tcp_connect_msg);
 	void *buf = &smsg;
 
+	memset(&smsg, 0, sizeof(smsg));
+	smsg.version = msg->version;
 	smsg.sock_type = (enum xio_tcp_sock_type)
 				htonl((uint32_t)msg->sock_type);
 	PACK_SVAL(msg, &smsg, second_port);
 	PACK_SVAL(msg, &smsg, port);
 	PACK_LVAL(msg, &smsg, unique_id);
-	PACK_LVAL(msg, &smsg, pad);
 
+	DEBUG_LOG("%s fd:%d, version:%d, message_size:%d\n", 
+		  __func__, fd, smsg.version, size);
 	retval = xio_tcp_send_work(fd, &buf, &size, 1);
 	if (retval < 0) {
 		if (xio_get_last_socket_error() == XIO_EAGAIN) {
