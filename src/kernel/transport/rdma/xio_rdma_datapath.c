@@ -4202,7 +4202,7 @@ static void xio_rdma_read_setup_msg(struct xio_rdma_transport *rdma_hndl,
 	if (!msg->rkey_tbl_size)
 		return;
 
-	rdma_hndl->peer_rkey_tbl = 
+	rdma_hndl->peer_rkey_tbl =
 		xio_context_kcalloc(rdma_hndl->base.ctx,
 				    msg->rkey_tbl_size, sizeof(*tbl),
 				    GFP_KERNEL);

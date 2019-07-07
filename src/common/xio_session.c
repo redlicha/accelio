@@ -805,9 +805,9 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 			connection->peer_credits_bytes += hdr.credits_bytes;
 		}
 	} else {
-		if (unlikely(connection->restarted)) 
+		if (unlikely(connection->restarted))
 			connection->restarted = 0;
-		else 
+		else
 			ERROR_LOG("ERROR: expected sn:%d, arrived sn:%d\n",
 				  connection->rsp_exp_sn, hdr.sn);
 		connection->rsp_exp_sn = hdr.sn + 1;

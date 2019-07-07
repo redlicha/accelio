@@ -1511,7 +1511,7 @@ static int xio_rdma_primary_pool_slab_remap_task(
 
 	if (!new_hndl->rkey_tbl) {
 		/* one for each possible desc and one for device mr */
-		new_hndl->rkey_tbl = xio_context_kcalloc(new_th->ctx, 
+		new_hndl->rkey_tbl = xio_context_kcalloc(new_th->ctx,
 					     2 * old_hndl->num_tasks + 1,
 					     sizeof(struct xio_rkey_tbl),
 					     GFP_KERNEL);

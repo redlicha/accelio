@@ -467,7 +467,7 @@ int xio_tcp_send_connect_msg(int fd, struct xio_tcp_connect_msg *msg)
 	PACK_SVAL(msg, &smsg, port);
 	PACK_LVAL(msg, &smsg, unique_id);
 
-	DEBUG_LOG("%s fd:%d, version:%d, message_size:%d\n", 
+	DEBUG_LOG("%s fd:%d, version:%d, message_size:%d\n",
 		  __func__, fd, smsg.version, size);
 	retval = xio_tcp_send_work(fd, &buf, &size, 1);
 	if (retval < 0) {
@@ -2343,7 +2343,7 @@ static int xio_tcp_rd_req_header(struct xio_tcp_transport *tcp_hndl,
 	task->status = 0;
 	xio_transport_assign_in_buf(&tcp_hndl->base, task);
 	if (task->status) {
-		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n", 
+		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n",
 			  task->status);
 		return -1;
 	}

@@ -1032,7 +1032,7 @@ void xio_tcp_handle_pending_conn(int fd,
 				  XIO_TCP_CONNECT_MSG_VERSION, fd);
 			goto cleanup1;
 		}
-			
+
 
 		pending_conn->msg.sock_type = (enum xio_tcp_sock_type)
 			ntohl((uint32_t)pending_conn->msg.sock_type);

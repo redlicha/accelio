@@ -3080,7 +3080,7 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 	if (connection->fin_request_flushed) {
 		retval = xio_send_fin_req(connection);
 		if (retval) {
-			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n", 
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n",
 				   connection);
 			xio_ctx_del_delayed_work(connection->ctx,
 					&connection->ka.timer);
@@ -3184,7 +3184,7 @@ int xio_on_fin_ack_send_comp(struct xio_connection *connection,
 
 
 		if (retval) {
-			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n", 
+			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n",
 				  connection);
 			xio_handle_last_ack(connection);
 			retval = 0;
@@ -3702,7 +3702,7 @@ void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
         connection->ka.probes = 0;
 
         /* stop further processing of events immediately  */
-        if (!connection->disconnecting && !g_options.reconnect && 
+        if (!connection->disconnecting && !g_options.reconnect &&
 	    connection->nexus) {
             xio_nexus_force_close(connection->nexus);
             connection->nexus = NULL;

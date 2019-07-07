@@ -285,7 +285,7 @@ static int on_msg_error(struct xio_session *session,
 /*---------------------------------------------------------------------------*/
 /* assign_data_in_buf							     */
 /*---------------------------------------------------------------------------*/
-static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context, 
+static int assign_data_in_buf(struct xio_msg *msg, void *cb_user_context,
 			      void **out_unssign_user_context)
 {
 	struct test_params	*test_params = cb_user_context;

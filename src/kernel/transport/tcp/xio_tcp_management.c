@@ -1769,7 +1769,7 @@ int xio_tcp_dual_sock_connect(struct xio_tcp_transport *tcp_hndl,
 {
 	int retval;
 
-	tcp_hndl->tmp_rx_buf = xio_context_kzalloc(tcp_hndl->base.ctx, 
+	tcp_hndl->tmp_rx_buf = xio_context_kzalloc(tcp_hndl->base.ctx,
 					TMP_RX_BUF_SIZE, GFP_KERNEL);
 	if (!tcp_hndl->tmp_rx_buf) {
 		xio_set_error(ENOMEM);

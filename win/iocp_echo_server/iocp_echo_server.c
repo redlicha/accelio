@@ -156,7 +156,7 @@ static void bind_listening_socket(void)
    struct sockaddr_in sin;
 
    prepare_endpoint(&sin, SERVER_ADDRESS, SERVICE_PORT);
-   
+
    if (bind(listener,(SOCKADDR*)&sin, sizeof(sin)) == SOCKET_ERROR)
    {
       printf("* error in bind!\n");
@@ -182,7 +182,7 @@ static void start_listening(void)
    {
       printf("* error in listen!\n");
       exit(1);
-   } 
+   }
    printf("* started listening for connection requests...\n");
 }
 
@@ -193,7 +193,7 @@ static void load_accept_ex(void)
    DWORD dwBytes;
 
    // from AcceptEx in MSDN
-   WSAIoctl(listener, SIO_GET_EXTENSION_FUNCTION_POINTER, &GuidAcceptEx, 
+   WSAIoctl(listener, SIO_GET_EXTENSION_FUNCTION_POINTER, &GuidAcceptEx,
       sizeof(GuidAcceptEx), &pfAcceptEx, sizeof(pfAcceptEx), &dwBytes, NULL,
       NULL);
 }
@@ -315,7 +315,7 @@ static void accept_completed(BOOL resultOk, DWORD length,
 
       // "updates the context" (whatever that is...)
 	  // for inheritting info of local and remote addresses
-      setsockopt(socketState->socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, 
+      setsockopt(socketState->socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
          (char *)&listener, sizeof(listener));
 
       // associates new socket with completion port

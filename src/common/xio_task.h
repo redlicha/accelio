@@ -426,7 +426,7 @@ static inline int xio_task_swap_mbuf(struct xio_task *t1,
 /* xio_tasks_pool_detach_connection					     */
 /*---------------------------------------------------------------------------*/
 static inline void xio_tasks_pool_detach_connection(
-						struct xio_tasks_pool *q, 
+						struct xio_tasks_pool *q,
 						struct xio_connection *conn)
 {
 	struct xio_tasks_slab	*pslab;
@@ -451,7 +451,7 @@ static inline void xio_tasks_pool_detach_connection(
 static inline int xio_tasks_list_flush(struct list_head *list)
 {
 	while (!list_empty(list)) {
-		struct xio_task *ptask = list_entry(list->next, 
+		struct xio_task *ptask = list_entry(list->next,
 				struct xio_task, tasks_list_entry);
 		/*
 		   DEBUG_LOG("flushing task %p type 0x%x\n",

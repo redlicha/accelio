@@ -148,7 +148,7 @@ static void xio_ctor(void)
 
 void xio_disable_rdma()
 {
-	g_disable_rdma = 1; 
+	g_disable_rdma = 1;
 }
 
 void xio_init(void)
@@ -157,9 +157,9 @@ void xio_init(void)
 	mutex_lock(&ini_mutex);
 	xio_test_disable_rdma();
 	for (i = 0; i < transport_tbl_sz; i++)
-		if (transport_func_list_tbl[i]) 
+		if (transport_func_list_tbl[i])
 			transport_tbl[i] = transport_func_list_tbl[i]();
-		else 
+		else
 			transport_tbl[i] = NULL;
 	if (++ini_refcnt == 1)
 		xio_ctor();

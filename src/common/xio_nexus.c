@@ -2091,7 +2091,7 @@ static void xio_nexus_notify_observer_work(int actual_timeout_ms, void *_work_pa
                 (struct xio_nexus_observer_work *) _work_params;
 
 	DEBUG_LOG("%s: nexus:%p, state:%d\n", __func__,
-		  work_params->nexus, 
+		  work_params->nexus,
 		  work_params->nexus->state);
 
 	if (work_params->nexus->state == XIO_NEXUS_STATE_CONNECTED)
@@ -2326,7 +2326,7 @@ void xio_nexus_close(struct xio_nexus *nexus, struct xio_observer *observer)
 /*---------------------------------------------------------------------------*/
 void xio_nexus_disconnect(struct xio_nexus *nexus, struct xio_observer *observer)
 {
-	DEBUG_LOG("%s - nexus:%p,  state:%d\n", 
+	DEBUG_LOG("%s - nexus:%p,  state:%d\n",
 		  __func__, nexus, nexus->state);
 	nexus->state = XIO_NEXUS_STATE_DISCONNECTED;
 	xio_nexus_close(nexus, observer);

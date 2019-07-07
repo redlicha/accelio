@@ -590,8 +590,8 @@ static void print_test_config(
 	printf(" Server Address		: %s\n", test_config_p->server_addr);
 	printf(" Server Port		: %u\n", test_config_p->server_port);
 	printf(" Transport		: %s\n", test_config_p->transport);
-	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ? 
-						 test_config_p->out_addr : 
+	printf(" Out Interface		: %s\n", test_config_p->out_addr[0] ?
+						 test_config_p->out_addr :
 						 "None");
 	printf(" Header Length		: %u\n", test_config_p->hdr_len);
 	printf(" Data Length		: %u\n", test_config_p->data_len);

@@ -358,7 +358,7 @@ int xio_workqueue_add_delayed_work(struct xio_workqueue *work_queue,
 	work->function	= function;
 	work->data	= data;
 	work->flags	|= XIO_WORK_PENDING;
-	work->start_cycle = get_cycles(); 
+	work->start_cycle = get_cycles();
 
 	rc = xio_timers_list_add_duration(
 			&work_queue->timers_list,
@@ -431,7 +431,7 @@ int xio_workqueue_add_work(struct xio_workqueue *work_queue,
 	work->function	= function;
 	work->data	= data;
 	work->flags	|= XIO_WORK_PENDING;
-	work->start_cycle = get_cycles(); 
+	work->start_cycle = get_cycles();
 
 	s = xio_write(work_queue->pipe_fd[1], &exp, sizeof(exp));
 	if (s < 0) {

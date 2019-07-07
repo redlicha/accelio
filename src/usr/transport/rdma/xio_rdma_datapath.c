@@ -4157,7 +4157,7 @@ static int xio_sched_rdma_rd(struct xio_rdma_transport *rdma_hndl,
 	task->status = 0;
 	xio_transport_assign_in_buf(&rdma_hndl->base, task);
 	if (task->status) {
-		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n", 
+		WARN_LOG("assign_in_buf: error:%d. rdma read is ignored\n",
 			  task->status);
 		return -1;
 	}

@@ -279,7 +279,7 @@ int xio_on_session_rejected(struct xio_session *session)
 		pconnection->close_reason = XIO_E_SESSION_REJECTED;
 		if (pconnection->nexus)
 			xio_disconnect_initial_connection(pconnection);
-		else 
+		else
 			xio_connection_sched_disconnect_event(pconnection);
 	}
 
@@ -880,7 +880,7 @@ static void xio_connect_timeout(int actual_timeout_ms, void *data)
 
 	WARN_LOG("xio_connect timedout. connection:%p timeout:%d secs, " \
 		 "actual timeout:%d secs\n",
-	         connection, (connection->connect_timeout/1000), 
+	         connection, (connection->connect_timeout/1000),
 		 actual_timeout_ms/1000);
 
 	xio_connection_force_disconnect(connection, XIO_E_TIMEOUT);

@@ -1552,7 +1552,7 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 	xio_hdr_len += tcp_task->req_in_num_sge * sizeof(struct xio_sge);
 	enforce_write_rsp = task->imsg_flags & XIO_MSG_FLAG_PEER_WRITE_RSP;
 
-	if (ulp_hdr_len && ulp_hdr_len > tcp_hndl->peer_max_header && 
+	if (ulp_hdr_len && ulp_hdr_len > tcp_hndl->peer_max_header &&
 	    IS_APPLICATION_MSG(task->tlv_type)) {
 		ERROR_LOG("hdr_len=%llu is bigger than peer_max_header=%d\n",
 				ulp_hdr_len, tcp_hndl->peer_max_header);

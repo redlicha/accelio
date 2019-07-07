@@ -2031,7 +2031,7 @@ static void xio_rdma_post_close(struct xio_transport_base *trans_base)
 /*---------------------------------------------------------------------------*/
 /* xio_connect_timeout_handler						     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_connect_timeout_handler(int actual_timeout_ms, 
+static inline void xio_connect_timeout_handler(int actual_timeout_ms,
 					       void *rdma_handle)
 {
 	struct xio_rdma_transport *rdma_hndl =
@@ -2077,7 +2077,7 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 
 	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
-			 ", ev->id:%p\n", __func__, rdma_hndl, 
+			 ", ev->id:%p\n", __func__, rdma_hndl,
 			 rdma_hndl->cm_id, ev->id);
 	
 
@@ -2131,7 +2131,7 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 
 	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
-			 ", ev->id:%p\n", __func__, rdma_hndl, 
+			 ", ev->id:%p\n", __func__, rdma_hndl,
 			 rdma_hndl->cm_id, ev->id);
 	
 
@@ -2332,7 +2332,7 @@ static void  on_cm_established(struct rdma_cm_event *ev,
 {
 	if (rdma_hndl->cm_id != ev->id)
 		WARN_LOG("%s - cm_id changed. rdma_hndl:%p, rdma_hndl->cm_id:%p" \
-			 ", ev->id:%p\n", __func__, rdma_hndl, 
+			 ", ev->id:%p\n", __func__, rdma_hndl,
 			 rdma_hndl->cm_id, ev->id);
 	
 	/* initiator is dst, target is src */
@@ -2557,7 +2557,7 @@ static void  on_cm_disconnected(struct rdma_cm_event *ev,
 /*---------------------------------------------------------------------------*/
 /* xio_disconnect_timeout_handler					     */
 /*---------------------------------------------------------------------------*/
-static inline void xio_disconnect_timeout_handler(int actual_timeout_ms, 
+static inline void xio_disconnect_timeout_handler(int actual_timeout_ms,
 					          void *rdma_handle)
 {
 	struct xio_rdma_transport *rdma_hndl =
@@ -2906,7 +2906,7 @@ static inline void xio_cm_channel_destroy(struct xio_rdma_transport *rdma_hndl)
 	if (unlikely(!rdma_hndl || !rdma_hndl->cm_channel))
 		return;
 
-	(void)xio_context_del_ev_handler(rdma_hndl->base.ctx, 
+	(void)xio_context_del_ev_handler(rdma_hndl->base.ctx,
 					 rdma_hndl->cm_channel->fd);
 	rdma_destroy_event_channel(rdma_hndl->cm_channel);
 	rdma_hndl->cm_channel = NULL;

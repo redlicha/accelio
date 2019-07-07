@@ -416,7 +416,7 @@ int xio_context_poll_wait(struct xio_context *ctx, int timeout_ms);
 /*---------------------------------------------------------------------------*/
 
 /**
- * Disables RDMA functionality in rdma environments. MUST BE CALLED prior to 
+ * Disables RDMA functionality in rdma environments. MUST BE CALLED prior to
  * to calling xio_init
  *
  * Alternative method is to set XIO_DISABLE_RDMA environment variable

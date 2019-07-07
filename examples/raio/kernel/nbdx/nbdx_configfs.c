@@ -283,7 +283,7 @@ void nbdx_destroy_configfs_files(void)
 {
 	configfs_unregister_subsystem(&nbdx_subsys);
 }
-#else 
+#else
 int nbdx_create_configfs_files(void)
 {
 	return 0;
