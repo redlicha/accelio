@@ -1232,27 +1232,38 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 /*---------------------------------------------------------------------------*/
 /* xio_send_response_error						     */
 /*---------------------------------------------------------------------------*/
-int xio_send_response_error(struct xio_msg *msg, enum xio_status result)
+int xio_send_response_error(struct xio_msg *req, enum xio_status result)
 {
-	struct xio_task		*task;
+	struct xio_task		*task = NULL;
 
 	DEBUG_LOG("%s. type:0x%x, status: %s\n", __func__,
-		  msg->type, xio_strerror(result));
+		  req->type, xio_strerror(result));
 
-	msg->hints = XIO_RSP_ERROR_PRIVATE_HINT;
-	msg->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
-	/* turn the request into response */
-	if (msg->type == XIO_MSG_TYPE_REQ)
-		msg->request = msg;
-	msg->in.data_tbl.nents = 0;
-	msg->in.header.iov_len = 0;
-	msg->out.data_tbl.nents = 0;
-	msg->out.header.iov_len = 0;
-	/* same task that use to request -now used for response too */
-	task	   = container_of(msg->request, struct xio_task, imsg);
+	req->hints = XIO_RSP_ERROR_PRIVATE_HINT;
+	req->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
+	if (req->type == XIO_MSG_TYPE_REQ) {
+		/* same task that use to request -now used for response too */
+		task  = container_of(req, struct xio_task, imsg);
+		if (task->omsg != NULL) {
+			ERROR_LOG("%s - invalid request\n", __func__);
+			xio_set_error(EINVAL);
+			return -1;
+		}
+		/* turn the request into response */
+		req->request = req;
+		req->type = XIO_MSG_TYPE_RSP;
+	} else {
+		xio_set_error(EINVAL);
+		return -1;
+	}
+
+	req->in.data_tbl.nents = 0;
+	req->in.header.iov_len = 0;
+	req->out.data_tbl.nents = 0;
+	req->out.header.iov_len = 0;
 	task->status = result;
 
-	return xio_send_response(msg);
+	return xio_send_response(req);
 }
 
 /*---------------------------------------------------------------------------*/
