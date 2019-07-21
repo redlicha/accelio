@@ -734,6 +734,7 @@ static int xio_on_req_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+			xio_connection_safe_remove_msg_from_queue(connection, msg);
 			connection->latest_delivered = msg->sn;
 			task->unassign_user_context = NULL;
 			task->unassign_data_in_buf = NULL;
@@ -886,6 +887,7 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 				xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+				xio_connection_safe_remove_msg_from_queue(connection, omsg);
 				connection->ses_ops.on_msg_delivered(
 						connection->session,
 						omsg,
@@ -919,6 +921,7 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 				xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+				xio_connection_safe_remove_msg_from_queue(connection, omsg);
 				connection->ses_ops.on_msg_delivered(
 						connection->session,
 						omsg,
@@ -963,6 +966,7 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 				xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+				xio_connection_safe_remove_msg_from_queue(connection, omsg);
 				/*if (connection->ses_ops.on_msg) */
 					connection->ses_ops.on_msg(
 						connection->session,
@@ -1013,6 +1017,7 @@ static int xio_on_rsp_send_comp(
 #ifdef XIO_THREAD_SAFE_DEBUG
 			xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+			xio_connection_safe_remove_msg_from_queue(connection, task->omsg);
 			connection->ses_ops.on_msg_send_complete(
 					connection->session, task->omsg,
 					connection->cb_user_context);
@@ -1301,6 +1306,7 @@ int xio_on_nexus_message_error(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(task->connection->ctx);
 #endif
+		xio_connection_safe_remove_msg_from_queue(task->connection, task->omsg);
 		task->unassign_user_context = NULL;
 		task->unassign_data_in_buf = NULL;
 		task->session->ses_ops.on_msg_error(
@@ -1916,6 +1922,7 @@ int xio_session_notify_msg_error(struct xio_connection *connection,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(connection->ctx);
 #endif
+		xio_connection_safe_remove_msg_from_queue(connection, msg);
 		connection->ses_ops.on_msg_error(
 				connection->session,
 				result, direction, msg,

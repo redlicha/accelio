@@ -991,6 +991,27 @@ int xio_connection_remove_msg_from_queue(struct xio_connection *connection,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_connection_safe_remove_msg_from_queue				     */
+/*---------------------------------------------------------------------------*/
+void xio_connection_safe_remove_msg_from_queue(struct xio_connection *connection,
+					       struct xio_msg *msg)
+{
+	struct xio_msg *var;
+	int removed  = 0;
+	xio_msg_list_safe_remove(&connection->reqs_msgq, msg,
+				 pdata, var, &removed);
+	if (!removed)
+		xio_msg_list_safe_remove(&connection->rsps_msgq, msg,
+					 pdata, var, &removed);
+	if (!removed)
+		xio_msg_list_safe_remove(&connection->in_flight_reqs_msgq, msg,
+					 pdata, var, &removed);
+	if (!removed)
+		xio_msg_list_safe_remove(&connection->in_flight_rsps_msgq, msg,
+					 pdata, var, &removed);
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_connection_reconnect						     */
 /*---------------------------------------------------------------------------*/
 int xio_connection_reconnect(struct xio_connection *connection)

@@ -102,6 +102,19 @@ struct xio_msg_list {
 		(var);							\
 		(var) = ((var)->field.next))
 
+
+#define	xio_msg_list_safe_remove(head, elm, field, var, removed) do {	\
+	*((int *)removed) = 0;						\
+	xio_msg_list_foreach(var, head, field) {			\
+		if (var == elm) {					\
+			*((int *)removed) = 1;				\
+			break;						\
+		}							\
+	}								\
+        if (*(int *)removed)						\
+		xio_msg_list_remove(head, elm, field);			\
+} while (/*CONSTCOND*/0)
+
 #define	xio_msg_list_foreach_reverse(var, head, headname, field)	\
 	for ((var) = (*(((struct headname *)((head)->last))->last));	\
 		(var);							\
