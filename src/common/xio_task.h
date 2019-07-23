@@ -430,18 +430,31 @@ static inline void xio_tasks_pool_detach_connection(
 						struct xio_connection *conn)
 {
 	struct xio_tasks_slab	*pslab;
+	struct xio_task		*task;
 	unsigned int i;
 
 	if (unlikely(!q || !conn))
 		return;
 
 	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
-		for (i = 0; i < pslab->nr; i++)
-			if (pslab->array[i]->connection == conn) {
-				pslab->array[i]->connection = NULL;
-				pslab->array[i]->session = NULL;
-				pslab->array[i]->nexus = NULL;
+		for (i = 0; i < pslab->nr; i++) {
+			task = pslab->array[i];
+			if (task->connection == conn) {
+				if (task->is_assigned) {
+					if (task->unassign_data_in_buf)
+						task->unassign_data_in_buf(&task->imsg,
+								task->unassign_user_context);
+					task->is_assigned = 0;
+					task->unassign_data_in_buf = NULL;
+					task->unassign_user_context = NULL;
+					clr_bits(XIO_MSG_HINT_ASSIGNED_DATA_IN_BUF,
+						 &task->imsg.hints);
+				}
+				task->connection = NULL;
+				task->session = NULL;
+				task->nexus = NULL;
 			}
+		}
 	}
 }
 
