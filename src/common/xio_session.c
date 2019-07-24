@@ -1596,6 +1596,10 @@ int xio_on_assign_in_buf(struct xio_session *session,
 		xio_ctx_debug_thread_lock(connection->ctx);
 #endif
 		task->is_assigned = 1;
+		task->session = session;
+		task->connection = connection;
+		task->nexus = nexus;
+
 		if (retval) {
 			task->status = XIO_E_INSUFFICIENT_RESOURCES;
 		} else {
