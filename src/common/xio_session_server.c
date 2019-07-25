@@ -430,6 +430,7 @@ int xio_accept(struct xio_session *session,
 	struct xio_msg		*msg;
 	struct xio_task		*task;
 
+	DEBUG_LOG("%s, session:%p\n",  __func__, session);
 	msg = xio_session_write_accept_rsp(session,
 					   XIO_ACTION_ACCEPT,
 					   portals_array,
@@ -496,6 +497,7 @@ int xio_redirect(struct xio_session *session,
 	struct xio_msg		*msg;
 	struct xio_task		*task;
 
+	DEBUG_LOG("%s, session:%p\n",  __func__, session);
 	if (portals_array_len == 0 || !portals_array) {
 		xio_set_error(EINVAL);
 		ERROR_LOG("portals array for redirect is mandatory\n");
@@ -552,6 +554,7 @@ int xio_reject(struct xio_session *session,
 	struct xio_msg		*msg;
 	struct xio_task		*task;
 
+	DEBUG_LOG("%s, session:%p\n",  __func__, session);
 	msg = xio_session_write_reject_rsp(session, reason, user_context,
 					   user_context_len);
 	if (!msg) {
