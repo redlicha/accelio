@@ -453,6 +453,13 @@ static inline void xio_tasks_pool_detach_connection(
 				task->connection = NULL;
 				task->session = NULL;
 				task->nexus = NULL;
+				/* finally check if any internal tasks refs left and 
+				 * put them back to pool */
+				if (IS_XIO_MSG(task->tlv_type) && !task->on_hold) {
+					while (atomic_read(&task->kref.refcount) > 0)
+						xio_tasks_pool_put(task);
+
+				}
 			}
 		}
 	}

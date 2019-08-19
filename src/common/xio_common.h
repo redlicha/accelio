@@ -159,6 +159,7 @@ enum xio_msg_flags_ex {
 #define	IS_APPLICATION_MSG(type) \
 		  (IS_MESSAGE(type) || IS_ONE_WAY(type) || IS_DIRECT_RDMA(type))
 
+#define IS_XIO_MSG(type) !IS_APPLICATION_MSG(type)
 /**
  *  TLV magic
  */
