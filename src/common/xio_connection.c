@@ -1009,6 +1009,8 @@ void xio_connection_safe_remove_msg_from_queue(struct xio_connection *connection
 	if (!removed)
 		xio_msg_list_safe_remove(&connection->in_flight_rsps_msgq, msg,
 					 pdata, var, &removed);
+	msg->pdata.prev = NULL;
+	msg->pdata.next = NULL;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1270,19 +1272,21 @@ int xio_send_response_error(struct xio_msg *req, enum xio_status result)
 			xio_set_error(EINVAL);
 			return -1;
 		}
-		/* turn the request into response */
-		req->request = req;
-		req->type = XIO_MSG_TYPE_RSP;
 	} else {
 		xio_set_error(EINVAL);
 		return -1;
 	}
+	/* validate that it is not in any queue */
+	xio_connection_safe_remove_msg_from_queue(task->connection, req);
 
 	req->in.data_tbl.nents = 0;
 	req->in.header.iov_len = 0;
 	req->out.data_tbl.nents = 0;
 	req->out.header.iov_len = 0;
 	task->status = result;
+	/* turn the request into response */
+	req->request = req;
+	req->type = XIO_MSG_TYPE_RSP;
 
 	return xio_send_response(req);
 }
