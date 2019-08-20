@@ -356,23 +356,46 @@ void xio_tasks_pool_remap(struct xio_tasks_pool *q, void *new_context)
 void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 {
 	struct xio_tasks_slab	*pslab;
-	unsigned int		i;
-	char			*pool_name;
+	unsigned int		i, slab = 0;
+	unsigned int		dead = 0;
+	unsigned int		beef = 0;
+	unsigned int		total = 0;
+	struct xio_task		*t = NULL;
+
+	char *pool_name = q->params.pool_name ?
+			  q->params.pool_name : "unknown";
 
 	list_for_each_entry(pslab, &q->slabs_list, slabs_list_entry) {
-		for (i = 0; i < pslab->nr; i++)
-			if (pslab->array[i]->tlv_type != 0xdead &&
-			    pslab->array[i]->tlv_type != 0xbeef) {
-				pool_name = q->params.pool_name ?
-					q->params.pool_name : "unknown";
-				ERROR_LOG("pool_name:%s: [%d] - task:%p, " \
-					  "type:0x%x, on_hold:%d\n",
+		total = 0;
+		slab++;
+		for (i = 0; i < pslab->nr; i++) {
+			t = pslab->array[i];
+			total++;
+			switch (t->tlv_type) {
+			case 0xdead:
+				dead++;
+				break;
+			case 0xbeef:
+				beef++;
+				break;
+			default:
+				ERROR_LOG("pool_name:%s: slab[%d] [%d] - task:%p, refcnt:%d" \
+					  "connection:%p, type:0x%x, on_hold:%d\n",
 					  pool_name,
+					  slab,
 					  i,
-					  pslab->array[i],
-					  pslab->array[i]->tlv_type,
-					  pslab->array[i]->on_hold);
+					  t,
+					  atomic_read(&t->kref.refcount),
+					  t->connection,
+					  t->tlv_type,
+					  t->on_hold);
+			break;
 			}
+		}
+		ERROR_LOG("pool_name:%s: slab:[%d] " \
+			  "summary: total tasks:%d, 0xbeef :%d, 0xdead :%d\n",
+			  pool_name, slab, total, beef, dead);
+		dead = beef = 0;
 	}
 }
 
