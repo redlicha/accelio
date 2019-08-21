@@ -2282,6 +2282,7 @@ static void xio_nexus_delayed_close(struct kref *kref)
 	switch (nexus->state) {
 	case XIO_NEXUS_STATE_LISTEN:
 		/* the listener nexus, called from xio_unbind */
+	case XIO_NEXUS_STATE_OPEN:
 	case XIO_NEXUS_STATE_ERROR:
 	case XIO_NEXUS_STATE_DISCONNECTED:
 		xio_nexus_release(nexus);

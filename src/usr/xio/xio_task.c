@@ -379,8 +379,9 @@ void xio_tasks_pool_dump_used(struct xio_tasks_pool *q)
 				beef++;
 				break;
 			default:
-				ERROR_LOG("pool_name:%s: slab[%d] [%d] - task:%p, refcnt:%d" \
-					  "connection:%p, type:0x%x, on_hold:%d\n",
+				ERROR_LOG("pool_name:%s: slab[%d] [%d] - task:%p, " \
+					  "refcnt:%d, connection:%p, type:0x%x, " \
+					  "on_hold:%d\n",
 					  pool_name,
 					  slab,
 					  i,
