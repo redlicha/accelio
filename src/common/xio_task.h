@@ -55,6 +55,9 @@ enum xio_task_state {
 /* forward declarations							     */
 /*---------------------------------------------------------------------------*/
 struct xio_tasks_pool;
+struct xio_task;
+
+extern void xio_connection_reset_task(struct xio_task *task);
 
 /*---------------------------------------------------------------------------*/
 /* structs								     */
@@ -186,6 +189,9 @@ static inline void xio_task_reset(struct xio_task *task)
 	task->state			= XIO_TASK_STATE_INIT;
 	xio_mbuf_reset(&task->mbuf);
 	*/
+
+	xio_connection_reset_task(task);
+
 	task->sender_task	= NULL;
 	task->tlv_type		= 0xdead;
 	task->omsg		= NULL;

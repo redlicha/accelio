@@ -225,6 +225,8 @@ int xio_connection_remove_in_flight(struct xio_connection *connection,
 void xio_connection_safe_remove_msg_from_queue(struct xio_connection *connection,
 					       struct xio_msg *msg);
 
+void xio_connection_reset_task(struct xio_task *task);
+
 int xio_connection_send_hello_req(struct xio_connection *connection);
 
 int xio_connection_send_hello_rsp(struct xio_connection *connection,

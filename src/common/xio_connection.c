@@ -968,6 +968,17 @@ int xio_connection_remove_in_flight(struct xio_connection *connection,
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_connection_reset_task						     */
+/*---------------------------------------------------------------------------*/
+void xio_connection_reset_task(struct xio_task *task)
+{
+	if (task && task->connection)
+		xio_connection_safe_remove_msg_from_queue(task->connection,
+							  &task->imsg);
+
+}
+
+/*---------------------------------------------------------------------------*/
 /* xio_connection_find_msg_in_queue					     */
 /*---------------------------------------------------------------------------*/
 int xio_connection_find_msg_in_queue(struct xio_connection *connection,
