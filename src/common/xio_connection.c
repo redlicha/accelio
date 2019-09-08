@@ -968,23 +968,28 @@ int xio_connection_remove_in_flight(struct xio_connection *connection,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_connection_remove_msg_from_queue					     */
+/* xio_connection_find_msg_in_queue					     */
 /*---------------------------------------------------------------------------*/
-int xio_connection_remove_msg_from_queue(struct xio_connection *connection,
-					 struct xio_msg *msg)
+int xio_connection_find_msg_in_queue(struct xio_connection *connection,
+				     struct xio_msg *msg)
 {
-	if (!IS_APPLICATION_MSG(msg->type))
-		return 0;
+	struct xio_msg		*pmsg;
 
-	if (IS_REQUEST(msg->type) || msg->type == XIO_MSG_TYPE_RDMA)
-		xio_msg_list_remove(
-				&connection->reqs_msgq, msg, pdata);
-	else if (IS_RESPONSE(msg->type))
-		xio_msg_list_remove(
-				&connection->rsps_msgq, msg, pdata);
-	else {
-		ERROR_LOG("unexpected message type %u\n", msg->type);
-		return -EINVAL;
+	xio_msg_list_foreach(pmsg, &connection->reqs_msgq, pdata) {
+		if (pmsg == msg)
+			return 1;
+	}
+	xio_msg_list_foreach(pmsg, &connection->rsps_msgq, pdata) {
+		if (pmsg == msg)
+			return 1;
+	}
+	xio_msg_list_foreach(pmsg, &connection->in_flight_reqs_msgq, pdata) {
+		if (pmsg == msg)
+			return 1;
+	}
+	xio_msg_list_foreach(pmsg, &connection->in_flight_rsps_msgq, pdata) {
+		if (pmsg == msg)
+			return 1;
 	}
 
 	return 0;
@@ -1120,6 +1125,14 @@ int xio_send_request(struct xio_connection *connection,
 			retval = -1;
 			goto send;
 		}
+		if (xio_connection_find_msg_in_queue(connection, pmsg)) {
+			xio_set_error(EINVAL);
+			ERROR_LOG("%s failed. connection:%p message already in use\n",
+				   __func__, connection);
+			retval = -1;
+			goto send;
+		}
+
 #ifdef XIO_CFLAG_EXTRA_CHECKS
 		valid = xio_session_is_valid_in_req(connection->session, pmsg);
 		if (unlikely(!valid)) {
@@ -1212,23 +1225,20 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 	struct xio_connection	*connection = task->connection;
 	/* set type for notification */
 	pmsg->type = XIO_MSG_TYPE_RSP;
-	if (unlikely(
-			connection->disconnecting ||
-			(connection->state != XIO_CONNECTION_STATE_ONLINE &&
-			 connection->state != XIO_CONNECTION_STATE_ESTABLISHED &&
-			 connection->state != XIO_CONNECTION_STATE_INIT))) {
+	if (unlikely(connection->disconnecting ||
+		     (connection->state != XIO_CONNECTION_STATE_ONLINE &&
+		      connection->state != XIO_CONNECTION_STATE_ESTABLISHED &&
+		      connection->state != XIO_CONNECTION_STATE_INIT))) {
 		/* we discard the response as connection is not active
-         * anymore
-         */
+		 * anymore
+		 */
 		xio_set_error(XIO_ESHUTDOWN);
 		xio_tasks_pool_put(task);
 
 		xio_session_notify_msg_error(connection, pmsg,
-									 XIO_E_MSG_DISCARDED,
-									 XIO_MSG_DIRECTION_OUT);
+					     XIO_E_MSG_DISCARDED,
+					     XIO_MSG_DIRECTION_OUT);
 
-		pmsg = pmsg->next;
-		//continue;
 		return;
 	}
 
@@ -1238,10 +1248,8 @@ void xio_send_single_rsp(struct xio_msg *msg, struct xio_task *task)
 				  task->imsg.sn);
 
 		xio_session_notify_msg_error(connection, pmsg,
-									 XIO_E_MSG_INVALID,
-									 XIO_MSG_DIRECTION_OUT);
-		pmsg = pmsg->next;
-		//continue;
+					     XIO_E_MSG_INVALID,
+					     XIO_MSG_DIRECTION_OUT);
 		return;
 	}
 
@@ -1276,6 +1284,13 @@ int xio_send_response_error(struct xio_msg *req, enum xio_status result)
 		xio_set_error(EINVAL);
 		return -1;
 	}
+	if (xio_connection_find_msg_in_queue(task->connection, req)) {
+		xio_set_error(EINVAL);
+		ERROR_LOG("%s failed. connection:%p message already in use\n",
+			  __func__, task->connection);
+		return -1;
+	}
+
 	/* validate that it is not in any queue */
 	xio_connection_safe_remove_msg_from_queue(task->connection, req);
 
@@ -1363,6 +1378,13 @@ int xio_send_response(struct xio_msg *msg)
 		xio_stat_add(stats, XIO_STAT_APPDELAY,
 			     get_cycles() - task->imsg.timestamp);
 #endif
+		if (xio_connection_find_msg_in_queue(connection, pmsg)) {
+			xio_set_error(EINVAL);
+			ERROR_LOG("%s failed. connection:%p message already in use\n",
+				   __func__, connection);
+			retval = -1;
+			goto send;
+		}
 #ifdef XIO_CFLAG_EXTRA_CHECKS
 		valid = xio_session_is_valid_out_msg(connection->session, pmsg);
 		if (!valid) {

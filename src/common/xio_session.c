@@ -1299,14 +1299,13 @@ int xio_on_nexus_message_error(struct xio_session *session,
 {
 	struct xio_task *task = event_data->msg_error.task;
 
-	xio_connection_remove_msg_from_queue(task->connection, task->omsg);
+	xio_connection_safe_remove_msg_from_queue(task->connection, task->omsg);
 	xio_connection_queue_io_task(task->connection, task);
 
 	if (task->session->ses_ops.on_msg_error && IS_APPLICATION_MSG(task->tlv_type)) {
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(task->connection->ctx);
 #endif
-		xio_connection_safe_remove_msg_from_queue(task->connection, task->omsg);
 		task->unassign_user_context = NULL;
 		task->unassign_data_in_buf = NULL;
 		task->session->ses_ops.on_msg_error(
