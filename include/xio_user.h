@@ -236,6 +236,18 @@ static inline void xio_reinit_msg(struct xio_msg *msg)
  */
 #define XIO_INFINITE			-1
 
+union xio_mempool_stat_params {
+	struct {
+		size_t requested_size;
+		size_t slab_size;
+	} on_alloc;
+};
+
+struct xio_mempool_stat {
+	void *private_context;
+	void (*on_alloc)(void *private_context, union xio_mempool_stat_params *stat);
+};
+
 /**
  * @struct xio_context_params
  * @brief context creation parameters structure
@@ -263,8 +275,10 @@ struct xio_context_params {
 	/** per context memory allocator. if not exist use global one           */
 	int			 allocator_assigned;
 	struct xio_mem_allocator mem_allocator;
-};
 
+	/* optional slabs mempool statistics callbacks */
+	struct xio_mempool_stat mempool_stats;
+};
 
 /**
  * creates xio context - a context object represent concurrency unit
@@ -600,6 +614,11 @@ int xio_mempool_alloc(struct xio_mempool *mpool,
  *
  */
 void xio_mempool_free(struct xio_reg_mem *reg_mem);
+
+/**
+ * optional api to add callback before alloc/free in mempool
+ */
+void xio_mempool_set_stat_callbacks(struct xio_mempool *mpool, struct xio_mempool_stat *stats_cbs);
 
 #ifdef __cplusplus
 }

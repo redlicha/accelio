@@ -134,6 +134,7 @@ struct xio_mempool {
 	int				safe_mt;
 	struct xio_context		*ctx;
 	struct xio_mem_slab		*slab;
+	struct xio_mempool_stat		stats_cbs;
 };
 
 /* Lock free algorithm based on: Maged M. Michael & Michael L. Scott's
@@ -595,6 +596,19 @@ cleanup:
 }
 
 /*---------------------------------------------------------------------------*/
+/* xio_mempool_set_stat_callbacks					     */
+/*---------------------------------------------------------------------------*/
+void xio_mempool_set_stat_callbacks(struct xio_mempool *mpool,
+				    struct xio_mempool_stat *stats_cbs)
+{
+	if (stats_cbs)
+		mpool->stats_cbs = *stats_cbs;
+	else
+		memset(&mpool->stats_cbs, 0, sizeof(mpool->stats_cbs));
+
+}
+
+/*---------------------------------------------------------------------------*/
 /* size2index								     */
 /*---------------------------------------------------------------------------*/
 static inline int size2index(struct xio_mempool *p, size_t sz)
@@ -620,6 +634,13 @@ int xio_mempool_alloc(struct xio_mempool *p, size_t length,
 	int			err = 0;
 
 	index = size2index(p, length);
+
+	if (p->stats_cbs.on_alloc) {
+		union xio_mempool_stat_params prms = {};
+		prms.on_alloc.requested_size = length;
+		prms.on_alloc.slab_size = p->slab[index].mb_size;
+		p->stats_cbs.on_alloc(p->stats_cbs.private_context, &prms);
+	}
 retry:
 	if (index == -1) {
 		err = err ? err : EINVAL;

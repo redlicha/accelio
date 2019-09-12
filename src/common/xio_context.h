@@ -136,6 +136,7 @@ struct xio_context {
 	pthread_mutex_t                 dbg_thread_mutex;
 	void                            *buffer[BACKTRACE_BUFFER_SIZE];
 #endif
+	struct xio_mempool_stat		mempool_stats_cbs;
 };
 
 /*---------------------------------------------------------------------------*/

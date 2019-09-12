@@ -162,6 +162,10 @@ struct xio_mempool *xio_transport_mempool_get(
 		ERROR_LOG("xio_mempool_create failed (errno=%d %m)\n", errno);
 		return NULL;
 	}
+	if (ctx->mempool_stats_cbs.on_alloc)
+		xio_mempool_set_stat_callbacks((struct xio_mempool *)ctx->mempool,
+					       &ctx->mempool_stats_cbs);
+
 	return (struct xio_mempool *)ctx->mempool;
 }
 
