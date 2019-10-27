@@ -1105,7 +1105,16 @@ void xio_tcp_handle_pending_conn(int fd,
 	} else if (pending_conn->msg.sock_type == XIO_TCP_DATA_SOCK) {
 		ctl_conn = matching_conn;
 		data_conn = pending_conn;
-	}
+	} else {
+        ERROR_LOG("[%d]-[%s] - message corrupted - fd:%d, cfd:%d, dfd:%d,  " \
+                "data_conn:%p, ctl_conn:%p, pending_conn:%p, " \
+                "matching_conn:%p sock_type:%d\n",
+                no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,
+                pending_conn, matching_conn, 
+                pending_conn->msg.sock_type);
+        xio_set_error(EBADMSG);
+        goto cleanup3;
+    }
 	cfd = ctl_conn->fd;
 	dfd = data_conn->fd;
 
