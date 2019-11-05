@@ -64,7 +64,9 @@
 #define MSGPOOL_INIT_NR	8
 #define MSGPOOL_GROW_NR	64
 
+#ifdef XIO_CFLAG_STAT_COUNTERS
 int xio_netlink(struct xio_context *ctx);
+#endif
 
 /*---------------------------------------------------------------------------*/
 /* xio_context_reg_observer						     */
@@ -179,8 +181,10 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 		goto cleanup1;
 	}
 
+#ifdef XIO_CFLAG_STAT_COUNTERS
 	if (-1 == xio_netlink(ctx))
 		goto cleanup2;
+#endif
 
 	/* initialize rdma pools only */
 	transport = xio_get_transport("rdma");
