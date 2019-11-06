@@ -1003,6 +1003,7 @@ void xio_tcp_handle_pending_conn(int fd,
 	}
 
 	if (pending_conn->waiting_for_bytes) {
+        int loops = 0;
 		buf = &pending_conn->msg;
 		inc_ptr(buf, sizeof(struct xio_tcp_connect_msg) -
 				pending_conn->waiting_for_bytes);
@@ -1025,6 +1026,13 @@ void xio_tcp_handle_pending_conn(int fd,
 					goto cleanup1;
 				}
 			}
+            /* somehow receive does not complete well or structure invalid
+             * version */
+            if (++loops > 100 || pending_conn->waiting_for_bytes < 0) {
+				ERROR_LOG("[%d]-[%s] - got read error while establishing connection. fd:%d errno:%d\n",
+						no++, __func__, fd, xio_get_last_socket_error());
+				goto cleanup1;
+            }
 		}
 		if (pending_conn->msg.version != XIO_TCP_CONNECT_MSG_VERSION) {
 			ERROR_LOG("[%d]-[%s] - invalid protocol version: arrived:%d, expected:%d. fd:%d\n",
