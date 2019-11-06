@@ -44,6 +44,44 @@
 #include "xio_observer.h"
 #include "xio_usr_transport.h"
 
+/*---------------------------------------------------------------------------*/
+/* xio_get_ip                                                                */
+/*---------------------------------------------------------------------------*/
+char *xio_get_ip(const struct sockaddr *ip)
+{
+	if (ip->sa_family == AF_INET) {
+		static char addr[INET_ADDRSTRLEN];
+		struct sockaddr_in *v4 = (struct sockaddr_in *)ip;
+		return (char *)inet_ntop(AF_INET, &(v4->sin_addr),
+					 addr, INET_ADDRSTRLEN);
+	}
+	if (ip->sa_family == AF_INET6) {
+		static char addr[INET6_ADDRSTRLEN];
+		struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)ip;
+		return (char *)inet_ntop(AF_INET6, &(v6->sin6_addr),
+					 addr, INET6_ADDRSTRLEN);
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(xio_get_ip);
+
+/*---------------------------------------------------------------------------*/
+/* xio_get_port                                                              */
+/*---------------------------------------------------------------------------*/
+uint16_t xio_get_port(const struct sockaddr *ip)
+{
+	if (ip->sa_family == AF_INET) {
+		struct sockaddr_in *v4 = (struct sockaddr_in *)ip;
+		return ntohs(v4->sin_port);
+	}
+	if (ip->sa_family == AF_INET6) {
+		struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)ip;
+		return ntohs(v6->sin6_port);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(xio_get_port);
+
 static int xio_get_addr(char *dst, char *port, struct sockaddr *addr)
 {
 	struct addrinfo *res;

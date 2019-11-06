@@ -303,6 +303,10 @@ int		xio_uri_get_resource(const char *uri, char *resource,
 
 const char	*xio_uri_get_resource_ptr(const char *uri);
 
+char		*xio_get_ip(const struct sockaddr *ip);
+
+uint16_t	xio_get_port(const struct sockaddr *ip);
+
 int		xio_uri_to_ss(const char *uri, struct sockaddr_storage *ss);
 
 int		xio_host_port_to_ss(const char *buf,

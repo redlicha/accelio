@@ -1029,15 +1029,21 @@ void xio_tcp_handle_pending_conn(int fd,
             /* somehow receive does not complete well or structure invalid
              * version */
             if (++loops > 100 || pending_conn->waiting_for_bytes < 0) {
-				ERROR_LOG("[%d]-[%s] - got read error while establishing connection. fd:%d errno:%d\n",
-						no++, __func__, fd, xio_get_last_socket_error());
-				goto cleanup1;
+		    ERROR_LOG("[%d]-[%s] - got read error while establishing connection. src_addr:%s:%d, fd:%d errno:%d\n",
+			       no++, __func__,
+			       xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
+			       xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
+			       fd, xio_get_last_socket_error());
+		    goto cleanup1;
             }
 		}
 		if (pending_conn->msg.version != XIO_TCP_CONNECT_MSG_VERSION) {
-			ERROR_LOG("[%d]-[%s] - invalid protocol version: arrived:%d, expected:%d. fd:%d\n",
-				  no++, __func__, pending_conn->msg.version,
-				  XIO_TCP_CONNECT_MSG_VERSION, fd);
+			ERROR_LOG("[%d]-[%s] - invalid protocol version: src_addr:%s:%d, arrived:%d, expected:%d. fd:%d\n",
+				   no++, __func__,
+				   xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
+				   xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
+				   pending_conn->msg.version,
+				   XIO_TCP_CONNECT_MSG_VERSION, fd);
 			goto cleanup1;
 		}
 
