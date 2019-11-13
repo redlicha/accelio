@@ -173,6 +173,7 @@ struct xio_nexus {
 	int 				pad2:30;
 	struct mutex			lock_connect;      /* lock nexus connect */
 	struct xio_context		*ctx;
+        struct xio_nexus_observer_work  *connect_work_params;
 
 	HT_ENTRY(xio_nexus, xio_key_int32) nexus_htbl;
 };

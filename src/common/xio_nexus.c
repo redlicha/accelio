@@ -78,8 +78,6 @@ struct xio_event_params {
 struct xio_nexus_observer_work {
 	struct xio_observer_event	observer_event;
 	xio_work_handle_t		observer_work;
-	struct xio_context		*ctx;
-	struct xio_nexus		*nexus;
 };
 
 static int xio_msecs[] = {60000, 30000, 15000, 0};
@@ -103,6 +101,14 @@ static int xio_nexus_xmit(struct xio_nexus *nexus);
 static void xio_nexus_trans_release_handler(void *nexus_);
 static void xio_nexus_trans_error_handler(void *ev_params_);
 static void xio_nexus_disconnect_handler(void *nexus_);
+
+static void  xio_nexus_free_work_params(void *_nexus)
+{
+	struct xio_nexus *nexus = (struct xio_nexus *) _nexus;
+
+	kfree(nexus->connect_work_params);
+	nexus->connect_work_params = NULL;
+}
 
 /*---------------------------------------------------------------------------*/
 /* xio_nexus_server_reconnect		                                     */
@@ -1858,6 +1864,13 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	XIO_OBSERVER_DESTROY(&nexus->srv_observer);
 	mutex_destroy(&nexus->lock_connect);
 
+	if (nexus->connect_work_params) {
+		xio_ctx_del_work(
+			nexus->ctx,
+			&nexus->connect_work_params->observer_work);
+		xio_nexus_free_work_params(nexus);
+		nexus->connect_work_params = NULL;
+	}
 	xio_context_kfree(nexus->ctx, nexus);
 
 	return 0;
@@ -2087,23 +2100,25 @@ int xio_nexus_reconnect(struct xio_nexus *nexus)
 /*---------------------------------------------------------------------------*/
 static void xio_nexus_notify_observer_work(int actual_timeout_ms, void *_work_params)
 {
-	struct xio_nexus_observer_work  *work_params =
-                (struct xio_nexus_observer_work *) _work_params;
+	struct xio_nexus *nexus =
+                (struct xio_nexus *) _work_params;
+
+	if (!nexus || !nexus->connect_work_params)
+		return;
 
 	DEBUG_LOG("%s: nexus:%p, state:%d\n", __func__,
-		  work_params->nexus,
-		  work_params->nexus->state);
+		  nexus, nexus->state);
 
-	if (work_params->nexus->state == XIO_NEXUS_STATE_CONNECTED)
+	if (nexus->state == XIO_NEXUS_STATE_CONNECTED)
 		xio_observable_notify_observer(
-				work_params->observer_event.observable,
-				work_params->observer_event.observer,
-				work_params->observer_event.event,
-				work_params->observer_event.event_data);
-	xio_ctx_set_work_destructor(work_params->ctx,
-	                                            work_params,
-	                                            (void (*)(void *))kfree,
-	                                            &work_params->observer_work);
+				nexus->connect_work_params->observer_event.observable,
+				nexus->connect_work_params->observer_event.observer,
+				nexus->connect_work_params->observer_event.event,
+				nexus->connect_work_params->observer_event.event_data);
+	xio_ctx_set_work_destructor(nexus->ctx,
+	                            nexus,
+				    xio_nexus_free_work_params,
+				    &nexus->connect_work_params->observer_work);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2113,7 +2128,6 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		      struct xio_observer *observer, const char *out_if)
 {
 	int retval;
-        struct xio_nexus_observer_work *work_params;
 
 	if (!nexus->transport->connect) {
 		ERROR_LOG("transport does not implement \"connect\"\n");
@@ -2152,25 +2166,23 @@ int xio_nexus_connect(struct xio_nexus *nexus, const char *portal_uri,
 		/* moving the notification to the ctx the nexus is running on
 		 * to avoid session_setup_request from being sent on another thread
 		 */
-		work_params = (struct xio_nexus_observer_work *)
+		nexus->connect_work_params = (struct xio_nexus_observer_work *)
 				xio_context_kmalloc(nexus->ctx,
-						sizeof(*work_params), GFP_KERNEL);
-		if (unlikely(!work_params)) {
+						sizeof(*nexus->connect_work_params), GFP_KERNEL);
+		if (unlikely(!nexus->connect_work_params)) {
 			ERROR_LOG("failed to allocate memory\n");
 			goto cleanup1;
 		}
-		memset(&work_params->observer_work, 0,
-		       sizeof(work_params->observer_work));
-		work_params->observer_event.observer = observer;
-		work_params->observer_event.observable = &nexus->observable;
-		work_params->observer_event.event = XIO_NEXUS_EVENT_ESTABLISHED;
-		work_params->observer_event.event_data = NULL;
-		work_params->ctx = nexus->ctx;
-		work_params->nexus = nexus;
+		memset(&nexus->connect_work_params->observer_work, 0,
+		       sizeof(nexus->connect_work_params->observer_work));
+		nexus->connect_work_params->observer_event.observer = observer;
+		nexus->connect_work_params->observer_event.observable = &nexus->observable;
+		nexus->connect_work_params->observer_event.event = XIO_NEXUS_EVENT_ESTABLISHED;
+		nexus->connect_work_params->observer_event.event_data = NULL;
 		xio_ctx_add_work(nexus->ctx,
-                                 work_params,
+                                 nexus,
                                  xio_nexus_notify_observer_work,
-                                 &work_params->observer_work);
+                                 &nexus->connect_work_params->observer_work);
 		break;
 	default:
 		break;
