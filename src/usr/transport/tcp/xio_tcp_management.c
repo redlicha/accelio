@@ -1864,6 +1864,7 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 
 exit:
 	xio_context_ufree(tcp_hndl->base.ctx, tcp_hndl->base.portal_uri);
+	tcp_hndl->base.portal_uri = NULL;
 exit1:
 	tcp_hndl->sock.ops->del_ev_handlers = NULL;
 	return -1;
