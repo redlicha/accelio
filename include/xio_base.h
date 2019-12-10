@@ -1466,7 +1466,7 @@ struct xio_mem_allocator {
 	void   (*numa_free)(struct xio_context *ctx, void *ptr, void *user_context);
 };
 
-#define XIO_MAX_SLABS_NR  6
+#define XIO_MAX_SLABS_NR  32
 
 /**
  *  @struct xio_mempool_config
