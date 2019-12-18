@@ -52,6 +52,42 @@ struct xio_mem_allocator  g_mem_allocator;
 struct xio_mem_allocator *mem_allocator = &g_mem_allocator;
 
 /*---------------------------------------------------------------------------*/
+/* xio_mmap_alloc	                                                     */
+/*---------------------------------------------------------------------------*/
+static inline void *xio_mmap_alloc(size_t length)
+{
+	void *ptr;
+	ptr = mmap(NULL, length, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS |
+		   MAP_POPULATE | MAP_HUGETLB, -1, 0);
+	if (ptr != MAP_FAILED) {
+		DEBUG_LOG("%s: allocated huge pages in the range specified "\
+			  "by addr:%p and length:%zu.\n", 
+			   __func__, ptr, length);
+		return ptr;
+	}
+
+	ptr =  mmap(NULL, length, PROT_READ | PROT_WRITE,
+		    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (!ptr || ptr == MAP_FAILED)
+		return ptr;
+
+	/* try to use transparent huge pages */
+	if (madvise(ptr, length, MADV_HUGEPAGE) == 0) {
+		DEBUG_LOG("%s: enables Transparent Huge Pages (THP) for " \
+			  "pages in the range specified by addr:%p and " \
+			  "length:%zu.\n", 
+			   __func__, ptr, length);
+	} else {
+		DEBUG_LOG("%s: allocated default sized pages in the " \
+			  "range specified by addr:%p and length:%zu.\n", 
+			   __func__, ptr, length);
+	}
+
+	return ptr;
+}
+
+/*---------------------------------------------------------------------------*/
 /* malloc_huge_pages	                                                     */
 /*---------------------------------------------------------------------------*/
 void *malloc_huge_pages(size_t size)
@@ -84,7 +120,7 @@ void *malloc_huge_pages(size_t size)
 	/* (libhugetlbfs is more efficient in this regard) */
 	real_size = ALIGN(size + HUGE_PAGE_SZ, HUGE_PAGE_SZ);
 
-	ptr = xio_mmap(real_size);
+	ptr = xio_mmap_alloc(real_size);
 	if (!ptr || ptr == MAP_FAILED) {
 		/* The mmap() call failed. Try to malloc instead */
 		long page_size = xio_get_page_size();
@@ -97,7 +133,7 @@ void *malloc_huge_pages(size_t size)
 		WARN_LOG("huge pages allocation failed, allocating " \
 			 "regular pages\n");
 
-		DEBUG_LOG("mmap rdma pool sz:%zu failed (errno=%d %m)\n",
+		DEBUG_LOG("mmap pool sz:%zu failed (errno=%d %m)\n",
 			  real_size, errno);
 		real_size = ALIGN(size + HUGE_PAGE_SZ, page_size);
 		retval = xio_memalign(&ptr, page_size, real_size);

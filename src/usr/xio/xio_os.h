@@ -39,12 +39,14 @@
 #define XIO_OS_H
 
 #include <stddef.h>
+#include <unistd.h>
 
 static inline int	xio_memalign(void **memptr, size_t alignment,
 				     size_t size);
 static inline void	xio_memfree(void *memptr);
 static inline long	xio_get_page_size(void);
-static inline void	*xio_mmap(size_t length);
+static inline void	*xio_mmap(void *addr, size_t length, int prot,
+				  int flags, int fd, off_t offset);
 static inline int	xio_munmap(void *addr, size_t length);
 static inline void	*xio_numa_alloc_onnode(size_t size, int node);
 static inline void	xio_numa_free(void *start, size_t size);

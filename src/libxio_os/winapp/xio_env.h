@@ -107,8 +107,10 @@ static inline long xio_get_page_size(void)
 /*---------------------------------------------------------------------------*/
 #define MAP_FAILED ((void *) -1)
 
+typedef long int off_t
 /*---------------------------------------------------------------------------*/
-static inline void *xio_mmap(size_t length){
+static inline void *xio_mmap(void *addr, size_t length, int prot, int flags,
+			     int fd, off_t offset){
 	assert(0 && "not yet supported");
 	return MAP_FAILED;
 }

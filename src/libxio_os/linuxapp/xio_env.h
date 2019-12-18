@@ -111,24 +111,10 @@ static inline long xio_get_page_size(void)
 }
 
 /*---------------------------------------------------------------------------*/
-static inline void *xio_mmap(size_t length)
+static inline void *xio_mmap(void *addr, size_t length, int prot, int flags,
+			     int fd, off_t offset)
 {
-	void *ptr;
-	ptr = mmap(NULL, length, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS |
-		   MAP_POPULATE | MAP_HUGETLB, -1, 0);
-	if (ptr != MAP_FAILED)
-		return ptr;
-
-	ptr =  mmap(NULL, length, PROT_READ | PROT_WRITE,
-		    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (!ptr || ptr == MAP_FAILED)
-		return ptr;
-
-	/* try to use transparent huge pages */
-	madvise(ptr, length, MADV_HUGEPAGE);
-
-	return ptr;
+	return mmap(addr, length, prot, flags, fd, offset);
 }
 
 /*---------------------------------------------------------------------------*/
