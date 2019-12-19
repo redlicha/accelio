@@ -144,8 +144,6 @@ void *malloc_huge_pages(size_t size)
 		}
 		memset(ptr, 0, real_size);
 		real_size = 0;
-	} else {
-		DEBUG_LOG("Allocated huge page sz:%zu\n", real_size);
 	}
 	/* Save real_size since mmunmap() requires a size parameter */
 	*((size_t *)ptr) = real_size;
