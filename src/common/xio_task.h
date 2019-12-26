@@ -300,8 +300,8 @@ static inline struct xio_task *xio_tasks_pool_get(
 	t = list_first_entry_or_null(&q->stack, struct xio_task,
 				     tasks_list_entry);
 
-	if (unlikely(!t || list_is_last(&t->tasks_list_entry, &q->stack))) {
-		if (q->curr_used == q->params.max_nr - 1)
+	if (unlikely(!t)) {
+		if (q->curr_used == q->params.max_nr)
 			goto pool_exhausted;
 
 		xio_tasks_pool_alloc_slab(q, context);
