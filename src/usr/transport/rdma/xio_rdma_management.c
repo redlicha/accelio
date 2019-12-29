@@ -455,6 +455,9 @@ static void xio_cq_destroy(struct xio_cq *tcq)
 {
 	int retval;
 
+	if (unlikely(!tcq))
+		return;
+
 	xio_context_disable_event(&tcq->consume_cq_event);
 	xio_context_disable_event(&tcq->poll_cq_event);
 
@@ -522,9 +525,7 @@ static struct xio_cq *xio_cq_create(struct xio_device *dev,
 		goto cleanup1;
 	}
 
-	tcq->alloc_sz = min(dev->device_attr.max_cqe, MAX_CQE_PER_QP);
-	tcq->max_cqe  = dev->device_attr.max_cqe;
-	alloc_sz = tcq->alloc_sz;
+	alloc_sz = min(dev->device_attr.max_cqe, MAX_CQE_PER_QP);
 
 	/* set com_vector to cpu */
 	comp_vec = ctx->cpuid % dev->verbs->num_comp_vectors;
@@ -586,8 +587,6 @@ static struct xio_cq *xio_cq_create(struct xio_device *dev,
 
 	/* set cq depth params */
 	tcq->dev	= dev;
-	tcq->cq_depth	= tcq->cq->cqe;
-	tcq->cqe_avail	= tcq->cq->cqe;
 
 	return tcq;
 cleanup5:
@@ -906,47 +905,6 @@ static int xio_rdma_context_shutdown(struct xio_transport_base *trans_hndl,
 	return 0;
 }
 
-/*---------------------------------------------------------------------------*/
-/* xio_cq_alloc_slots							     */
-/*---------------------------------------------------------------------------*/
-int xio_cq_alloc_slots(struct xio_cq *tcq, int cqe_num)
-{
-	if (cqe_num < tcq->cqe_avail) {
-		tcq->cqe_avail -= cqe_num;
-		return 0;
-	} else if (tcq->cq_depth + tcq->alloc_sz < tcq->max_cqe) {
-		int cqe = tcq->cq->cqe;
-		int retval = ibv_resize_cq(tcq->cq,
-					   (tcq->cq_depth + tcq->alloc_sz));
-		if (retval != 0 || (cqe == tcq->cq->cqe)) {
-			ERROR_LOG("ibv_resize_cq failed. %m, cqe:%d\n", cqe);
-			return -1;
-		}
-		tcq->cq_depth  += (tcq->cq->cqe - cqe);
-		tcq->cqe_avail += (tcq->cq->cqe - cqe);
-		DEBUG_LOG("cq_resize: expected:%d, actual:%d\n",
-			  tcq->cq_depth, tcq->cq->cqe);
-		tcq->cqe_avail -= cqe_num;
-		return 0;
-	}
-	ERROR_LOG("cq overflow reached\n");
-
-	return 0;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_cq_free_slots							     */
-/*---------------------------------------------------------------------------*/
-static int xio_cq_free_slots(struct xio_cq *tcq, int cqe_num)
-{
-	if (tcq->cqe_avail + cqe_num <= tcq->cq_depth) {
-		tcq->cqe_avail += cqe_num;
-		return 0;
-	}
-	ERROR_LOG("cq allocation error");
-
-	return 0;
-}
 
 #ifdef XIO_SRQ_ENABLE
 /*---------------------------------------------------------------------------*/
@@ -998,12 +956,6 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 		ERROR_LOG("cq initialization failed\n");
 		return -1;
 	}
-	retval = xio_cq_alloc_slots(tcq, MAX_CQE_PER_QP);
-	if (retval != 0) {
-		ERROR_LOG("cq full capacity reached\n");
-		goto destroy_cq;
-	}
-
 	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	qp_init_attr.qp_context		  = rdma_hndl;
@@ -1063,7 +1015,7 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 			ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
 			break;
 		};
-		goto free_slots;
+		goto destroy_cq;
 	}
 	rdma_hndl->tcq          = tcq;
 	rdma_hndl->qp           = rdma_hndl->cm_id->qp;
@@ -1093,9 +1045,6 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 
 	return 0;
 
-free_slots:
-	xio_cq_free_slots(tcq, MAX_CQE_PER_QP);
-
 destroy_cq:
 	xio_cq_destroy(tcq);
 
@@ -1113,10 +1062,12 @@ static void xio_qp_destroy(struct xio_rdma_transport *rdma_hndl)
 #ifdef XIO_SRQ_ENABLE
 		xio_srq_qp_deleted(rdma_hndl, rdma_hndl->tcq->srq);
 #endif
-		xio_cq_free_slots(rdma_hndl->tcq, MAX_CQE_PER_QP);
 		rdma_destroy_qp(rdma_hndl->cm_id);
-		xio_cq_destroy(rdma_hndl->tcq);
 		rdma_hndl->qp = NULL;
+	}
+	if (rdma_hndl->tcq) {
+		xio_cq_destroy(rdma_hndl->tcq);
+		rdma_hndl->tcq = NULL;
 	}
 }
 
@@ -2147,7 +2098,7 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 	if (unlikely(retval != 0)) {
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n",
 			  rdma_hndl);
-		goto notify_err0;
+		goto notify_err1;
 	}
 
 	memset(&cm_params, 0, sizeof(cm_params));
@@ -2189,7 +2140,6 @@ static void on_cm_route_resolved(struct rdma_cm_event *ev,
 
 notify_err1:
 	xio_qp_destroy(rdma_hndl);
-notify_err0:
 	xio_transport_notify_observer_error(&rdma_hndl->base, xio_errno());
 }
 
@@ -2235,7 +2185,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			DEBUG_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
 		}
 		xio_cm_channel_ack_event(parent_hndl);
-		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", cm_id);
+		DEBUG_LOG("call rdma_destroy_id cm_id:%p\n", cm_id);
 		retval = rdma_destroy_id(cm_id);
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
@@ -2264,7 +2214,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 				  child_hndl, errno);
 		}
 		xio_cm_channel_ack_event(parent_hndl);
-		DEBUG_LOG("call rdma_destroy_id cm_id:x%p\n", child_hndl->cm_id);
+		DEBUG_LOG("call rdma_destroy_id cm_id:%p\n", child_hndl->cm_id);
 		retval = rdma_destroy_id(child_hndl->cm_id);
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",

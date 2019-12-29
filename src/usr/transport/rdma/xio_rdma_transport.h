@@ -307,10 +307,6 @@ struct xio_cq  {
 	struct ibv_wc			*wc_array;
 	int32_t				wc_array_len;
 	int32_t				cq_events_that_need_ack;
-	int32_t				max_cqe;     /* max snd elements  */
-	int32_t				cq_depth;     /* current cq depth  */
-	int32_t				alloc_sz;     /* allocation factor  */
-	int32_t				cqe_avail;    /* free elements  */
 	int32_t				num_delayed_arm;
 	int32_t				num_poll_cq;
 	struct xio_srq			*srq;
