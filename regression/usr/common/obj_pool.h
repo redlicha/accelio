@@ -145,7 +145,7 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 
 	q->data = q->array[0];
 	q->stack_ptr = q->stack;
-	q->stack_end = (q->stack_ptr + max);
+	q->stack_end = &q->stack[max - 1];
 	q->max	= max;
 	q->nr	= max;
 

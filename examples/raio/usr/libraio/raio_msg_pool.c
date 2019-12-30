@@ -262,7 +262,7 @@ static struct msg_pool *msg_pool_alloc(struct xio_context *ctx, int max,
 	msg_pool->in_datalen	= in_datalen;
 
 	msg_pool->stack_ptr = msg_pool->stack;
-	msg_pool->stack_end = msg_pool->stack_ptr + max;
+	msg_pool->stack_end = &msg_pool->stack[max - 1];
 	msg_pool->max = max;
 
 	return msg_pool;

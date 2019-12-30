@@ -194,7 +194,7 @@ struct msg_pool *msg_pool_alloc(int max, int in_iovsz, int out_iovsz)
 		msg_pool->stack[i] = msg;
 	}
 	msg_pool->stack_ptr = msg_pool->stack;
-	msg_pool->stack_end = msg_pool->stack_ptr + max;
+	msg_pool->stack_end = &msg_pool->stack[max - 1]; 
 	msg_pool->max = max;
 	msg_pool->free = max;
 

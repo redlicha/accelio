@@ -144,7 +144,7 @@ struct raio_pool *raio_pool_init(int max, size_t size)
 	}
 
 	q->stack_ptr = q->stack;
-	q->stack_end = (q->stack_ptr + max);
+	q->stack_end = &q->stack[max - 1];
 	q->max = max;
 
 	return q;
