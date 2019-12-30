@@ -1523,6 +1523,7 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 {
 	struct xio_event_params *ev_params =
 				(struct xio_event_params *)ev_params_;
+	struct xio_context *ctx = ev_params->nexus->ctx;
 
 	ev_params->nexus->trans_error_event.data = NULL;
 
@@ -1535,7 +1536,7 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 		xio_nexus_on_transport_error(ev_params->nexus,
 					     &ev_params->event_data);
 
-	xio_context_kfree(ev_params->nexus->ctx, ev_params);
+	xio_context_kfree(ctx, ev_params);
 }
 
 /*---------------------------------------------------------------------------*/
