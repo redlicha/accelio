@@ -1452,6 +1452,7 @@ static void xio_nexus_on_transport_error(struct xio_nexus *nexus,
 	nexus_event_data.error.reason =  event_data->error.reason;
 
 	xio_nexus_state_set(nexus, XIO_NEXUS_STATE_ERROR);
+	xio_nexus_flush_all_tasks(nexus);
 	if (!xio_observable_is_empty(&nexus->observable)) {
 		xio_observable_notify_all_observers(&nexus->observable,
 				XIO_NEXUS_EVENT_ERROR,
@@ -1460,7 +1461,6 @@ static void xio_nexus_on_transport_error(struct xio_nexus *nexus,
 		xio_context_add_event(nexus->ctx,
 				&nexus->trans_release_event);
 	}
-	xio_nexus_flush_all_tasks(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1504,6 +1504,7 @@ static void xio_nexus_disconnect_handler(void *nexus_)
 	struct xio_nexus *nexus = (struct xio_nexus *)nexus_;
 
 	DEBUG_LOG("%s - nexus:%p\n", __func__, nexus);
+	xio_nexus_flush_all_tasks(nexus);
 	if (!xio_observable_is_empty(&nexus->observable)) {
 		xio_observable_notify_all_observers(
 				&nexus->observable,
@@ -1513,7 +1514,6 @@ static void xio_nexus_disconnect_handler(void *nexus_)
 		xio_context_add_event(nexus->ctx,
 				      &nexus->trans_release_event);
 	}
-	xio_nexus_flush_all_tasks(nexus);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1523,12 +1523,16 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 {
 	struct xio_event_params *ev_params =
 				(struct xio_event_params *)ev_params_;
-	struct xio_context *ctx = ev_params->nexus->ctx;
+	struct xio_context *ctx;
+
+	if (!ev_params || !ev_params->nexus)
+		return;
+
+	ctx = ev_params->nexus->ctx;
 
 	ev_params->nexus->trans_error_event.data = NULL;
 
 	xio_context_disable_event(&ev_params->nexus->trans_error_event);
-
 
 	if (ev_params->nexus->state == XIO_NEXUS_STATE_RECONNECT)
 		xio_nexus_client_reconnect_failed(ev_params->nexus);
@@ -1825,9 +1829,13 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	xio_context_disable_event(&nexus->trans_release_event);
 	xio_context_disable_event(&nexus->trans_error_event);
 	xio_context_disable_event(&nexus->disconnect_event);
-
-	xio_context_kfree(nexus->ctx, nexus->trans_error_event.data);
-	nexus->trans_error_event.data = NULL;
+	if (nexus->trans_error_event.data) {
+		struct xio_event_params *ev_params =
+			(struct xio_event_params *)nexus->trans_error_event.data;
+		ev_params->nexus = NULL;
+		xio_context_kfree(nexus->ctx, nexus->trans_error_event.data);
+		nexus->trans_error_event.data = NULL;
+	}
 	if (nexus->server)
 		xio_server_unreg_observer(nexus->server,
 					  &nexus->srv_observer);
