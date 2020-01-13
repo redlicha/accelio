@@ -237,6 +237,8 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 	int retval;
 	struct ibv_exp_reg_mr_in reg_mr_in = {};
 	int alloc_mr = !(*addr);
+	int time_passed_msecs;
+	cycles_t start_cycle;
 
 	reg_mr_in.pd = dev->pd;
 	reg_mr_in.addr = *addr;
@@ -245,9 +247,10 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 	reg_mr_in.comp_mask = 0;
 	reg_mr_in.create_flags = 0;
 
-	TRACE_LOG("before ibv_reg_mr\n");
+	start_cycle = get_cycles();
 	mr = ibv_xio_reg_mr(&reg_mr_in);
-	TRACE_LOG("after ibv_reg_mr\n");
+	time_passed_msecs = (int)((get_cycles() - start_cycle)/(1000*g_mhz) + 0.5);
+	DEBUG_LOG("ibv_reg_mr: time:%d, length:%zd\n", time_passed_msecs, length);
 	if (unlikely(!mr)) {
 		xio_set_error(errno);
 		if (!alloc_mr)
