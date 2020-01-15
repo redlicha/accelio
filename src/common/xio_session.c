@@ -1762,6 +1762,10 @@ void xio_session_post_destroy(void *_session)
 	XIO_OBSERVER_DESTROY(&session->observer);
 	XIO_OBSERVER_DESTROY(&session->ctx_observer);
 
+	if (session->client_setup_req) {
+		xio_context_kfree(NULL, session->client_setup_req);
+		session->client_setup_req = NULL;
+	}
 	mutex_destroy(&session->lock);
 	xio_context_kfree(NULL, session);
 
