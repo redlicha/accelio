@@ -3981,24 +3981,23 @@ struct xio_transport xio_rdma_transport = {
 /*---------------------------------------------------------------------------*/
 int xio_is_rdma_dev_exist()
 {
-
-    struct ibv_device **dev_list;
+	struct ibv_device **dev_list;
 	int num_devices = 0;
-    int retval = 0;
+	int retval = 0;
 
 	dev_list = ibv_get_device_list(&num_devices);
 	if (!dev_list)
 		return -1;
 
 	if (!*dev_list || num_devices == 0) {
-        retval = -1;
+		retval = -1;
 		goto exit;
-    }
+	}
 
 exit:
 	ibv_free_device_list(dev_list);
 
-    return retval;
+	return retval;
 }
 
 /*---------------------------------------------------------------------------*/

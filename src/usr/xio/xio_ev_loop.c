@@ -51,6 +51,7 @@
 #include "xio_context.h"
 
 #define MAX_DELETED_EVENTS	1024
+#define ITERS_PER_LOOP		3
 
 /*---------------------------------------------------------------------------*/
 /* structs                                                                   */
@@ -415,13 +416,14 @@ static inline int xio_ev_loop_run_helper(void *loop_hndl, int timeout)
 {
 	struct xio_ev_loop	*loop = (struct xio_ev_loop *)loop_hndl;
 	int			nevent = 0, i, found = 0;
-	struct epoll_event	events[1024];
+	struct epoll_event	events[512];
 	struct xio_ev_data	*tev;
 	int			work_remains;
 	int			tmout;
 	int			wait_time = timeout;
 	uint32_t		out_events;
 	cycles_t		start_cycle  = 0;
+	int			epoll_iters = 0; /* let external epolls get their time */
 
 	if (timeout != -1)
 		start_cycle = get_cycles();
@@ -435,6 +437,15 @@ retry:
 		while (loop->deleted_events_nr)
 			xio_context_ufree(loop->ctx,
 				loop->deleted_events[--loop->deleted_events_nr]);
+
+	if (timeout != -1) {
+		if (unlikely(epoll_iters >= ITERS_PER_LOOP)) {
+			loop->stop_loop = 1;
+			goto stop_loop;
+		} else {
+			epoll_iters++;
+		}
+	}
 
 	nevent = epoll_wait(loop->efd, events, ARRAY_SIZE(events), tmout);
 	if (unlikely(nevent < 0)) {
@@ -499,6 +510,7 @@ retry:
 			timeout = wait_time - time_passed;
 	}
 
+stop_loop:
 	if (likely(loop->stop_loop == 0)) {
 		goto retry;
 	} else {
@@ -511,7 +523,6 @@ retry:
 			xio_context_ufree(loop->ctx,
 					  loop->deleted_events[--loop->deleted_events_nr]);
 	}
-
 	loop->stop_loop = 0;
 	loop->wakeup_armed = 0;
 
