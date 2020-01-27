@@ -415,7 +415,7 @@ static inline int xio_ev_loop_run_helper(void *loop_hndl, int timeout)
 {
 	struct xio_ev_loop	*loop = (struct xio_ev_loop *)loop_hndl;
 	int			nevent = 0, i, found = 0;
-	struct epoll_event	events[512];
+	struct epoll_event	events[1024];
 	struct xio_ev_data	*tev;
 	int			work_remains;
 	int			tmout;
@@ -423,30 +423,18 @@ static inline int xio_ev_loop_run_helper(void *loop_hndl, int timeout)
 	uint32_t		out_events;
 	cycles_t		start_cycle  = 0;
 
-	if (timeout != -1)
+	if (wait_time != -1)
 		start_cycle = get_cycles();
 
 retry:
 	work_remains = xio_ev_loop_exec_scheduled(loop);
+	tmout = work_remains ? 0 : timeout;
 
 	/* free deleted event handlers */
 	if (unlikely(loop->deleted_events_nr))
 		while (loop->deleted_events_nr)
 			xio_context_ufree(loop->ctx,
 				loop->deleted_events[--loop->deleted_events_nr]);
-
-	/* calculate the remaining timeout */
-	if (wait_time > 0) {
-		int time_passed = (int)((get_cycles() -
-				start_cycle)/(1000*g_mhz) + 0.5);
-		if (time_passed >= wait_time) {
-			loop->stop_loop = 1;
-			goto stop_loop;
-		} else {
-			timeout = wait_time - time_passed;
-		}
-	}
-	tmout = work_remains ? 0 : timeout;
 
 	nevent = epoll_wait(loop->efd, events, ARRAY_SIZE(events), tmout);
 	if (unlikely(nevent < 0)) {
@@ -495,11 +483,22 @@ retry:
 		loop->in_dispatch = 0;
 	} else {
 		/* timed out */
+		if (tmout || wait_time == 0)
+			loop->stop_loop = 1;
+		/* TODO: timeout should be updated by the elapsed
+		 * duration of each loop
+		 * */
 	}
-	if (wait_time == 0)
-		loop->stop_loop = 1;
+	/* calculate the remaining timeout */
+	if (wait_time != -1 && !loop->stop_loop) {
+		int time_passed = (int)((get_cycles() -
+				start_cycle)/(1000*g_mhz) + 0.5);
+		if (time_passed >= wait_time)
+			loop->stop_loop = 1;
+		else
+			timeout = wait_time - time_passed;
+	}
 
-stop_loop:
 	if (likely(loop->stop_loop == 0)) {
 		goto retry;
 	} else {
@@ -512,6 +511,7 @@ stop_loop:
 			xio_context_ufree(loop->ctx,
 					  loop->deleted_events[--loop->deleted_events_nr]);
 	}
+
 	loop->stop_loop = 0;
 	loop->wakeup_armed = 0;
 
