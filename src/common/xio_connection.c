@@ -3554,7 +3554,7 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	int retval;
 
 	if (connection->ka.req_sent) {
-		DEBUG_LOG("%s - session:%p, connection:%pi probes:[%d]\n",
+		DEBUG_LOG("%s - session:%p, connection:%p probes:[%d]\n",
 				__func__, connection->session, connection, connection->ka.probes);
 	}
 
