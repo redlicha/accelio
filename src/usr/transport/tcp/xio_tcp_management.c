@@ -196,7 +196,7 @@ static int xio_tcp_flush_all_tasks(struct xio_tcp_transport *tcp_hndl)
 /*---------------------------------------------------------------------------*/
 static void on_sock_close(struct xio_tcp_transport *tcp_hndl)
 {
-	DEBUG_LOG("on_sock_close tcp_hndl:%p, state:%d\n\n",
+	DEBUG_LOG("on_sock_close tcp_hndl:%p, state:%d\n",
 		  tcp_hndl, tcp_hndl->state);
 
 	if (tcp_hndl->state != XIO_TRANSPORT_STATE_CLOSED)
