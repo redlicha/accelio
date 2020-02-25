@@ -1304,7 +1304,9 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 
 			break;
 		default:
-			ERROR_LOG("unknown TX stage %d\n", tcp_task->txd.stage);
+			ERROR_LOG("unknown TX stage %d. disconnecting tcp_hndl:%p\n", tcp_task->txd.stage, tcp_hndl);
+			xio_tcp_disconnect_helper(tcp_hndl);
+			return -1;
 			break;
 		}
 	}
