@@ -482,7 +482,7 @@ int xio_workqueue_set_work_destructor(struct xio_workqueue *work_queue,
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_workqueue_is_work_in_hanlder					     */
+/* xio_workqueue_is_work_in_handler					     */
 /*---------------------------------------------------------------------------*/
 int xio_workqueue_is_work_in_handler(struct xio_workqueue *work_queue,
 				     xio_work_handle_t *work)

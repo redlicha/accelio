@@ -845,14 +845,14 @@ EXPORT_SYMBOL(xio_context_vfree);
 
 char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	return kstrdup(s, gfp);
 }
 EXPORT_SYMBOL(xio_context_kstrdup);
 
 char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	return kstrndup(s, len, gfp);
 }
 EXPORT_SYMBOL(xio_context_kstrndup);

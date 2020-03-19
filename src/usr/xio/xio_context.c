@@ -1015,21 +1015,21 @@ void xio_context_kfree(struct xio_context *ctx, const void *ptr)
 
 void *xio_context_kmalloc(struct xio_context *ctx, size_t size, gfp_t flags)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(flags == GFP_KERNEL);
 	return xio_context_umalloc(ctx, size);
 }
 
 void *xio_context_kcalloc(struct xio_context *ctx, size_t n, size_t size, gfp_t flags)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(flags == GFP_KERNEL);
 	return xio_context_ucalloc(ctx, n, size);
 }
 
 void *xio_context_kzalloc(struct xio_context *ctx, size_t size, gfp_t flags)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(flags == GFP_KERNEL);
 	return xio_context_ucalloc(ctx, 1, size);
 }
@@ -1051,14 +1051,14 @@ void xio_context_vfree(struct xio_context *ctx, const void *addr)
 
 char *xio_context_kstrdup(struct xio_context *ctx, const char *s, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 	return xio_context_ustrdup(ctx, s);
 }
 
 char *xio_context_kstrndup(struct xio_context *ctx,const char *s, size_t len, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 	return xio_context_ustrndup(ctx, s, len);
 }

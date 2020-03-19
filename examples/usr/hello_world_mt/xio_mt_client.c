@@ -188,7 +188,7 @@ static int on_response(struct xio_session *session,
 	/* process the incoming message */
 	process_response(tdata, rsp);
 
-	/* acknowlege xio that response is no longer needed */
+	/* acknowledge xio that response is no longer needed */
 	xio_release_response(rsp);
 
 	if (test_disconnect) {

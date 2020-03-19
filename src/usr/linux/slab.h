@@ -21,7 +21,7 @@ static inline void kfree(const void *ptr)
 
 static inline void *kmalloc(size_t size, gfp_t flags)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(flags == GFP_KERNEL);
 	return umalloc(size);
 }
@@ -34,7 +34,7 @@ static inline void *kmalloc(size_t size, gfp_t flags)
  */
 static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(flags == GFP_KERNEL);
 	return ucalloc(n, size);
 }

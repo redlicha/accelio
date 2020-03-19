@@ -618,7 +618,7 @@ static int xio_sg_to_page_vec(struct xio_mem_desc *mdesc,
  * xio_data_buf_aligned_len - Tries to determine the maximal correctly aligned
  * for RDMA sub-list of a scatter-gather list of memory buffers, and  returns
  * the number of entries which are aligned correctly. Supports the case where
- * consecutive SG elements are actually fragments of the same physcial page.
+ * consecutive SG elements are actually fragments of the same physical page.
  */
 static int xio_data_buf_aligned_len(struct xio_mem_desc *mdesc,
 				    struct ib_device *ibdev)

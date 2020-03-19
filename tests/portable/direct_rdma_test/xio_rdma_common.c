@@ -86,7 +86,7 @@ static int publish_our_buffer(struct xio_session *session, struct xio_msg *req)
 
 	/* usually accelio batches on_msg_send_complete callbacks in batches
 	 * of 16 to maximize performance. In case server will send just
-	 * several responses and wants to receive the callback immidiately
+	 * several responses and wants to receive the callback immediately
 	 * this flag must be on */
 	rsp->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
 

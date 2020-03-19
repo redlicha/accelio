@@ -708,14 +708,14 @@ typedef unsigned gfp_t;
 
  static inline char *kstrdup(const char *s, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 	return ustrdup(s);
 }
 
 static inline char *kstrndup(const char *s, size_t len, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 	return ustrndup(s, len);
 }

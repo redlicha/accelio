@@ -2294,7 +2294,7 @@ static int xio_handle_cm_event(struct rdma_cm_id *cm_id,
 
 	case RDMA_CM_EVENT_MULTICAST_JOIN:
 	case RDMA_CM_EVENT_MULTICAST_ERROR:
-		ERROR_LOG("Unreleated event:%d, %s - ignored\n", ev->event,
+		ERROR_LOG("Unrelated event:%d, %s - ignored\n", ev->event,
 			  xio_rdma_event_str(ev->event));
 		break;
 

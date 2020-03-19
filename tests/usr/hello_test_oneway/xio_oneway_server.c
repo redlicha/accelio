@@ -511,7 +511,7 @@ int main(int argc, char *argv[])
 	/* print the input */
 	print_test_config(&test_config);
 
-	/* bind proccess to cpu */
+	/* bind process to cpu */
 	set_cpu_affinity(test_config.cpu);
 
 	memset(&ow_params, 0, sizeof(ow_params));

@@ -121,7 +121,7 @@ static struct xio_ev_data *xio_event_lookup(void *loop_hndl, int fd)
 
 	list_for_each_entry(tev, &loop->poll_events_list, events_list_entry) {
 		if (tev->fd == fd)
-			return tev;  // TODO: support multiple occurances
+			return tev;  // TODO: support multiple occurrences
 	}
 	return NULL;
 }

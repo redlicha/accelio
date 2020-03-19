@@ -406,7 +406,7 @@ static int nbdx_setup_remote_session(struct nbdx_session *nbdx_session,
 
 	pr_debug("after unpacking setup_answer\n");
 
-	/* acknowlege xio that response is no longer needed */
+	/* acknowledge xio that response is no longer needed */
 	xio_release_response(nbdx_conn->rsp);
 
 	return retval;
@@ -443,7 +443,7 @@ static int nbdx_destroy_remote_session(struct nbdx_session *nbdx_session)
 	if (retval == -EINVAL)
 		pr_err("failed to unpack destroy response");
 
-	/* acknowlege xio that response is no longer needed */
+	/* acknowledge xio that response is no longer needed */
 	xio_release_response(nbdx_conn->rsp);
 
 	return retval;
@@ -485,7 +485,7 @@ static int nbdx_stat_remote_device(struct nbdx_session *nbdx_session,
 	pr_debug("after unpacking fstat response file_size=%llx bytes\n",
 		 nbdx_file->stbuf.st_size);
 
-	/* acknowlege xio that response is no longer needed */
+	/* acknowledge xio that response is no longer needed */
 	xio_release_response(nbdx_conn->rsp);
 
 	return retval;

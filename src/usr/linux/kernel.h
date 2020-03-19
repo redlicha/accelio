@@ -187,7 +187,7 @@ static inline void spin_unlock(spinlock_t* spinlock)
 
 static inline char *kstrdup(const char *s, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 
 	return ustrdup(s);
@@ -195,7 +195,7 @@ static inline char *kstrdup(const char *s, gfp_t gfp)
 
 static inline char *kstrndup(const char *s, size_t len, gfp_t gfp)
 {
-	/* Make sure code transfered to kernel will work as expected */
+	/* Make sure code transferred to kernel will work as expected */
 	assert(gfp == GFP_KERNEL);
 
 	return ustrndup(s, len);
