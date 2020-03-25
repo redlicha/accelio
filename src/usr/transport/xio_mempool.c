@@ -357,8 +357,11 @@ static struct xio_mem_block *xio_mem_slab_resize(struct xio_mem_slab *slab,
 		nr_blocks * sizeof(struct xio_mem_block);
 	buf = (char *)xio_context_ucalloc(slab->pool->ctx,
 					  region_alloc_sz, sizeof(uint8_t));
-	if (!buf)
+	if (unlikely(!buf)) {
+		ERROR_LOG("%s, failed to allocate region. size:%d\n",
+			  __func__, region_alloc_sz);
 		return NULL;
+	}
 
 	/* region */
 	region = (struct xio_mem_region *)buf;
@@ -385,6 +388,8 @@ static struct xio_mem_block *xio_mem_slab_resize(struct xio_mem_slab *slab,
 
 	if (!region->buf) {
 		xio_context_ufree(slab->pool->ctx, region);
+		ERROR_LOG("%s, failed to allocate region buffer. size:%d, flags:0x%x\n",
+			  __func__, data_alloc_sz, slab->pool->flags);
 		return NULL;
 	}
 
@@ -406,6 +411,8 @@ static struct xio_mem_block *xio_mem_slab_resize(struct xio_mem_slab *slab,
 				xio_context_ufree(slab->pool->ctx, region->buf);
 
 			xio_context_ufree(slab->pool->ctx, region);
+			ERROR_LOG("%s, failed to register region buffer. size:%d, flags:0x%x\n",
+				  __func__, data_alloc_sz, slab->pool->flags);
 			return NULL;
 		}
 	}
@@ -668,23 +675,23 @@ retry:
 			block = non_safe_new_block(slab);
 		}
 		if (!block) {
+			DEBUG_LOG("resizing slab size:%zd\n", slab->mb_size);
 			block = xio_mem_slab_resize(slab, 1);
 			if (!block) {
 				if (++index == (int)p->slabs_nr ||
 				    test_bits(
 					XIO_MEMPOOL_FLAG_USE_SMALLEST_SLAB,
 					&p->flags)) {
-					DEBUG_LOG("no more slabs to look for after index:%d\n", index);
+					ERROR_LOG("no more slabs to look for after index:%d\n", index);
 					index  = -1;
 					err = ENOMEM;
 				}
-
 				if (p->safe_mt)
 					spin_unlock(&slab->lock);
 				DEBUG_LOG("retry with next slab index :%d\n", index);
 				goto retry;
 			}
-			DEBUG_LOG("resizing slab size:%zd\n", slab->mb_size);
+			DEBUG_LOG("resizing slab success. size:%zd\n", slab->mb_size);
 		}
 		if (p->safe_mt)
 			spin_unlock(&slab->lock);
@@ -708,7 +715,8 @@ retry:
 	return 0;
 
 cleanup:
-        ERROR_LOG("%s failed. pool:%p, size:%zd\n", __func__, p, length);
+        ERROR_LOG("%s failed. pool:%p, size:%zd index:%d\n", __func__,
+		  p, length, index);
 	xio_mempool_dump(p);
 	xio_set_error(err);
 	return -1;
