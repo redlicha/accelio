@@ -229,8 +229,9 @@ void xio_observable_notify_all_observers(struct xio_observable *observable,
 	list_for_each_entry_safe(observer_node, tmp_observer_node,
 				 &observable->observers_list,
 				 observers_list_node) {
-		if(likely(observable->impl && observer_node->observer->impl &&
-			  observer_node->observer->notify))
+		if (observable->impl && observer_node->observer &&
+		    observer_node->observer->impl &&
+		    observer_node->observer->notify)
 			observer_node->observer->notify(
 				observer_node->observer->impl,
 				observable->impl, event, event_data);
