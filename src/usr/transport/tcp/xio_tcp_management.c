@@ -1003,7 +1003,7 @@ void xio_tcp_handle_pending_conn(int fd,
 	}
 
 	if (pending_conn->waiting_for_bytes) {
-        int loops = 0;
+		int loops = 0;
 		buf = &pending_conn->msg;
 		inc_ptr(buf, sizeof(struct xio_tcp_connect_msg) -
 				pending_conn->waiting_for_bytes);
@@ -1011,39 +1011,39 @@ void xio_tcp_handle_pending_conn(int fd,
 			ssize_t rxbytes = recv(fd, (char *)buf,
 					pending_conn->waiting_for_bytes, 0);
 			DEBUG_LOG("[%d]-[%s] - recv - rxbytes:%zd, pending_conn:%p, waiting_for_bytes:%d for fd:%d\n",
-					no++, __func__, rxbytes, pending_conn, pending_conn->waiting_for_bytes, fd);
+				  no++, __func__, rxbytes, pending_conn, pending_conn->waiting_for_bytes, fd);
 			if (rxbytes > 0) {
 				pending_conn->waiting_for_bytes -= rxbytes;
 				inc_ptr(buf, rxbytes);
 			} else if (rxbytes == 0) {
 				ERROR_LOG("[%d]-[%s] - got EOF while establishing connection. fd:%d\n",
-						no++, __func__, fd);
+					  no++, __func__, fd);
 				goto cleanup1;
 			} else {
 				if (xio_get_last_socket_error() != XIO_EAGAIN) {
 					ERROR_LOG("[%d]-[%s] - recv return with errno:%d, fd:%d\n",
-							no++, __func__, xio_get_last_socket_error(), fd);
+						  no++, __func__, xio_get_last_socket_error(), fd);
 					goto cleanup1;
 				}
 			}
-            /* somehow receive does not complete well or structure invalid
-             * version */
-            if (++loops > 100 || pending_conn->waiting_for_bytes < 0) {
-		    ERROR_LOG("[%d]-[%s] - got read error while establishing connection. src_addr:%s:%d, fd:%d errno:%d\n",
-			       no++, __func__,
-			       xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
-			       xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
-			       fd, xio_get_last_socket_error());
-		    goto cleanup1;
-            }
+			/* somehow receive does not complete well or structure invalid
+			 * version */
+			if (++loops > 100 || pending_conn->waiting_for_bytes < 0) {
+				ERROR_LOG("[%d]-[%s] - got read error while establishing connection. src_addr:%s:%d, fd:%d errno:%d\n",
+					  no++, __func__,
+					  xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
+					  xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
+					  fd, xio_get_last_socket_error());
+				goto cleanup1;
+			}
 		}
 		if (pending_conn->msg.version != XIO_TCP_CONNECT_MSG_VERSION) {
 			ERROR_LOG("[%d]-[%s] - invalid protocol version: src_addr:%s:%d, arrived:%d, expected:%d. fd:%d\n",
-				   no++, __func__,
-				   xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
-				   xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
-				   pending_conn->msg.version,
-				   XIO_TCP_CONNECT_MSG_VERSION, fd);
+				  no++, __func__,
+				  xio_get_ip((struct sockaddr *)&pending_conn->sa.sa_stor),
+				  xio_get_port((struct sockaddr *)&pending_conn->sa.sa_stor),
+				  pending_conn->msg.version,
+				  XIO_TCP_CONNECT_MSG_VERSION, fd);
 			goto cleanup1;
 		}
 
@@ -1120,15 +1120,15 @@ void xio_tcp_handle_pending_conn(int fd,
 		ctl_conn = matching_conn;
 		data_conn = pending_conn;
 	} else {
-        ERROR_LOG("[%d]-[%s] - message corrupted - fd:%d, cfd:%d, dfd:%d,  " \
-                "data_conn:%p, ctl_conn:%p, pending_conn:%p, " \
-                "matching_conn:%p sock_type:%d\n",
-                no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,
-                pending_conn, matching_conn, 
-                pending_conn->msg.sock_type);
-        xio_set_error(EBADMSG);
-        goto cleanup3;
-    }
+		ERROR_LOG("[%d]-[%s] - message corrupted - fd:%d, cfd:%d, dfd:%d,  " \
+			  "data_conn:%p, ctl_conn:%p, pending_conn:%p, " \
+			  "matching_conn:%p sock_type:%d\n",
+			  no++, __func__, fd, cfd, dfd, data_conn, ctl_conn,
+			  pending_conn, matching_conn,
+			  pending_conn->msg.sock_type);
+		xio_set_error(EBADMSG);
+		goto cleanup3;
+	}
 	cfd = ctl_conn->fd;
 	dfd = data_conn->fd;
 
@@ -1139,10 +1139,9 @@ void xio_tcp_handle_pending_conn(int fd,
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx,
 					    data_conn->fd);
 	list_del(&data_conn->conns_list_entry);
-	if (retval) {
+	if (retval)
 		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
 			  xio_get_last_socket_error());
-	}
 	if (data_conn == ctl_conn)
 		ctl_conn = NULL;
 	xio_context_ufree(parent_hndl->base.ctx, data_conn);
@@ -1159,7 +1158,7 @@ single_sock:
 				ctl_conn->fd);
 		if (retval) {
 			ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
-					xio_get_last_socket_error());
+				  xio_get_last_socket_error());
 		}
 	}
 
@@ -1247,11 +1246,9 @@ cleanup2:
 		  pending_conn, matching_conn);
 		/* remove from epoll */
 	retval = xio_context_del_ev_handler(parent_hndl->base.ctx, fd);
-	if (retval) {
-		ERROR_LOG(
-		"removing connection handler failed.(errno=%d %m)\n",
-		xio_get_last_socket_error());
-	}
+	if (retval)
+		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
+			  xio_get_last_socket_error());
 cleanup3:
 	DEBUG_LOG("[%d]-[%s] - cleanup3. is_single:%d, fd:%d, data_conn:%p, " \
 		  "ctl_conn:%p, pending_conn:%p, matching_conn:%p\n",
