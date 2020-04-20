@@ -979,7 +979,8 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 	qp_init_attr.cap.max_send_wr	  = MAX_SEND_WR;
 	qp_init_attr.cap.max_send_sge	  = min(rdma_options.max_out_iovsz + 1,
 						dev->device_attr.max_sge);
-	qp_init_attr.cap.max_inline_data  = rdma_options.qp_cap_max_inline_data;
+	/*qp_init_attr.cap.max_inline_data  = rdma_options.qp_cap_max_inline_data;*/
+	qp_init_attr.cap.max_inline_data  = 0;
 
 	/* only generate completion queue entries if requested */
 	qp_init_attr.sq_sig_all		= 0;
@@ -998,14 +999,25 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 		 */
 		switch (errno) {
 		case EINVAL:
-			ERROR_LOG("rdma_create_qp failed. (errno=%d %m) id:%p, " \
-				  "id->qp:%p, id->verbs:%p, attr->pd->context:%p, " \
+			ERROR_LOG("rdma_create_qp failed. (errno=%d %m) rdma_hndl:%p, " \
+				  "id:%p, id->qp:%p, id->verbs:%p, attr->pd->context:%p, " \
 				  "attr->cq:%p, id->recv_cq:%p, id->send_cq:%p\n",
 				  errno,
+				  rdma_hndl,
 				  rdma_hndl->cm_id, rdma_hndl->cm_id->qp,
 				  rdma_hndl->cm_id->verbs, dev->pd->context,
 				  tcq->cq,
 				  rdma_hndl->cm_id->recv_cq, rdma_hndl->cm_id->send_cq);
+			ERROR_LOG("qp requested capabilities: rdma_hndl:%p, " \
+				   "max_recv_wr:%d, max_recv_sge:%d, " \
+				   "max_send_wr:%d, max_send_sge:%d, " \
+				   "max_inline_data:%d\n",
+				   rdma_hndl,
+				   qp_init_attr.cap.max_recv_wr,
+				   qp_init_attr.cap.max_recv_sge,
+				   qp_init_attr.cap.max_send_wr,
+				   qp_init_attr.cap.max_send_sge,
+				   qp_init_attr.cap.max_inline_data);
 			break;
 		case ENOMEM:
 			ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
