@@ -282,7 +282,7 @@ void *xio_ev_loop_create(struct xio_context *ctx)
 	}
 
 	/* prepare the wakeup eventfd */
-	loop->wakeup_event	= eventfd(0, EFD_NONBLOCK);
+	loop->wakeup_event	= eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC);
 	if (loop->wakeup_event == -1) {
 		xio_set_error(errno);
 		ERROR_LOG("eventfd failed. %m\n");

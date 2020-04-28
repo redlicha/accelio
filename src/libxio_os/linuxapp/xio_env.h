@@ -456,7 +456,7 @@ static inline socket_t xio_socket_non_blocking(int domain, int type,
  * defining _GNU_SOURCE and we don't want users to be forced to define it in
  * their application */
 #define xio_accept_non_blocking(sockfd, addr, addrlen) \
-	accept4(sockfd, addr, addrlen, SOCK_NONBLOCK)
+	accept4(sockfd, addr, addrlen, SOCK_NONBLOCK | SOCK_CLOEXEC)
 
 /*---------------------------------------------------------------------------*/
 static inline void xio_env_cleanup(void)
