@@ -1003,13 +1003,15 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 		case EINVAL:
 			ERROR_LOG("rdma_create_qp failed. (errno=%d %m) rdma_hndl:%p, " \
 				  "id:%p, id->qp:%p, id->verbs:%p, attr->pd->context:%p, " \
-				  "attr->cq:%p, id->recv_cq:%p, id->send_cq:%p\n",
+				  "attr->cq:%p, id->recv_cq:%p, id->send_cq:%p, " \
+				  "dev->pd:%p, id->pd:%p\n",
 				  errno,
 				  rdma_hndl,
 				  rdma_hndl->cm_id, rdma_hndl->cm_id->qp,
 				  rdma_hndl->cm_id->verbs, dev->pd->context,
 				  tcq->cq,
-				  rdma_hndl->cm_id->recv_cq, rdma_hndl->cm_id->send_cq);
+				  rdma_hndl->cm_id->recv_cq, rdma_hndl->cm_id->send_cq,
+				  rdma_hndl->cm_id->pd, dev->pd);
 			ERROR_LOG("qp requested capabilities: rdma_hndl:%p, " \
 				   "max_recv_wr:%d, max_recv_sge:%d, " \
 				   "max_send_wr:%d, max_send_sge:%d, " \

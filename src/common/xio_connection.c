@@ -3295,13 +3295,10 @@ int xio_on_connection_hello_rsp_recv(struct xio_connection *connection,
 {
 	struct xio_session    *session = connection->session;
 
-	DEBUG_LOG("recv hello response. session:%p, connection:%p\n",
-		  session, connection);
+	DEBUG_LOG("recv hello response. session:%p, connection:%p, task:%p\n",
+		  session, connection, task);
 
 	if (task) {
-		DEBUG_LOG("hello response received. session:%p, connection:%p\n",
-			  session, connection);
-
 		xio_connection_release_hello(connection,
 					     task->sender_task->omsg);
 		/* recycle the task */

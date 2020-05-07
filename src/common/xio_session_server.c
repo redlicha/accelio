@@ -595,8 +595,7 @@ EXPORT_SYMBOL(xio_reject);
 int xio_on_setup_rsp_send_comp(struct xio_connection *connection,
 			       struct xio_task *task)
 {
-	TRACE_LOG("got session setup response comp. session:%p, " \
-		  "connection:%p\n",
+	DEBUG_LOG("%s - session:%p, connection:%p\n", __func__,
 		  connection->session, connection);
 
 	xio_context_kfree(NULL, task->omsg);
@@ -605,8 +604,6 @@ int xio_on_setup_rsp_send_comp(struct xio_connection *connection,
 	xio_tasks_pool_put(task);
 
 	/* time to set new callback */
-	DEBUG_LOG("task recycled\n");
-
 	switch (connection->session->state) {
 	case XIO_SESSION_STATE_ACCEPTED:
 	case XIO_SESSION_STATE_REJECTED:
