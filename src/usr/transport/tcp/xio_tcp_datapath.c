@@ -345,7 +345,7 @@ static int xio_tcp_send_setup_rsp(struct xio_tcp_transport *tcp_hndl,
 	uint16_t payload;
 	struct xio_tcp_setup_msg *rsp = &tcp_hndl->setup_rsp;
 
-	DEBUG_LOG("xio_tcp_send_setup_rsp\n");
+	DEBUG_LOG("%s: tcp_hndl:%p\n", __func__, tcp_hndl);
 
 	rsp->max_in_iovsz	= tcp_options.max_in_iovsz;
 	rsp->max_out_iovsz	= tcp_options.max_out_iovsz;
@@ -360,8 +360,6 @@ static int xio_tcp_send_setup_rsp(struct xio_tcp_transport *tcp_hndl,
 	/* add tlv */
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
-
-	TRACE_LOG("tcp send setup response\n");
 
 	/* set the length */
 	tcp_task->txd.msg_iov[0].iov_len = xio_mbuf_data_length(&task->mbuf);
@@ -388,8 +386,6 @@ static int xio_tcp_on_setup_msg(struct xio_tcp_transport *tcp_hndl,
 	union xio_transport_event_data event_data;
 	struct xio_tcp_setup_msg *rsp  = &tcp_hndl->setup_rsp;
 	uint64_t local_buf_size;
-
-	DEBUG_LOG("xio_tcp_on_setup_msg\n");
 
 	if (tcp_hndl->base.is_client) {
 		struct xio_task *sender_task = NULL;

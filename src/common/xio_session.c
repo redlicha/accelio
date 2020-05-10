@@ -1976,8 +1976,6 @@ static void xio_session_pre_teardown(int actual_timeout_ms, void *_session)
 	int			destroy_session = 0;
 	int			reason;
 
-	DEBUG_LOG("xio_session_pre_teardown: session:%p\n", session);
-
 	switch (session->state) {
 	case XIO_SESSION_STATE_REJECTED:
 		reason = XIO_E_SESSION_REJECTED;
@@ -2001,8 +1999,8 @@ static void xio_session_pre_teardown(int actual_timeout_ms, void *_session)
 
 	spin_unlock(&session->connections_list_lock);
 
-	DEBUG_LOG("xio_session_pre_teardown. session:%p, destroy_session:%d\n",
-		  session, destroy_session);
+	DEBUG_LOG("%s: session:%p, destroy_session:%d\n",
+		  __func__, session, destroy_session);
 	/* last chance to teardown */
 	if (destroy_session) {
 		/* remove the session from cache */
@@ -2021,7 +2019,6 @@ static void xio_session_pre_teardown(int actual_timeout_ms, void *_session)
 		xio_context_reg_observer(session->teardown_work_ctx,
 					 &session->ctx_observer);
 
-		DEBUG_LOG("xio_session_pre_teardown: notify teardown. session:%p\n", session);
 		xio_session_notify_teardown(session, session->teardown_reason);
 	} else {
 		mutex_unlock(&session->lock);
