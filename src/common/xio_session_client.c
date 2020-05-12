@@ -504,12 +504,11 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 
 	retval = xio_read_setup_rsp(connection, task, &action);
 
-	/* the tx task is returend back to pool */
+	/* the tx task is returned back to pool */
 	xio_tasks_pool_put(task->sender_task);
 	task->sender_task = NULL;
 
 	xio_tasks_pool_put(task);
-	DEBUG_LOG("task recycled\n");
 
 	if (unlikely(retval != 0)) {
 		ERROR_LOG("failed to read setup response\n");

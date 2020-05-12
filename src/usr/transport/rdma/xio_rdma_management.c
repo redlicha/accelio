@@ -988,7 +988,7 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 	qp_init_attr.sq_sig_all		= 0;
 
 	retval = rdma_create_qp(rdma_hndl->cm_id, dev->pd, &qp_init_attr);
-	if (retval) {
+	if (unlikely(retval)) {
 		xio_set_error(errno);
 		/*
 		 * You would get EINVAL in the following cases:
@@ -2174,11 +2174,6 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	dev = xio_device_lookup_init(parent_hndl->base.ctx, ev->id->verbs);
 	if (!dev) {
 		ERROR_LOG("failed find/init device\n");
-		retval = rdma_reject(ev->id, NULL, 0);
-		if (retval) {
-			xio_set_error(errno);
-			DEBUG_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
-		}
 		xio_cm_channel_ack_event(parent_hndl);
 		DEBUG_LOG("call rdma_destroy_id cm_id:%p\n", cm_id);
 		retval = rdma_destroy_id(cm_id);
@@ -2195,11 +2190,6 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 		0, NULL);
 	if (!child_hndl) {
 		ERROR_LOG("failed to open rdma transport\n");
-		retval = rdma_reject(ev->id, NULL, 0);
-		if (retval) {
-			xio_set_error(errno);
-			DEBUG_LOG("rdma_reject failed. (errno=%d %m)\n", errno);
-		}
 		xio_cm_channel_ack_event(parent_hndl);
 		DEBUG_LOG("call rdma_destroy_id cm_id:%p\n", cm_id);
 		retval = rdma_destroy_id(cm_id);
@@ -2223,12 +2213,6 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
-		retval = rdma_reject(ev->id, NULL, 0);
-		if (retval) {
-			xio_set_error(errno);
-			DEBUG_LOG("rdma_reject failed. rdma_hndl:%p, (errno=%d %m)\n",
-				  child_hndl, errno);
-		}
 		xio_cm_channel_ack_event(parent_hndl);
 		DEBUG_LOG("call rdma_destroy_id cm_id:%p\n", child_hndl->cm_id);
 		retval = rdma_destroy_id(child_hndl->cm_id);
@@ -3200,7 +3184,7 @@ static int xio_rdma_accept(struct xio_transport_base *transport)
 	rdma_hndl->client_responder_resources = cm_params.responder_resources;
 	rdma_hndl->client_initiator_depth = cm_params.initiator_depth;
 
-	TRACE_LOG("rdma transport: [accept] handle:%p\n", rdma_hndl);
+	DEBUG_LOG("rdma transport: [accept] rdma_hndl:%p\n", rdma_hndl);
 
 	return 0;
 }

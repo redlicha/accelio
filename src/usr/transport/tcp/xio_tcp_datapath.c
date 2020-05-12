@@ -299,7 +299,7 @@ static int xio_tcp_send_setup_req(struct xio_tcp_transport *tcp_hndl,
 	uint16_t payload;
 	struct xio_tcp_setup_msg  req;
 
-	DEBUG_LOG("xio_tcp_send_setup_req\n");
+	DEBUG_LOG("%s: tcp_hndl:%p\n", __func__, tcp_hndl);
 
 	req.buffer_sz		= xio_tcp_get_inline_buffer_size();
 	req.max_in_iovsz	= tcp_options.max_in_iovsz;
@@ -314,8 +314,6 @@ static int xio_tcp_send_setup_req(struct xio_tcp_transport *tcp_hndl,
 	/* add tlv */
 	if (xio_mbuf_write_tlv(&task->mbuf, task->tlv_type, payload) != 0)
 		return  -1;
-
-	TRACE_LOG("tcp send setup request\n");
 
 	/* set the length */
 	tcp_task->txd.msg_iov[0].iov_len = xio_mbuf_data_length(&task->mbuf);

@@ -1071,8 +1071,7 @@ int xio_connection_restart(struct xio_connection *connection)
 	xio_connection_notify_rsp_msgs_flush(connection, XIO_E_MSG_FLUSHED);
 
 	/* Notify user on reconnection end */
-	xio_session_notify_reconnected(connection->session,
-							     connection);
+	xio_session_notify_reconnected(connection->session, connection);
 
 	/* restart transmission */
 	retval = xio_connection_xmit(connection);
