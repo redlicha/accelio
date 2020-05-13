@@ -2376,7 +2376,7 @@ static void on_cm_timewait_exit(void *trans_hndl)
 }
 
 /*---------------------------------------------------------------------------*/
-/* xio_rdma_disoconnect							     */
+/* xio_rdma_disconnect							     */
 /*---------------------------------------------------------------------------*/
 int xio_rdma_disconnect(struct xio_rdma_transport *rdma_hndl,
 			int send_beacon)

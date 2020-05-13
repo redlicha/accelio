@@ -463,9 +463,11 @@ retry:
 				out_events =
 					epoll_to_xio_poll_events(
 							events[i].events);
-				/* (fd != loop->wakeup_event) */
 				tev->ev_handler(tev->fd, out_events,
 						tev->data);
+
+				if (!list_empty(&loop->events_list))
+					xio_ev_loop_exec_scheduled(loop);
 			} else {
 				/* wakeup event auto-removed from epoll
 				 * due to ONESHOT
