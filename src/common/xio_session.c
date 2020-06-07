@@ -775,21 +775,14 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 	struct xio_statistics	*stats = &connection->ctx->stats;
 #endif
 
-	if ((connection->state != XIO_CONNECTION_STATE_ONLINE &&
-	     connection->state != XIO_CONNECTION_STATE_FIN_WAIT_1) ||
-	     connection->cd_bit) {
+	if (connection->state != XIO_CONNECTION_STATE_ONLINE &&
+	     connection->state != XIO_CONNECTION_STATE_FIN_WAIT_1) {
 		DEBUG_LOG("connection:%p, response:%p received while connection " \
 			  "is offline. request:%p, state:%s, cd_bit:%d\n",
 			  connection, msg, sender_task->omsg,
 			  xio_connection_state_str(connection->state),
 			  connection->cd_bit);
-		/* for various reasons, responses can arrive while connection
-		 * is already offline
-		 * release the response, and let it be flushed via "flush"
-		 * mechanism
-		 */
-		if (!connection->cd_bit)
-			xio_release_response_task(task);
+		xio_release_response_task(task);
 		goto exit;
 	}
 	connection->ka.io_rcv = 1;
