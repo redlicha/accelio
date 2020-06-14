@@ -422,7 +422,6 @@ static inline int xio_ev_loop_run_helper(void *loop_hndl, int timeout)
 	int			wait_time = timeout;
 	uint32_t		out_events;
 	cycles_t		start_cycle  = 0;
-	int			max_events;
 
 	if (wait_time != -1)
 		start_cycle = get_cycles();
@@ -437,8 +436,7 @@ retry:
 			xio_context_ufree(loop->ctx,
 				loop->deleted_events[--loop->deleted_events_nr]);
 
-	max_events = wait_time == -1 ? ARRAY_SIZE(events) : (tmout < 1000 ? 32 : 128);
-	nevent = epoll_wait(loop->efd, events, max_events, tmout);
+	nevent = epoll_wait(loop->efd, events, ARRAY_SIZE(events), tmout);
 	if (unlikely(nevent < 0)) {
 		if (errno != EINTR) {
 			xio_set_error(errno);
