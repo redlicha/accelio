@@ -107,8 +107,6 @@ struct xio_context *xio_context_create(struct xio_context_params *ctx_params,
 		return NULL;
 	}
 
-	xio_read_logging_level();
-
 	if (cpu_hint == -1) {
 		cpu = xio_get_cpu();
 		if (cpu == -1) {

@@ -124,6 +124,8 @@ static void xio_ctor(void)
 {
 	size_t i;
 
+	xio_read_logging_level();
+
 	xio_env_startup();
 	page_size = xio_get_page_size();
 	if (page_size < 0)
