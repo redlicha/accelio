@@ -48,7 +48,7 @@ extern int			page_size;
 extern double			g_mhz;
 extern struct xio_rdma_options	rdma_options;
 extern struct list_head		dev_list;
-extern spinlock_t		dev_list_lock;
+extern pthread_rwlock_t		dev_list_lock;
 
 #define XIO_CONNECT_TIMEOUT		30000   /* 30 seconds */
 #define XIO_DISCONNECT_TIMEOUT		10000   /* 10 seconds */
@@ -323,7 +323,6 @@ struct xio_srq {
 };
 
 struct xio_device {
-	struct list_head		cq_list;
 	struct list_head		dev_list_entry;    /* list of all
 							      xio devices */
 	struct xio_context		*ctx;
@@ -331,8 +330,6 @@ struct xio_device {
 	struct ibv_pd			*pd;
 	struct ibv_xio_device_attr	device_attr;
 	struct list_head		xm_list; /* list of xio_mr_elem */
-	struct kref			kref;
-	uint32_t			kref_pad;
 };
 
 struct xio_mr_elem {
@@ -540,19 +537,7 @@ struct xio_task *xio_rdma_primary_task_lookup(
 void xio_rdma_task_free(struct xio_rdma_transport *rdma_hndl,
 			struct xio_task *task);
 
-static inline void xio_device_get(struct xio_device *dev)
-{
-	kref_get(&dev->kref);
-}
-
 void xio_rdma_close_cb(struct kref *kref);
-
-void xio_device_down(struct kref *kref);
-
-static inline void xio_device_put(struct xio_device *dev)
-{
-	kref_put(&dev->kref, xio_device_down);
-}
 
 void xio_set_timewait_timer(struct xio_rdma_transport *rdma_hndl);
 

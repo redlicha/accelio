@@ -73,13 +73,11 @@
 /* globals								     */
 /*---------------------------------------------------------------------------*/
 static spinlock_t			mngmt_lock;
-static pthread_rwlock_t			dev_lock;
+pthread_rwlock_t			dev_list_lock;
 static pthread_once_t			ctor_key_once = PTHREAD_ONCE_INIT;
 static pthread_once_t			dtor_key_once = PTHREAD_ONCE_INIT;
 
-spinlock_t				dev_list_lock; /* devices list lock */
 LIST_HEAD(dev_list);
-LIST_HEAD(dev_del_list);
 
 static struct xio_dev_tdata		dev_tdata;
 
@@ -646,12 +644,11 @@ static struct xio_device *xio_device_init(struct xio_context *ctx,
 		goto cleanup1;
 	}
 
-	INIT_LIST_HEAD(&dev->cq_list);
 	/* Initialize list of MR for this device */
 	INIT_LIST_HEAD(&dev->xm_list);
 	INIT_LIST_HEAD(&dev->dev_list_entry);
-	kref_init(&dev->kref);
-	TRACE_LOG("rdma device: [new] %p\n", dev);
+	DEBUG_LOG("rdma device: [new] name:%s, dev:%p\n",
+		  ibv_get_device_name(ib_ctx->device), dev);
 
 	return dev;
 
@@ -660,7 +657,8 @@ cleanup1:
 cleanup:
 	xio_context_ufree(ctx, dev);
 
-	ERROR_LOG("rdma device: [new] failed\n");
+	ERROR_LOG("rdma device: [new] init failed. name:%s\n",
+		  ibv_get_device_name(ib_ctx->device));
 	return NULL;
 }
 
@@ -674,17 +672,15 @@ static struct xio_device *xio_device_lookup(struct ibv_context *verbs)
 	/* Actually we should compare GUID(s) assume device is released and
 	 * a new device gets the memory allocated for the old one
 	 */
-	spin_lock(&dev_list_lock);
+	pthread_rwlock_rdlock(&dev_list_lock);
 	/* Loop on known devices (need locking) */
 	list_for_each_entry(dev, &dev_list, dev_list_entry) {
 		if (dev->verbs == verbs) {
-			/* increment device reference count */
-			xio_device_get(dev);
-			spin_unlock(&dev_list_lock);
+			pthread_rwlock_unlock(&dev_list_lock);
 			return dev;
 		}
 	}
-	spin_unlock(&dev_list_lock);
+	pthread_rwlock_unlock(&dev_list_lock);
 
 	return NULL;
 }
@@ -702,11 +698,20 @@ static struct xio_device *xio_device_lookup_init(struct xio_context *ctx,
 		ERROR_LOG("NULL ibv_context\n");
 		return NULL;
 	}
-
+	// most likely and faster
 	dev = xio_device_lookup(verbs);
 	if (dev)
-		goto exit;
+		return dev;
 
+	/* go to creation flow */
+	pthread_rwlock_wrlock(&dev_list_lock);
+	/* Loop on known devices (need locking) */
+	list_for_each_entry(dev, &dev_list, dev_list_entry) {
+		if (dev->verbs == verbs) {
+			pthread_rwlock_unlock(&dev_list_lock);
+			return dev;
+		}
+	}
 	/* Connection on new device */
 	TRACE_LOG("Connection via new device %s\n",
 		  ibv_get_device_name(verbs->device));
@@ -715,54 +720,24 @@ static struct xio_device *xio_device_lookup_init(struct xio_context *ctx,
 	if (!dev) {
 		ERROR_LOG("Couldn't allocate device %s\n",
 			  ibv_get_device_name(verbs->device));
-		goto cleanup0;
+		pthread_rwlock_unlock(&dev_list_lock);
+		return NULL;
 	}
+	/* Add the new device */
+	list_add(&dev->dev_list_entry, &dev_list);
+	pthread_rwlock_unlock(&dev_list_lock);
 
 	/* Update all MR with new device */
 	if (xio_reg_mr_add_dev(dev)) {
 		ERROR_LOG("Couldn't allocate device %s\n",
 			  ibv_get_device_name(verbs->device));
-		goto cleanup1;
+		pthread_rwlock_wrlock(&dev_list_lock);
+		xio_device_release(dev);
+		pthread_rwlock_unlock(&dev_list_lock);
+		return NULL;
 	}
 
-	/* Add reference count on behalf of the new connection */
-	xio_device_get(dev);
-
-	/* Add the new device */
-	spin_lock(&dev_list_lock);
-	list_add(&dev->dev_list_entry, &dev_list);
-	spin_unlock(&dev_list_lock);
-
-exit:
 	return dev;
-
-cleanup1:
-	xio_device_release(dev);
-
-cleanup0:
-	return NULL;
-}
-
-/*---------------------------------------------------------------------------*/
-/* xio_device_down							     */
-/*---------------------------------------------------------------------------*/
-void xio_device_down(struct kref *kref)
-{
-	struct xio_device *dev = container_of(kref, struct xio_device, kref);
-	int retval;
-
-	spin_lock(&dev_list_lock);
-	list_del(&dev->dev_list_entry);
-	spin_unlock(&dev_list_lock);
-
-	xio_dereg_mr_by_dev(dev);
-
-	retval = ibv_dealloc_pd(dev->pd);
-	if (retval)
-		ERROR_LOG("ibv_dealloc_pd failed. (errno=%d %s)\n",
-			  retval, strerror(retval));
-
-	xio_context_ufree(dev->ctx, dev);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -772,7 +747,8 @@ static void xio_device_release(struct xio_device *dev)
 {
 	int			retval;
 
-	TRACE_LOG("rdma device: [close] dev:%p\n", dev);
+	DEBUG_LOG("rdma device: [release] name:%s, dev:%p\n",
+		  ibv_get_device_name(dev->verbs->device), dev);
 
 	retval = xio_device_thread_remove_device(dev);
 	if (retval) {
@@ -781,16 +757,14 @@ static void xio_device_release(struct xio_device *dev)
 			errno);
 	}
 
-	/* don't delete the fd - the  loop may not exist at this stage */
-	if (!list_empty(&dev->cq_list))
-		ERROR_LOG("cq memory leakage\n");
+	xio_dereg_mr_by_dev(dev);
 
-	spin_lock(&dev_list_lock);
-	list_move_tail(&dev->dev_list_entry, &dev_del_list);
-	spin_unlock(&dev_list_lock);
+	retval = ibv_dealloc_pd(dev->pd);
+	if (retval)
+		ERROR_LOG("ibv_dealloc_pd failed. (errno=%d %s)\n",
+			  retval, strerror(retval));
 
-	/* ibv_dealloc_pd will be called from xio_device_down (kerf) */
-	xio_device_put(dev);
+	xio_context_ufree(dev->ctx, dev);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -853,9 +827,9 @@ static int xio_device_list_init(void)
 			retval = -1;
 			goto exit;
 		}
-		pthread_rwlock_wrlock(&dev_lock);
+		pthread_rwlock_wrlock(&dev_list_lock);
 		list_add(&dev->dev_list_entry, &dev_list);
-		pthread_rwlock_unlock(&dev_lock);
+		pthread_rwlock_unlock(&dev_list_lock);
 	}
 
 exit:
@@ -872,13 +846,13 @@ static void xio_device_list_release(void)
 	struct xio_device	*dev, *next;
 
 	/* free devices */
-	pthread_rwlock_wrlock(&dev_lock);
+	pthread_rwlock_wrlock(&dev_list_lock);
 	list_for_each_entry_safe(dev, next, &dev_list, dev_list_entry) {
 		/* xio_device_release needs to do list_move -> _init */
 		list_del_init(&dev->dev_list_entry);
 		xio_device_release(dev);
 	}
-	pthread_rwlock_unlock(&dev_lock);
+	pthread_rwlock_unlock(&dev_list_lock);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2054,7 +2028,7 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 		ERROR_LOG("failed find/init device. " \
 			  "rdma_hndl:%p, cm_id->verbs:%p\n", rdma_hndl,
 			  rdma_hndl->cm_id->verbs);
-		goto notify_err0;
+		goto cleanup;
 	}
 
 	if (test_bits(XIO_TRANSPORT_ATTR_TOS, &rdma_hndl->trans_attr_mask)) {
@@ -2075,15 +2049,12 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 	if (retval) {
 		xio_set_error(errno);
 		DEBUG_LOG("rdma_resolve_route failed. (errno=%d %m)\n", errno);
-		goto notify_err1;
+		goto cleanup;
 	}
 
 	return;
 
-notify_err1:
-	xio_device_put(rdma_hndl->dev);
-
-notify_err0:
+cleanup:
 	xio_transport_notify_observer_error(&rdma_hndl->base, xio_errno());
 }
 
@@ -2180,7 +2151,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 cm_id, parent_hndl, errno);
-		goto notify_err1;
+		goto cleanup;
 	}
 
 	child_hndl = (struct xio_rdma_transport *)xio_rdma_open(
@@ -2196,7 +2167,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 		if (retval)
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 ev->id, parent_hndl, errno);
-		goto notify_err2;
+		goto cleanup;
 	}
 	child_hndl->state = XIO_TRANSPORT_STATE_CONNECTING;
 
@@ -2220,7 +2191,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 			ERROR_LOG("rdma_destroy_id failed. cm_id:%p, rdma_hndl:%p, (errno=%d %m)\n",
 				 ev->id, child_hndl, errno);
 		child_hndl->cm_id	= NULL;
-		goto notify_err3;
+		goto cleanup1;
 	}
 	/* initiator is dst, target is src */
 	memcpy(&child_hndl->base.peer_addr,
@@ -2239,11 +2210,9 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 
 	return;
 
-notify_err3:
+cleanup1:
 	xio_rdma_close((struct xio_transport_base *)child_hndl);
-notify_err2:
-	xio_device_put(dev);
-notify_err1:
+cleanup:
 	xio_transport_notify_observer_error(&parent_hndl->base, xio_errno());
 }
 
@@ -2566,6 +2535,9 @@ static void on_cm_device_release(struct rdma_cm_event *ev,
 		ERROR_LOG("device release, device not found\n");
 		return;
 	}
+	pthread_rwlock_wrlock(&dev_list_lock);
+	list_del_init(&dev->dev_list_entry);
+	pthread_rwlock_unlock(&dev_list_lock);
 
 	xio_device_release(dev);
 }
@@ -3682,7 +3654,7 @@ static void xio_rdma_init(void)
 	int	retval = 0;
 
 	spin_lock_init(&mngmt_lock);
-	pthread_rwlock_init(&dev_lock, NULL);
+	pthread_rwlock_init(&dev_list_lock, NULL);
 
 	/* set cpu latency until process is down */
 	xio_set_cpu_latency(&cdl_fd);
@@ -3702,6 +3674,7 @@ static void xio_rdma_init(void)
 	/* storage for all memory registrations */
 	xio_mr_list_init();
 }
+
 
 /*---------------------------------------------------------------------------*/
 /* xio_rdma_transport_init						     */
@@ -3729,7 +3702,7 @@ static void xio_rdma_release(void)
 	/* free devices */
 	xio_device_list_release();
 
-	pthread_rwlock_destroy(&dev_lock);
+	pthread_rwlock_destroy(&dev_list_lock);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -3933,8 +3906,6 @@ void xio_rdma_transport_constructor(void)
 	*/
 	if (0)
 		xio_rdma_enable_fork_support();
-
-	spin_lock_init(&dev_list_lock);
 }
 
 /*---------------------------------------------------------------------------*/
