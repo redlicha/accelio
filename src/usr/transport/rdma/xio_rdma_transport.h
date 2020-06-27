@@ -332,8 +332,6 @@ struct xio_device {
 	struct ibv_pd			*pd;
 	struct ibv_xio_device_attr	device_attr;
 	struct list_head		xm_list; /* list of xio_mr_elem */
-	int				qp_create_lock;
-	int				pad;
 };
 
 struct xio_mr_elem {

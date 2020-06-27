@@ -924,6 +924,9 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 	struct ibv_qp_init_attr		qp_init_attr;
 	struct ibv_qp_attr		qp_attr;
 	int				retval = 0;
+	uint64_t			time_elapsed_msecs;
+	cycles_t			start_cycle;
+
 
 	tcq = xio_cq_create(dev, rdma_hndl->base.ctx);
 	if (!tcq) {
@@ -960,8 +963,12 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 
 	/* only generate completion queue entries if requested */
 	qp_init_attr.sq_sig_all		= 0;
-
+	
+	start_cycle = get_cycles();
+	DEBUG_LOG("rdma_create_qp: begin rdma_hndl:%p\n", rdma_hndl); 
 	retval = rdma_create_qp(rdma_hndl->cm_id, dev->pd, &qp_init_attr);
+	time_elapsed_msecs = (uint64_t)(((double)(get_cycles() - start_cycle)/(1000*g_mhz)) + 0.5);
+	DEBUG_LOG("rdma_create_qp: rdma_hndl:%p, retval:%d, time:%lu msecs\n", rdma_hndl, retval, time_elapsed_msecs);
 	if (unlikely(retval)) {
 		xio_set_error(errno);
 		/*
