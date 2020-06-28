@@ -965,10 +965,14 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 	qp_init_attr.sq_sig_all		= 0;
 	
 	start_cycle = get_cycles();
-	DEBUG_LOG("rdma_create_qp: begin rdma_hndl:%p\n", rdma_hndl); 
+	DEBUG_LOG("rdma_create_qp: before. rdma_hndl:%p\n", rdma_hndl);
+
 	retval = rdma_create_qp(rdma_hndl->cm_id, dev->pd, &qp_init_attr);
+
 	time_elapsed_msecs = (uint64_t)(((double)(get_cycles() - start_cycle)/(1000*g_mhz)) + 0.5);
-	DEBUG_LOG("rdma_create_qp: rdma_hndl:%p, retval:%d, time:%lu msecs\n", rdma_hndl, retval, time_elapsed_msecs);
+	DEBUG_LOG("rdma_create_qp: after. rdma_hndl:%p, retval:%d, time:%lu msecs\n",
+		  rdma_hndl, retval, time_elapsed_msecs);
+
 	if (unlikely(retval)) {
 		xio_set_error(errno);
 		/*
@@ -2020,7 +2024,8 @@ void xio_set_connect_timer(struct xio_rdma_transport *rdma_hndl)
 static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl)
 {
-	int				retval = 0;
+	int		retval = 0;
+//	uint8_t		timeout = 20;  /* = 4.295 seconds */
 
 
 	if (rdma_hndl->cm_id != ev->id)
@@ -2051,6 +2056,15 @@ static void on_cm_addr_resolved(struct rdma_cm_event *ev,
 			  rdma_hndl->trans_attr_mask,
 			  rdma_hndl->trans_attr.tos);
 	}
+#if 0
+	//Set QP ACK timeout.
+	// The value calculated according to the formula 4.096 * 2^(ack_timeout) usec.
+	retval = rdma_set_option(rdma_hndl->cm_id, RDMA_OPTION_ID,
+				 RDMA_OPTION_ID_ACK_TIMEOUT,
+				 &timeout, sizeof(timeout));
+	if (retval)
+		ERROR_LOG("set ack timeout option failed. rdma_hndl:%p, %m\n", rdma_hndl);
+#endif
 	rdma_hndl->retries = 2;
 	retval = rdma_resolve_route(rdma_hndl->cm_id, ROUTE_RESOLVE_TIMEOUT);
 	if (retval) {
@@ -2148,6 +2162,7 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 	int				retval = 0;
 	struct xio_device		*dev;
 	struct rdma_cm_id		*cm_id = ev->id;
+//	uint8_t				timeout = 20;  /* = 4.295 seconds */
 
 	dev = xio_device_lookup_init(parent_hndl->base.ctx, ev->id->verbs);
 	if (!dev) {
@@ -2187,7 +2202,15 @@ static void  on_cm_connect_request(struct rdma_cm_event *ev,
 		ev->param.conn.initiator_depth;
 	child_hndl->client_responder_resources =
 		ev->param.conn.responder_resources;
-
+#if 0
+	//Set QP ACK timeout.
+	// The value calculated according to the formula 4.096 * 2^(ack_timeout) usec.
+	retval = rdma_set_option(child_hndl->cm_id, RDMA_OPTION_ID,
+				 RDMA_OPTION_ID_ACK_TIMEOUT,
+				 &timeout, sizeof(timeout));
+	if (retval)
+		ERROR_LOG("set ack timeout option failed. rdma_hndl:%p, %m\n", child_hndl);
+#endif
 	retval = xio_qp_create(child_hndl);
 	if (unlikely(retval != 0)) {
 		ERROR_LOG("xio_qp_create failed. rdma_hndl:%p\n", child_hndl);
@@ -3195,6 +3218,7 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 	struct xio_rdma_transport *rdma_hndl =
 		(struct xio_rdma_transport *)trans_hndl;
 	int				retval = 0;
+	int				optval = 1;
 
 	/* resolve the portal_uri */
 	if (xio_uri_to_ss(trans_hndl->portal_uri, &rdma_hndl->dst_sa.sa_stor) == -1) {
@@ -3216,6 +3240,12 @@ static int xio_rdma_do_connect(struct xio_transport_base *trans_hndl,
 	}
 	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
 		   rdma_hndl->cm_id, rdma_hndl);
+
+	retval = rdma_set_option(rdma_hndl->cm_id, RDMA_OPTION_ID,
+				 RDMA_OPTION_ID_REUSEADDR,
+				(void *) &optval, sizeof(optval));
+	if (retval && (errno != ENOSYS))
+		ERROR_LOG("rdma_set_option(RDMA_OPTION_ID_REUSEADDR) failed. rdma_hndl:%p, %m\n", rdma_hndl);
 
 	if (out_if_addr) {
 		if (xio_host_port_to_ss(out_if_addr,
@@ -3306,6 +3336,7 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 	int			retval = 0;
 	char 			*srv_listen_uri;
 	char 			*p;
+	int			optval = 1;
 
 	retval = rdma_disconnect(rdma_hndl->cm_id);
 	if (unlikely(retval)) {
@@ -3345,6 +3376,11 @@ static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog)
 	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
 		   rdma_hndl->cm_id, rdma_hndl);
 
+	retval = rdma_set_option(rdma_hndl->cm_id, RDMA_OPTION_ID,
+				 RDMA_OPTION_ID_REUSEADDR,
+				(void *) &optval, sizeof(optval));
+	if (retval && (errno != ENOSYS))
+		ERROR_LOG("rdma_set_option(RDMA_OPTION_ID_REUSEADDR) failed. rdma_hndl:%p, %m\n", rdma_hndl);
 
 	retval = rdma_bind_addr(rdma_hndl->cm_id, &sa.sa);
 	if (retval) {
@@ -3393,6 +3429,7 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	union xio_sockaddr	sa;
 	int			retval = 0;
 	uint16_t		sport;
+	int			optval = 1;
 
 	/* resolve the portal_uri */
 	rdma_hndl->srv_listen_uri = xio_context_ustrdup(transport->ctx, portal_uri);
@@ -3417,6 +3454,12 @@ static int xio_rdma_listen(struct xio_transport_base *transport,
 	}
 	TRACE_LOG("call rdma_create_id cm_id:%p, rdma_hndl:%p\n",
 		   rdma_hndl->cm_id, rdma_hndl);
+
+	retval = rdma_set_option(rdma_hndl->cm_id, RDMA_OPTION_ID,
+				 RDMA_OPTION_ID_REUSEADDR,
+				(void *) &optval, sizeof(optval));
+	if (retval && (errno != ENOSYS))
+		ERROR_LOG("rdma_set_option(RDMA_OPTION_ID_REUSEADDR) failed. rdma_hndl:%p, %m\n", rdma_hndl);
 
 	retval = rdma_bind_addr(rdma_hndl->cm_id, &sa.sa);
 	if (retval) {
