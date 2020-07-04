@@ -166,7 +166,7 @@ struct xio_nexus {
 	struct xio_transport_init_attr	trans_attr;
 	struct xio_ev_data		disconnect_event;
 	struct xio_ev_data		trans_release_event;
-	struct xio_ev_data		trans_error_event;
+	struct list_head		events_list;
 	spinlock_t			nexus_obs_lock;
 	int				released:1;
 	int 				defered_close:1;

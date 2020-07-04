@@ -71,8 +71,10 @@ struct xio_observers_htbl_node {
 };
 
 struct xio_event_params {
+	struct xio_ev_data			event;
 	struct xio_nexus			*nexus;
 	union xio_transport_event_data		event_data;
+	struct list_head			events_list_node;
 };
 
 struct xio_nexus_observer_work {
@@ -100,6 +102,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus);
 static int xio_nexus_xmit(struct xio_nexus *nexus);
 static void xio_nexus_trans_release_handler(void *nexus_);
 static void xio_nexus_trans_error_handler(void *ev_params_);
+static void xio_nexus_error_handler(void *ev_params_);
 static void xio_nexus_disconnect_handler(void *nexus_);
 
 static void  xio_nexus_free_work_params(void *_nexus)
@@ -1348,8 +1351,7 @@ struct xio_nexus *xio_nexus_create(struct xio_nexus *parent_nexus,
 	nexus->trans_release_event.handler	= xio_nexus_trans_release_handler;
 	nexus->trans_release_event.data		= nexus;
 
-	nexus->trans_error_event.handler	= xio_nexus_trans_error_handler;
-	nexus->trans_error_event.data		= NULL;
+	INIT_LIST_HEAD(&nexus->events_list);
 
 	DEBUG_LOG("nexus: [new] ptr:%p, transport_hndl:%p\n", nexus,
 		  nexus->transport_hndl);
@@ -1530,15 +1532,45 @@ static void xio_nexus_trans_error_handler(void *ev_params_)
 
 	ctx = ev_params->nexus->ctx;
 
-	ev_params->nexus->trans_error_event.data = NULL;
+	list_del(&ev_params->events_list_node);
 
-	xio_context_disable_event(&ev_params->nexus->trans_error_event);
+	xio_context_disable_event(&ev_params->event);
 
 	if (ev_params->nexus->state == XIO_NEXUS_STATE_RECONNECT)
 		xio_nexus_client_reconnect_failed(ev_params->nexus);
 	else
 		xio_nexus_on_transport_error(ev_params->nexus,
 					     &ev_params->event_data);
+
+	xio_context_kfree(ctx, ev_params);
+}
+
+/*---------------------------------------------------------------------------*/
+/* xio_nexus_error_handler						     */
+/*---------------------------------------------------------------------------*/
+static void xio_nexus_error_handler(void *ev_params_)
+{
+	struct xio_event_params *ev_params =
+				(struct xio_event_params *)ev_params_;
+	struct xio_context *ctx;
+	union xio_nexus_event_data nexus_event_data;
+
+	if (!ev_params || !ev_params->nexus)
+		return;
+
+	list_del(&ev_params->events_list_node);
+	ctx = ev_params->nexus->ctx;
+
+	xio_context_disable_event(&ev_params->event);
+
+	nexus_event_data.msg_error.reason = ev_params->event_data.msg_error.reason;
+	nexus_event_data.msg_error.direction = ev_params->event_data.msg_error.direction;
+	nexus_event_data.msg_error.task = ev_params->event_data.msg_error.task;
+
+	xio_observable_notify_any_observer(
+			&ev_params->nexus->observable,
+			XIO_NEXUS_EVENT_MESSAGE_ERROR,
+			&nexus_event_data);
 
 	xio_context_kfree(ctx, ev_params);
 }
@@ -1790,11 +1822,8 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 	case XIO_TRANSPORT_EVENT_ERROR:
 		DEBUG_LOG("nexus: [notification] - transport error. " \
 			 "nexus:%p, transport:%p\n", observer, sender);
-		/* event still pending */
-		if (nexus->trans_error_event.data)
-			return 0;
 		ev_params = (struct xio_event_params *)
-				xio_context_kmalloc(nexus->ctx,
+				xio_context_kcalloc(nexus->ctx, 1,
 					sizeof(*ev_params), GFP_KERNEL);
 		if (!ev_params) {
 			ERROR_LOG("failed to allocate memory\n");
@@ -1802,12 +1831,15 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		}
 		ev_params->nexus = nexus;
 		memcpy(&ev_params->event_data, ev_data, sizeof(*ev_data));
-		nexus->trans_error_event.data = ev_params;
+		ev_params->event.handler = xio_nexus_trans_error_handler;
+		ev_params->event.data = ev_params;
+		list_add(&ev_params->events_list_node, &nexus->events_list);
+
 		if (!nexus->is_listener)
 			xio_nexus_cache_remove(nexus->cid);
 
 		xio_context_add_event(nexus->ctx,
-				      &nexus->trans_error_event);
+				      &ev_params->event);
 
 		tx = 0;
 		break;
@@ -1824,17 +1856,19 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 /*---------------------------------------------------------------------------*/
 static int xio_nexus_destroy(struct xio_nexus *nexus)
 {
+	struct xio_event_params *ev_data, *next_ev_data;
+
 	DEBUG_LOG("nexus:%p - close complete\n", nexus);
 
 	xio_context_disable_event(&nexus->trans_release_event);
-	xio_context_disable_event(&nexus->trans_error_event);
 	xio_context_disable_event(&nexus->disconnect_event);
-	if (nexus->trans_error_event.data) {
-		struct xio_event_params *ev_params =
-			(struct xio_event_params *)nexus->trans_error_event.data;
-		ev_params->nexus = NULL;
-		xio_context_kfree(nexus->ctx, nexus->trans_error_event.data);
-		nexus->trans_error_event.data = NULL;
+
+	list_for_each_entry_safe(ev_data, next_ev_data,
+				 &nexus->events_list,
+				 events_list_node) {
+		list_del(&ev_data->events_list_node);
+		xio_context_disable_event(&ev_data->event);
+		xio_context_kfree(nexus->ctx, ev_data);
 	}
 	if (nexus->server)
 		xio_server_unreg_observer(nexus->server,
@@ -2040,8 +2074,7 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	nexus->trans_release_event.handler	= xio_nexus_trans_release_handler;
 	nexus->trans_release_event.data		= nexus;
 
-	nexus->trans_error_event.handler	= xio_nexus_trans_error_handler;
-	nexus->trans_error_event.data		= NULL;
+	INIT_LIST_HEAD(&nexus->events_list);
 
 	xio_nexus_cache_add(nexus, &nexus->cid);
 
@@ -2407,8 +2440,8 @@ static struct xio_task *find_first_response_task(struct xio_nexus *nexus)
 /*---------------------------------------------------------------------------*/
 static int xio_nexus_xmit(struct xio_nexus *nexus)
 {
-	int		retval = 0;
-	struct xio_task *task;
+	int retval = 0;
+	struct xio_task	*task;
 
 	if (!nexus->transport) {
 		ERROR_LOG("transport not initialized. nexus:%p\n", nexus);
@@ -2428,7 +2461,7 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 					struct xio_task,  tasks_list_entry);
 		retval = nexus->transport->send(nexus->transport_hndl, task);
 		if (retval != 0) {
-			union xio_nexus_event_data nexus_event_data;
+			struct xio_event_params *ev_params;
 
 			if (xio_errno() == EAGAIN) {
 				if (IS_REQUEST(task->tlv_type)) {
@@ -2447,20 +2480,30 @@ static int xio_nexus_xmit(struct xio_nexus *nexus)
 
 			ERROR_LOG("transport send failed err:%d\n",
 				  xio_errno());
-			nexus_event_data.msg_error.reason =
+			ev_params = (struct xio_event_params *)
+				xio_context_kcalloc(nexus->ctx, 1,
+						sizeof(*ev_params), GFP_KERNEL);
+			if (!ev_params) {
+				ERROR_LOG("failed to allocate memory\n");
+				return -1;
+			}
+			ev_params->nexus = nexus;
+			ev_params->event_data.msg_error.reason =
 						(enum xio_status)xio_errno();
-			nexus_event_data.msg_error.direction =
+			ev_params->event_data.msg_error.direction =
 							XIO_MSG_DIRECTION_OUT;
-			nexus_event_data.msg_error.task	= task;
+			ev_params->event_data.msg_error.task = task;
+			ev_params->event.handler = xio_nexus_error_handler;
+			ev_params->event.data = ev_params;
+			list_add(&ev_params->events_list_node, &nexus->events_list);
+
+			xio_context_add_event(nexus->ctx,
+				              &ev_params->event);
 
 			/* special error for connection */
 			xio_set_error(ENOMSG);
 			retval = -ENOMSG;
 
-			xio_observable_notify_any_observer(
-					&nexus->observable,
-					XIO_NEXUS_EVENT_MESSAGE_ERROR,
-					&nexus_event_data);
 			break;
 		}
 	}

@@ -329,6 +329,7 @@ int xio_connection_send(struct xio_connection *connection,
 	int			rc = EFAULT;
 	int			standalone_receipt = 0;
 	int			is_control;
+	int			dont_move = 0;
 
 	/* is control message */
 	is_control = !IS_APPLICATION_MSG(msg->type);
@@ -491,8 +492,14 @@ int xio_connection_send(struct xio_connection *connection,
 
 	retval = xio_nexus_send(connection->nexus, task);
 	if (retval != 0) {
-		ERROR_LOG("xio_nexus_send failed with %d\n", retval);
-		rc = (retval == -EAGAIN) ? EAGAIN : xio_errno();
+		ERROR_LOG("xio_nexus_send msg:%p failed with %d\n", msg, retval);
+		if (retval == -EAGAIN) {
+			rc = EAGAIN;
+		} else {
+			rc = xio_errno();
+			connection->rsp_sn--;
+			xio_connection_safe_remove_msg_from_queue(connection, msg);
+		}
 		if (!task->is_control || task->tlv_type == XIO_ACK_REQ) {
 			if (connection->enable_flow_control) {
 				connection->credits_msgs = hdr.credits_msgs;
@@ -512,7 +519,7 @@ int xio_connection_send(struct xio_connection *connection,
 cleanup:
 	if (is_req)
 		xio_tasks_pool_put(task);
-	else
+	else if (!dont_move)
 		list_move(&task->tasks_list_entry, &connection->io_tasks_list);
 
 	return -rc;
@@ -832,9 +839,9 @@ static inline int xio_connection_xmit_inl(
 	int retval = 0, rc = 0;
 	struct xio_task *t;
 	struct xio_tasks_pool *q;
-    struct xio_msg *msg;
+	struct xio_msg *msg;
 
-    preempt_disable();
+	preempt_disable();
 
 	msg = xio_msg_list_first(msgq);
 	if (!msg) {
@@ -850,7 +857,7 @@ static inline int xio_connection_xmit_inl(
 			return 1;
 		} else if (retval == -ENOMSG) {
 			/* message error was notified */
-			DEBUG_LOG("xio_connection_send failed.\n");
+			DEBUG_LOG("xio_connection_send failed. msg:%p\n", msg);
 			/* while error drain the messages */
 			*retry_cnt = 0;
 			rc = 0;
@@ -1285,8 +1292,10 @@ int xio_send_response_error(struct xio_msg *req, enum xio_status result)
 	if (req->type == XIO_MSG_TYPE_REQ) {
 		/* same task that use to request -now used for response too */
 		task  = container_of(req, struct xio_task, imsg);
+		if (task->rsp_resend == 1)
+			task->omsg = NULL;
 		if (task->omsg != NULL) {
-			ERROR_LOG("%s - invalid request\n", __func__);
+			ERROR_LOG("%s - invalid request task:%p, task->omsg:p\n", __func__, task, task->omsg);
 			xio_set_error(EINVAL);
 			return -1;
 		}
@@ -1355,6 +1364,9 @@ int xio_send_response(struct xio_msg *msg)
 				pmsg->hints = 0;
 		}
 		task	   = container_of(pmsg->request, struct xio_task, imsg);
+
+		/* prepare response task to resend if previously failed */
+		task->rsp_resend =  (task->rsp_resend == 1) ? 2 : 0;
 		connection = task->connection;
 		if (unlikely(!connection)) {
 			/* connection already destroyed */
@@ -1390,8 +1402,8 @@ int xio_send_response(struct xio_msg *msg)
 #endif
 		if (xio_connection_find_msg_in_queue(connection, pmsg)) {
 			xio_set_error(EINVAL);
-			ERROR_LOG("%s failed. connection:%p message already in use\n",
-				   __func__, connection);
+			ERROR_LOG("%s failed. connection:%p message:%p already in use\n",
+				   __func__, connection, pmsg);
 			retval = -1;
 			goto send;
 		}

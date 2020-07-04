@@ -83,7 +83,8 @@ struct xio_task {
 	uint32_t                on_hold:1;
 	uint32_t                is_assigned:1;
 	uint32_t		ka_probes:1;
-	uint32_t                pad:29;
+	uint32_t		rsp_resend:2;
+	uint32_t                pad:27;
 
 	void			*pool;
 	void			*slab;

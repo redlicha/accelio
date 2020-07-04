@@ -948,13 +948,13 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 	}
 	qp_init_attr.srq		  = srq->srq;
 #else
-	qp_init_attr.cap.max_recv_wr	  = min(MAX_RECV_WR + EXTRA_RQE, 
+	qp_init_attr.cap.max_recv_wr	  = min(MAX_RECV_WR + EXTRA_RQE,
 						dev->device_attr.max_qp_wr);
 	qp_init_attr.cap.max_recv_sge	  = 1;
 
 #endif
 
-	qp_init_attr.cap.max_send_wr	  = min(MAX_SEND_WR, 
+	qp_init_attr.cap.max_send_wr	  = min(MAX_SEND_WR,
 						dev->device_attr.max_qp_wr);
 	qp_init_attr.cap.max_send_sge	  = min(rdma_options.max_out_iovsz + 1,
 						dev->device_attr.max_sge);

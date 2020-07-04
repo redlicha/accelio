@@ -1305,6 +1305,9 @@ int xio_on_nexus_message_error(struct xio_session *session,
 #ifdef XIO_THREAD_SAFE_DEBUG
 		xio_ctx_debug_thread_unlock(task->connection->ctx);
 #endif
+		if (IS_RESPONSE(task->tlv_type))
+			task->rsp_resend = 1;
+
 		task->unassign_user_context = NULL;
 		task->unassign_data_in_buf = NULL;
 		task->session->ses_ops.on_msg_error(
@@ -1320,9 +1323,10 @@ int xio_on_nexus_message_error(struct xio_session *session,
 
 	if (IS_REQUEST(task->tlv_type) || task->tlv_type == XIO_MSG_TYPE_RDMA)
 		xio_tasks_pool_put(task);
-	else
+	else if (task->rsp_resend != 2)
 		xio_release_response_task(task);
 
+	task->rsp_resend = 0;
 	return 0;
 }
 
