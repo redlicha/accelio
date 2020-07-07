@@ -2233,16 +2233,6 @@ static int xio_tcp_initial_pool_slab_init_task(
 	ptr += 2 * sizeof(struct iovec);
 	/*****************************************/
 
-	tcp_task->read_reg_mem = NULL;
-	tcp_task->write_reg_mem = NULL;
-	tcp_task->req_in_sge = NULL;
-	tcp_task->req_out_sge = NULL;
-	tcp_task->rsp_out_sge = NULL;
-
-	tcp_task->req_in_num_sge = 0;
-	tcp_task->req_out_num_sge = 0;
-	tcp_task->rsp_out_num_sge = 0;
-
 	xio_tcp_task_init(
 			task,
 			tcp_hndl,
@@ -2459,10 +2449,6 @@ static int xio_tcp_primary_pool_slab_init_task(
 	tcp_task->rsp_out_sge = (struct xio_sge *)ptr;
 	ptr += max_iovsz * sizeof(struct xio_sge);
 	/*****************************************/
-
-	tcp_task->req_in_num_sge = 0;
-	tcp_task->req_out_num_sge = 0;
-	tcp_task->rsp_out_num_sge = 0;
 
 	tcp_task->out_tcp_op = (enum xio_tcp_op_code)0x200;
 	xio_tcp_task_init(
