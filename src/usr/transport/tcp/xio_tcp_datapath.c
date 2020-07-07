@@ -1792,7 +1792,7 @@ int xio_tcp_prep_rsp_wr_data(struct xio_tcp_transport *tcp_hndl,
 				tcp_task->rsp_out_sge[i].length = sge_length(sgtbl_ops, sg);
 			} else {
 				ERROR_LOG("peer provided too small iovec [%d] - " \
-					  "peer_len:%zd > local_len:%zd\n", i,
+					  "peer_len:%d > local_len:%d\n", i,
 					  tcp_task->req_in_sge[i].length,
 					  sge_length(sgtbl_ops, sg));
 				ERROR_LOG("tcp write is ignored\n");
