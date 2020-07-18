@@ -290,8 +290,10 @@ static inline void xio_timers_list_expire(struct xio_timers_list *timers_list)
 					     timer);
 			work = &dwork->work;
 			work->flags &= ~XIO_WORK_PENDING;
-			time_passed_msecs = (int)((get_cycles() -
-				work->start_cycle)/(1000*g_mhz) + 0.5);
+
+		        time_passed_msecs = 
+				(int)time_passed_in_msecs(get_cycles(), 
+							  work->start_cycle);
 
 			work->function(time_passed_msecs, work->data);
 

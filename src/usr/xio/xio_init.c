@@ -48,7 +48,7 @@
 #include "xio_init.h"
 
 int		page_size;
-double		g_mhz;
+uint64_t	g_mhz;
 struct xio_idr  *usr_idr = NULL;
 
 #ifdef HAVE_INFINIBAND_VERBS_H
@@ -77,7 +77,7 @@ static DEFINE_MUTEX(ini_mutex);
 
 static int g_disable_rdma = 0;
 
-extern double xio_get_cpu_mhz(void);
+extern uint64_t xio_get_cpu_mhz(void);
 
 
 static void xio_test_disable_rdma(void)

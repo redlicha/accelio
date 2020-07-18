@@ -302,14 +302,14 @@ int static inline gettimeofday(struct timeval *tv, struct timezone2 *tz)
  * and use the cookie if exist						     *
  *									     *
  *---------------------------------------------------------------------------*/
-static inline double xio_get_cpu_mhz(void)
+static inline uint64_t xio_get_cpu_mhz(void)
 {
-	static double cpu_mhz;
+	static uint64_t cpu_mhz;
 
 	if (!cpu_mhz) {
 		LARGE_INTEGER performanceFrequency;
 		QueryPerformanceFrequency(&performanceFrequency);
-		cpu_mhz = (double)performanceFrequency.QuadPart;
+		cpu_mhz = performanceFrequency.QuadPart;
 	}
 
 	return cpu_mhz;

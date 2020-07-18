@@ -46,7 +46,7 @@ extern "C" {
 /* externals								     */
 /*---------------------------------------------------------------------------*/
 extern struct xio_options		g_options;
-extern double				g_mhz;
+extern uint64_t				g_mhz;
 extern struct xio_idr			*usr_idr;
 extern struct xio_mempool_config	g_mempool_config;
 

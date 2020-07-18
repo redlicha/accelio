@@ -246,7 +246,7 @@ static inline int xio_numa_run_on_node(int node)
  * and use the cookie if exist						     *
  *									     *
  *---------------------------------------------------------------------------*/
-static inline double xio_get_cpu_mhz(void)
+static inline uint64_t xio_get_cpu_mhz(void)
 {
 	char	size[32] = {0};
 	double	hz = 0;
@@ -262,7 +262,7 @@ static inline double xio_get_cpu_mhz(void)
 	close(fd);
 
 	if (ret > 0)
-		return atof(size);
+		return (uint64_t)(atof(size) + 0.5);
 
 try_create:
 	hz = get_cpu_mhz(0);
@@ -283,7 +283,7 @@ try_create:
 close_and_exit:
 	close(fd);
 exit:
-	return hz;
+	return (uint64_t)(hz + 0.5);
 }
 
 /*---------------------------------------------------------------------------*/

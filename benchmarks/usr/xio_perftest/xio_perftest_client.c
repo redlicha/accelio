@@ -111,8 +111,9 @@ static uint32_t	threads_iter;
 static uint64_t	hdr_len;
 static uint64_t	data_len;
 static FILE	*fd = NULL;
-static double	g_mhz;
+static uint64_t	 g_mhz;
 
+#define DIV_ROUND(a, b) ((a) + ((b)/2)) / (b)
 /*---------------------------------------------------------------------------*/
 /* statistics_thread_cb							     */
 /*---------------------------------------------------------------------------*/
@@ -120,7 +121,7 @@ static void *statistics_thread_cb(void *data)
 {
 	uint64_t		start_time;
 	uint64_t		tx_len = hdr_len + data_len;
-	double			delta;
+	uint64_t		delta;
 	uint64_t		scnt_start = 0;
 	uint64_t		scnt_end = 0;
 	uint64_t		rtt_start = 0;
@@ -159,7 +160,7 @@ static void *statistics_thread_cb(void *data)
 	for (i = 0; i < threads_iter; i++)
 		sess_data->tdata[i].do_stat = 0;
 
-	delta = (get_cycles() - start_time)/g_mhz;
+	delta = DIV_ROUND((get_cycles() - start_time), g_mhz);
 
 	for (i = 0; i < threads_iter; i++) {
 		scnt_end += sess_data->tdata[i].stat.scnt;
@@ -170,14 +171,14 @@ static void *statistics_thread_cb(void *data)
 			max_rtt = sess_data->tdata[i].stat.max_rtt;
 	}
 	if ( scnt_end != scnt_start) {
-		sess_data->avg_lat_us = (rtt_end - rtt_start)/g_mhz;
-		sess_data->avg_lat_us /= (scnt_end - scnt_start);
+		sess_data->avg_lat_us = DIV_ROUND((rtt_end - rtt_start), g_mhz);
+		sess_data->avg_lat_us = DIV_ROUND(sess_data->avg_lat_us,  (scnt_end - scnt_start));
 
-		sess_data->min_lat_us = min_rtt/g_mhz;
-		sess_data->max_lat_us = max_rtt/g_mhz;
+		sess_data->min_lat_us = DIV_ROUND(min_rtt, g_mhz);
+		sess_data->max_lat_us = DIV_ROUND(max_rtt, g_mhz);
 
-		sess_data->tps    = ((scnt_end - scnt_start)*USECS_IN_SEC)/delta;
-		sess_data->avg_bw = (1.0*sess_data->tps*tx_len/ONE_MB);
+		sess_data->tps    = DIV_ROUND((scnt_end - scnt_start)*USECS_IN_SEC, delta);
+		sess_data->avg_bw = DIV_ROUND(sess_data->tps*tx_len, ONE_MB);
 	}
 
 	for (i = 0; i < threads_iter; i++)

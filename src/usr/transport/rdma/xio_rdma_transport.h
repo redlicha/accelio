@@ -45,7 +45,7 @@
 /* externals								     */
 /*---------------------------------------------------------------------------*/
 extern int			page_size;
-extern double			g_mhz;
+extern uint64_t			g_mhz;
 extern struct xio_rdma_options	rdma_options;
 extern struct list_head		dev_list;
 extern pthread_rwlock_t		dev_list_lock;

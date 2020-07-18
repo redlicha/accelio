@@ -229,14 +229,14 @@ double get_core_freq(void)
 	return 0.0;
 }
 
-double get_cpu_mhz(int no_cpu_freq_fail)
+unsigned long long get_cpu_mhz(int no_cpu_freq_fail)
 {
 	double freq, sample, proc, delta;
 
 	freq = get_core_freq();
 	/* even with core freq cycles are at maximum */
 	if (freq)
-		return freq;
+		return (unsigned long long)(freq + 0.5);
 
 	sample = sample_get_cpu_mhz();
 	proc = proc_get_cpu_mhz(no_cpu_freq_fail);
@@ -249,7 +249,7 @@ double get_cpu_mhz(int no_cpu_freq_fail)
 			fprintf(stderr, "Warning: measured timestamp" \
 				" frequency %g differs from nominal %g MHz\n",
 					sample, proc);
-			return sample;
+			return (unsigned long long)(sample + 0.5);
 	}
-	return proc;
+	return (unsigned long long)(proc + 0.5);
 }

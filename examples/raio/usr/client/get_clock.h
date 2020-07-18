@@ -79,6 +79,6 @@ static inline cycles_t get_cycles()
 #include <linux/timex.h>
 #endif
 
-extern double get_cpu_mhz(int);
+extern unsigned long long get_cpu_mhz(int);
 
 #endif

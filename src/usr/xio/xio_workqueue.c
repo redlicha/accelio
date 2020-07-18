@@ -226,8 +226,8 @@ static void xio_work_action_handler(int fd, int events, void *user_context)
 		}
 
 		if (test_bits(XIO_WORK_PENDING, &work->flags)) {
-			int time_passed_msecs = (int)((get_cycles() -
-				work->start_cycle)/(1000*g_mhz) + 0.5);
+			int time_passed_msecs = (int)time_passed_in_msecs(
+					get_cycles(), work->start_cycle);
 			clr_bits(XIO_WORK_PENDING, &work->flags);
 			set_bits(XIO_WORK_IN_HANDLER, &work->flags);
 			work->function(time_passed_msecs, work->data);

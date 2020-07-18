@@ -247,7 +247,8 @@ static struct xio_mr_elem *xio_reg_mr_ex_dev(struct xio_device *dev,
 
 	start_cycle = get_cycles();
 	mr = ibv_xio_reg_mr(&reg_mr_in);
-	time_passed_msecs = (int)((get_cycles() - start_cycle)/(1000*g_mhz) + 0.5);
+
+	time_passed_msecs = (int)time_passed_in_msecs(get_cycles(), start_cycle);
 	DEBUG_LOG("ibv_reg_mr: time:%d, length:%zd\n", time_passed_msecs, length);
 	if (unlikely(!mr)) {
 		xio_set_error(errno);

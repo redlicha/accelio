@@ -452,8 +452,8 @@ retry:
 	}
 	/* calculate the remaining timeout */
 	if (timeout != -1 && !loop->stop_loop) {
-		int time_passed = (int)((get_cycles() -
-				start_cycle)/(1000*g_mhz) + 0.5);
+		int time_passed_msecs = (int)
+			time_passed_in_msecs(get_cycles(), start_cycle);
 		if (time_passed >= wait_time)
 			loop->stop_loop = 1;
 		else

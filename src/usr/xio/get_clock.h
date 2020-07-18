@@ -90,6 +90,14 @@ static __inline cycles_t get_cycles(void)
 #include <linux/timex.h>
 #endif
 
-extern double get_cpu_mhz(int);
+extern uint64_t get_cpu_mhz(int);
+
+extern uint64_t g_mhz;
+
+static __inline uint64_t time_passed_in_msecs(cycles_t end, cycles_t start)
+{
+	return ((uint64_t)((((unsigned __int128)(uint64_t)(end - start)) +
+			                (500 * g_mhz)) / (1000 * g_mhz)));
+}
 
 #endif

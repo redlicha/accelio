@@ -969,7 +969,8 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 
 	retval = rdma_create_qp(rdma_hndl->cm_id, dev->pd, &qp_init_attr);
 
-	time_elapsed_msecs = (uint64_t)(((double)(get_cycles() - start_cycle)/(1000*g_mhz)) + 0.5);
+	time_elapsed_msecs = time_passed_in_msecs(get_cycles(), start_cycle);
+
 	DEBUG_LOG("rdma_create_qp: after. rdma_hndl:%p, retval:%d, time:%lu msecs\n",
 		  rdma_hndl, retval, time_elapsed_msecs);
 

@@ -44,7 +44,7 @@ struct xio_tcp_socket;
 /*---------------------------------------------------------------------------*/
 /* externals								     */
 /*---------------------------------------------------------------------------*/
-extern double				g_mhz;
+extern uint64_t				g_mhz;
 
 /* definitions */
 #define NUM_TASKS			54400 /* 100 * (MAX_SEND_WR +
