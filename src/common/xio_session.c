@@ -423,6 +423,10 @@ void xio_session_notify_connection_closed(struct xio_session *session,
 		.private_data_len = 0,
 	};
 
+	if (session->state == XIO_SESSION_STATE_REJECTED &&
+	    session->type == XIO_SESSION_SERVER)
+		return;
+
 	if (connection->cd_bit)
 		return;
 
@@ -461,6 +465,9 @@ void xio_session_notify_connection_disconnected(
 		.private_data_len = 0,
 		.reason = reason,
 	};
+	if (session->state == XIO_SESSION_STATE_REJECTED &&
+	    session->type == XIO_SESSION_SERVER)
+		return;
 
 	if (connection->cd_bit)
 		return;
@@ -531,6 +538,11 @@ void xio_session_notify_connection_teardown(struct xio_session *session,
 		.private_data = NULL,
 		.private_data_len = 0,
 	};
+	if (session->state == XIO_SESSION_STATE_REJECTED &&
+	    session->type == XIO_SESSION_SERVER) {
+		xio_connection_destroy(connection);
+		return;
+	}
 
 	if (session->ses_ops.on_session_event) {
 #ifdef XIO_THREAD_SAFE_DEBUG

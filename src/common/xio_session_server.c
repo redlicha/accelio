@@ -192,8 +192,8 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 	 * message arrives. Note that the "upper layer" may call redirect or
 	 * reject.
 	 */
-
-	xio_session_notify_new_connection(session, connection);
+	if (session->state != XIO_SESSION_STATE_REJECTED)
+		xio_session_notify_new_connection(session, connection);
 
 	xio_context_kfree(NULL, req.private_data);
 	xio_context_kfree(NULL, req.uri);
