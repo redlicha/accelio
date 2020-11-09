@@ -258,19 +258,25 @@ static inline uint64_t xio_get_cpu_mhz(void)
 		goto try_create;
 
 	ret = read(fd, size, sizeof(size));
+	if (ret <= 0)
+		goto try_create;
 
 	close(fd);
 
-	if (ret > 0)
-		return (uint64_t)(atof(size) + 0.5);
+	hz = atof(size);
+
+	if (hz > 0)
+		return (uint64_t)(hz + 0.5);
 
 try_create:
 	hz = get_cpu_mhz(0);
-
-	ret = mkdir(XIO_HZ_DIR, 0777);
-	if (ret < 0)
+	if (hz <= 0)
 		goto exit;
 
+	ret = mkdir(XIO_HZ_DIR, 0777);
+	if (ret < 0 && errno != EEXIST)
+		goto exit;
+	
 	fd = open(XIO_HZ_FILE, O_CREAT | O_TRUNC | O_WRONLY | O_SYNC, 0644);
 	if (fd < 0)
 		goto exit;
@@ -283,7 +289,7 @@ try_create:
 close_and_exit:
 	close(fd);
 exit:
-	return (uint64_t)(hz + 0.5);
+	return hz > 0 ? (uint64_t)(hz + 0.5) : 0;
 }
 
 /*---------------------------------------------------------------------------*/
