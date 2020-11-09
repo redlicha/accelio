@@ -258,10 +258,10 @@ static inline uint64_t xio_get_cpu_mhz(void)
 		goto try_create;
 
 	ret = read(fd, size, sizeof(size));
+	close(fd);
+
 	if (ret <= 0)
 		goto try_create;
-
-	close(fd);
 
 	hz = atof(size);
 
