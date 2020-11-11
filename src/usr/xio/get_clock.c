@@ -239,18 +239,17 @@ uint64_t get_cpu_mhz(int no_cpu_freq_fail)
 	if (freq)
 		return (uint64_t)(freq + 0.5);
 
-	sample = sample_get_cpu_mhz();
 	proc = proc_get_cpu_mhz(no_cpu_freq_fail);
-
-	if (!proc || !sample)
-		return 0;
+	sample = sample_get_cpu_mhz();
+	if (!proc)
+		return (sample != 0) ?  (uint64_t)(sample + 0.5) : 0;
+	if (!sample)
+		return (proc != 0) ? (uint64_t)(proc + 0.5) : 0;
 
 	delta = proc > sample ? proc - sample : sample - proc;
-	if (delta / proc > 0.02) {
-			fprintf(stderr, "Warning: measured timestamp" \
-				" frequency %g differs from nominal %g MHz\n",
-					sample, proc);
-			return (uint64_t)(sample + 0.5);
-	}
-	return (uint64_t)(proc + 0.5);
+	if (delta / proc > 0.02) 
+		fprintf(stderr, "Warning: measured timestamp" \
+			" frequency %g differs from nominal %g MHz\n",
+			sample, proc);
+	return (uint64_t)(sample + 0.5);
 }
