@@ -94,7 +94,8 @@ struct xio_msg_list {
 		    (elm)->field.prev;					\
 	else								\
 		(head)->last = (elm)->field.prev;			\
-	*(elm)->field.prev = (elm)->field.next;				\
+	if ((elm)->field.prev)						\
+		*(elm)->field.prev = (elm)->field.next;			\
 } while (/*CONSTCOND*/0)
 
 #define	xio_msg_list_foreach(var, head, field)				\
