@@ -1284,25 +1284,29 @@ int xio_send_response_error(struct xio_msg *req, enum xio_status result)
 {
 	struct xio_task		*task = NULL;
 
-	DEBUG_LOG("%s. type:0x%x, status: %s\n", __func__,
-		  req->type, xio_strerror(result));
+	DEBUG_LOG("%s. req:%p, sn:%lu, type:0x%x, status: %s\n", __func__,
+		  req, req->sn, req->type, xio_strerror(result));
 
 	req->hints = XIO_RSP_ERROR_PRIVATE_HINT;
 	req->flags = XIO_MSG_FLAG_IMM_SEND_COMP;
-	if (req->type == XIO_MSG_TYPE_REQ) {
+	if (req->type == XIO_MSG_TYPE_REQ && req->request != req && result != 0) {
 		/* same task that use to request -now used for response too */
 		task  = container_of(req, struct xio_task, imsg);
 		if (task->rsp_resend == 1)
 			task->omsg = NULL;
 		if (task->omsg != NULL) {
-			ERROR_LOG("%s - invalid request task:%p, task->omsg:p\n", __func__, task, task->omsg);
+			ERROR_LOG("%s - invalid request task:%p, task->omsg:%p\n", __func__, task, task->omsg);
 			xio_set_error(EINVAL);
 			return -1;
 		}
 	} else {
+		ERROR_LOG("%s - invalid request:%p\n", __func__, req);
 		xio_set_error(EINVAL);
 		return -1;
 	}
+	DEBUG_LOG("%s. connection:%p, req:%p, sn:%lu, type:0x%x, status: %s\n", __func__,
+		  task->connection, req, req->sn, req->type, xio_strerror(result));
+
 	if (xio_connection_find_msg_in_queue(task->connection, req)) {
 		xio_set_error(EINVAL);
 		ERROR_LOG("%s failed. connection:%p message already in use\n",

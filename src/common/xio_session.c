@@ -956,11 +956,12 @@ static int xio_on_rsp_recv(struct xio_connection *connection,
 #endif
 			omsg->request	= msg;
 			if (task->status) {
+				enum xio_status stat = (enum xio_status)task->status;
+				task->status = 0;
 				xio_session_notify_msg_error(
 					connection, omsg,
-					(enum xio_status)task->status,
+					stat,
 					XIO_MSG_DIRECTION_IN);
-				task->status = 0;
 			} else {
 #ifdef XIO_THREAD_SAFE_DEBUG
 				xio_ctx_debug_thread_unlock(connection->ctx);
