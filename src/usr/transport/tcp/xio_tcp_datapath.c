@@ -1126,6 +1126,16 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 			tcp_hndl->tmp_work.msg.msg_iovlen =
 					tcp_hndl->tmp_work.msg_len;
 
+			if (IS_KEEPALIVE(task->tlv_type)) {
+				if (task->ka_probes)
+					DEBUG_LOG("%s - ka on wire: tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+							__func__, task->tlv_type, task->session, task->connection, tcp_hndl);
+			} else {
+				if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+					DEBUG_LOG("%s - control on wire: tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+							__func__, task->tlv_type, task->session, task->connection, tcp_hndl);
+			}
+
 			retval = xio_tcp_sendmsg_work(tcp_hndl->sock.cfd,
 						      &tcp_hndl->tmp_work, 0);
 
