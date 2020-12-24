@@ -907,6 +907,17 @@ static int xio_tcp_on_rsp_send_comp(struct xio_tcp_transport *tcp_hndl,
 		tcp_task->txd.ctl_msg = xio_mbuf_buf_head(&task->sender_task->mbuf);
 	}
 
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					tcp_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					tcp_hndl);
+	}
 	event_data.msg.op	= XIO_WC_OP_SEND;
 	event_data.msg.task	= task;
 
@@ -924,6 +935,18 @@ static int xio_tcp_on_req_send_comp(struct xio_tcp_transport *tcp_hndl,
 				    struct xio_task *task)
 {
 	union xio_transport_event_data event_data;
+
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					tcp_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->session, task->connection,
+					tcp_hndl);
+	}
 
 	event_data.msg.op	= XIO_WC_OP_SEND;
 	event_data.msg.task	= task;
@@ -2668,6 +2691,17 @@ static int xio_tcp_on_recv_rsp_header(struct xio_tcp_transport *tcp_hndl,
 		xio_tasks_pool_put(task);
 		return 0;
 	}
+	if (IS_KEEPALIVE(task->tlv_type)) {
+		if (task->sender_task->ka_probes)
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->sender_task->session, task->sender_task->connection,
+					tcp_hndl);
+	} else {
+		if (!IS_NOP(task->tlv_type) && !IS_APPLICATION_MSG(task->tlv_type))
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, tcp_hndl:%p\n",
+					__func__, task->tlv_type, task->sender_task->session, task->sender_task->connection,
+					tcp_hndl);
+	}
 
 	task->rtid       = rsp_hdr.ltid;
 
@@ -3125,7 +3159,7 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 					retval =
 						xio_tcp_on_recv_rsp_data(tcp_hndl,
 								task);
-				}		
+				}
 			} else {
 				ERROR_LOG("unknown message type:0x%x\n",
 						task->tlv_type);
