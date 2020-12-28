@@ -2645,8 +2645,16 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 				struct xio_rdma_transport *rdma_hndl)
 {
 	int retval = 0;
-	DEBUG_LOG("cm event: [%s], hndl:%p, status:%d\n",
-		  rdma_event_str(ev->event), rdma_hndl, ev->status);
+	if (ev->event == RDMA_CM_EVENT_ADDR_ERROR |
+	    ev->event == RDMA_CM_EVENT_ROUTE_ERROR |
+	    ev->event == RDMA_CM_EVENT_CONNECT_ERROR |
+	    ev->event == RDMA_CM_EVENT_UNREACHABLE |
+	    ev->event == RDMA_CM_EVENT_MULTICAST_ERROR)
+		ERROR_LOG("cm event: [%s], hndl:%p, status:%d\n",
+		          rdma_event_str(ev->event), rdma_hndl, ev->status);
+	else
+		DEBUG_LOG("cm event: [%s], hndl:%p, status:%d\n",
+			  rdma_event_str(ev->event), rdma_hndl, ev->status);
 
 	rdma_hndl->handler_nesting++;
 	switch (ev->event) {
