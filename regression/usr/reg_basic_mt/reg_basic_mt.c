@@ -53,8 +53,8 @@ struct params {
 };
 
 struct program_vars {
-	char		client_threads_num[8];
-	char		server_threads_num[8];
+	char		client_threads_num[16];
+	char		server_threads_num[16];
 	char		client_dlen[8];
 	char		server_dlen[8];
 	char		queue_depth[8];
