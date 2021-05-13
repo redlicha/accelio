@@ -242,19 +242,19 @@ struct xio_session_ops session_ops = {
 
 void init_xio_rdma_common_test(void)
 {
-	int res;
+    int res;
 
-	enum xio_log_level xio_log_level = XIO_LOG_LEVEL_TRACE;
-if(0)
-	xio_set_opt(NULL, XIO_OPTLEVEL_ACCELIO, XIO_OPTNAME_LOG_LEVEL,
-		    &xio_log_level, sizeof(xio_log_level));
+    if (0) {
+        enum xio_log_level xio_log_level = XIO_LOG_LEVEL_TRACE;
+        xio_set_opt(NULL, XIO_OPTLEVEL_ACCELIO, XIO_OPTNAME_LOG_LEVEL,
+                &xio_log_level, sizeof(xio_log_level));
+    }
+    test_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 0, 1);
+    xio_assert(test_params.pool != NULL);
 
-	test_params.pool = msg_pool_alloc(MAX_POOL_SIZE, 0, 1);
-	xio_assert(test_params.pool != NULL);
-
-	res = xio_mem_alloc(test_params.ctx, RDMA_BUF_SIZE, &rdma_reg_mem);
-	xio_assert(!res);
-	memset(rdma_reg_mem.addr, 0, rdma_reg_mem.length);
+    res = xio_mem_alloc(test_params.ctx, RDMA_BUF_SIZE, &rdma_reg_mem);
+    xio_assert(!res);
+    memset(rdma_reg_mem.addr, 0, rdma_reg_mem.length);
 }
 
 void fini_xio_rdma_common_test(void)
