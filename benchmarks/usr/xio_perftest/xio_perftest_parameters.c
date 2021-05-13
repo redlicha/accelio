@@ -524,29 +524,29 @@ void print_test_info(const struct perf_parameters *user_param)
 	printf(" =============================================\n");
 	if (user_param->server_addr)
 		printf(" Server Address		: %s\n",
-		       user_param->server_addr);
+				user_param->server_addr);
 	if (user_param->intf_name)
 		printf(" Local Interface	: %s\n",
-		       user_param->intf_name);
-		printf(" Server Port		: %d\n",
-	       user_param->server_port);
+				user_param->intf_name);
+	printf(" Server Port		: %d\n",
+			user_param->server_port);
 	printf(" Transport Type		: %s\n",
-	       user_param->transport);
+			user_param->transport);
 	printf(" Test Type		: %s\n",
-	       test_type_str(user_param->test_type));
+			test_type_str(user_param->test_type));
 	printf(" Queue Depth		: %d\n",
-	       user_param->queue_depth);
+			user_param->queue_depth);
 	printf(" Threads		: %d\n",
-	       user_param->threads_num);
+			user_param->threads_num);
 	printf(" Start Thread		: %d\n",
-	       user_param->start_thread);
+			user_param->start_thread);
 	printf(" Poll timeout		: %d\n",
-	       user_param->poll_timeout);
+			user_param->poll_timeout);
 	if (user_param->output_file)
 		printf(" Output file		: %s\n",
-		       user_param->output_file);
+				user_param->output_file);
 	printf(" CPU Affinity		: %x\n",
-	       user_param->cpu);
+			user_param->cpu);
 	printf(" =============================================\n");
 }
 
