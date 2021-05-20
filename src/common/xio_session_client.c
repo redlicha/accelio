@@ -1090,11 +1090,19 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 	mutex_unlock(&session->lock);
 
 	DEBUG_LOG("xio_connect: session:%p, connection:%p, " \
-		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s\n",
+		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s, " \
+		  "params:[ka.time:%d, ka.interval:%d, ka.probes:%d], " \
+		  "connection:[ka.time:%d, ka.interval:%d, ka.probes:%d]\n",
 		  session, connection, ctx,
 		  ((connection) ? connection->nexus : NULL),
 		  session->uri,
-		  cparams->out_addr ? cparams->out_addr : "default");
+		  cparams->out_addr ? cparams->out_addr : "default",
+		  cparams->ka_options.time,
+	          cparams->ka_options.intvl,
+	          cparams->ka_options.probes,
+		  connection->ka.options.time,
+	          connection->ka.options.intvl,
+		  connection->ka.options.probes);
 
 	return connection;
 

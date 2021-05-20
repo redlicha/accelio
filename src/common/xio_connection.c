@@ -479,9 +479,13 @@ int xio_connection_send(struct xio_connection *connection,
 	if (IS_KEEPALIVE(task->tlv_type)) {
 		task->ka_probes = (connection->ka.probes > 0);
 		if (task->ka_probes)
-			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, probes:[%d]\n",
-					__func__, task->tlv_type, connection->session,
-					connection, connection->ka.probes);
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, probes:[%d]" \
+				  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+				  __func__, task->tlv_type, connection->session,
+				  connection, connection->ka.probes,
+				  connection->ka.options.time,
+				  connection->ka.options.intvl,
+				  connection->ka.options.probes);
 	} else {
 		task->ka_probes = 0;
 		if (!IS_APPLICATION_MSG(task->tlv_type))
@@ -3566,8 +3570,14 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	int retval;
 
 	if (connection->ka.req_sent) {
-		DEBUG_LOG("%s - session:%p, connection:%p probes:[%d]\n",
-				__func__, connection->session, connection, connection->ka.probes);
+		DEBUG_LOG("%s - session:%p, connection:%p, probes:[%d]" \
+			  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+			  __func__, connection->session,
+			  connection, connection->ka.probes,
+			  connection->ka.options.time,
+			  connection->ka.options.intvl,
+			  connection->ka.options.probes);
+
 	}
 
 	if (connection->state != XIO_CONNECTION_STATE_ONLINE ||
@@ -3751,11 +3761,11 @@ int xio_on_connection_ka_rsp_send_comp(struct xio_connection *connection,
 void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 {
 	struct xio_connection *connection =
-					(struct xio_connection *)_connection;
+		(struct xio_connection *)_connection;
 	int retval;
 
 	xio_ctx_del_delayed_work(connection->ctx,
-				 &connection->ka.timer);
+			         &connection->ka.timer);
 
 	if (connection->disconnecting && (!g_options.reconnect))
 		return;
@@ -3766,10 +3776,10 @@ void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 		connection->ka.io_rcv = 0;
 
 		retval = xio_ctx_add_delayed_work(
-					connection->ctx,
-					1000 * connection->ka.options.time, connection,
-					xio_connection_keepalive_time,
-					&connection->ka.timer);
+				connection->ctx,
+				1000 * connection->ka.options.time, connection,
+				xio_connection_keepalive_time,
+				&connection->ka.timer);
 		if (retval != 0)
 			ERROR_LOG("periodic keepalive failed - abort\n");
 		return;
@@ -3777,32 +3787,42 @@ void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 
 	connection->ka.timedout = 1;
 
-    if (++connection->ka.probes == connection->ka.options.probes) {
-        ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
-                connection, connection->ka.probes);
-        connection->ka.probes = 0;
+	if (++connection->ka.probes == connection->ka.options.probes) {
+		ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]" \
+			  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+			  connection, connection->ka.probes,
+			  connection->ka.options.time,
+			  connection->ka.options.intvl,
+			  connection->ka.options.probes);
 
-        /* stop further processing of events immediately  */
-        if (!connection->disconnecting && !g_options.reconnect &&
-	    connection->nexus) {
-            xio_nexus_force_close(connection->nexus);
-            connection->nexus = NULL;
-        }
-        /* notify the application of connection error */
-        xio_session_notify_connection_error(
-                connection->session, connection, XIO_E_TIMEOUT);
-        /* disconnect gracefully */
-        if ((!connection->disconnecting) && (!g_options.reconnect))
-            xio_disconnect(connection);
-        return;
-    }
-	WARN_LOG("connection keepalive timeout. connection:%p probes:[%d]\n",
-		  connection, connection->ka.probes);
+		connection->ka.probes = 0;
+
+		/* stop further processing of events immediately  */
+		if (!connection->disconnecting && !g_options.reconnect &&
+				connection->nexus) {
+			xio_nexus_force_close(connection->nexus);
+			connection->nexus = NULL;
+		}
+		/* notify the application of connection error */
+		xio_session_notify_connection_error(
+				connection->session, connection, XIO_E_TIMEOUT);
+		/* disconnect gracefully */
+		if ((!connection->disconnecting) && (!g_options.reconnect))
+			xio_disconnect(connection);
+		return;
+	}
+	WARN_LOG("connection keepalive timeout. connection:%p probes:[%d]" \
+		 "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+		 connection, connection->ka.probes,
+		 connection->ka.options.time,
+		 connection->ka.options.intvl,
+		 connection->ka.options.probes);
+
 	retval = xio_ctx_add_delayed_work(
-				connection->ctx,
-				1000 * connection->ka.options.intvl, connection,
-				xio_connection_keepalive_intvl,
-				&connection->ka.timer);
+			connection->ctx,
+			1000 * connection->ka.options.intvl, connection,
+			xio_connection_keepalive_intvl,
+			&connection->ka.timer);
 	if (retval != 0) {
 		ERROR_LOG("keepalive timeout failed - abort\n");
 		return;
