@@ -479,8 +479,8 @@ int xio_connection_send(struct xio_connection *connection,
 	if (IS_KEEPALIVE(task->tlv_type)) {
 		task->ka_probes = (connection->ka.probes > 0);
 		if (task->ka_probes)
-			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, probes:[%d]" \
-				  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+			DEBUG_LOG("%s - tlv_type:0x%x, session:%p, connection:%p, probes:[%d],  " \
+				  "ka:[time:%d, intvl:%d, probes:%d]\n",
 				  __func__, task->tlv_type, connection->session,
 				  connection, connection->ka.probes,
 				  connection->ka.options.time,
@@ -3382,6 +3382,16 @@ int xio_on_connection_hello_req_recv(struct xio_connection *connection,
 
 	/* temporarily set the state to init to delay disconnection */
 	connection->state = XIO_CONNECTION_STATE_INIT;
+
+	DEBUG_LOG("new connection: session:%p, connection:%p, " \
+		  "ctx:%p, nexus:%p, " \
+		  "connection.ka:[time:%d, intvl:%d, probes:%d]\n",
+		  connection->session, connection, connection->ctx,
+		  connection->nexus,
+		  connection->ka.options.time,
+	          connection->ka.options.intvl,
+		  connection->ka.options.probes);
+
 	xio_session_notify_new_connection(task->session, connection);
 
 	if (connection->disconnecting == 0) {
@@ -3570,8 +3580,8 @@ int xio_connection_send_ka_req(struct xio_connection *connection)
 	int retval;
 
 	if (connection->ka.req_sent) {
-		DEBUG_LOG("%s - session:%p, connection:%p, probes:[%d]" \
-			  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+		DEBUG_LOG("%s - session:%p, connection:%p, probes:[%d],  " \
+			  "ka:[time:%d, intvl:%d, probes:%d]\n",
 			  __func__, connection->session,
 			  connection, connection->ka.probes,
 			  connection->ka.options.time,
@@ -3788,8 +3798,8 @@ void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 	connection->ka.timedout = 1;
 
 	if (++connection->ka.probes == connection->ka.options.probes) {
-		ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d]" \
-			  "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+		ERROR_LOG("connection keepalive timeout. connection:%p probes:[%d],  " \
+			  "ka:[time:%d, intvl:%d, probes:%d]\n",
 			  connection, connection->ka.probes,
 			  connection->ka.options.time,
 			  connection->ka.options.intvl,
@@ -3811,8 +3821,8 @@ void xio_connection_keepalive_intvl(int actual_timeout_ms, void *_connection)
 			xio_disconnect(connection);
 		return;
 	}
-	WARN_LOG("connection keepalive timeout. connection:%p probes:[%d]" \
-		 "[ka.time:%d, ka.intvl:%d, ka.probes:%d]\n",
+	WARN_LOG("connection keepalive timeout. connection:%p probes:[%d],  " \
+		 "ka:[time:%d, intvl:%d, probes:%d]\n",
 		 connection, connection->ka.probes,
 		 connection->ka.options.time,
 		 connection->ka.options.intvl,

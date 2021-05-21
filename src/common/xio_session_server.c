@@ -192,6 +192,14 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 	 * message arrives. Note that the "upper layer" may call redirect or
 	 * reject.
 	 */
+	DEBUG_LOG("new connection: session:%p, connection:%p, " \
+		  "ctx:%p, nexus:%p, " \
+		  "connection.ka:[time:%d, intvl:%d, probes:%d]\n",
+		  session, connection, connection->ctx,
+		  ((connection) ? connection->nexus : NULL),
+		  connection->ka.options.time,
+	          connection->ka.options.intvl,
+		  connection->ka.options.probes);
 
 	xio_session_notify_new_connection(session, connection);
 

@@ -1091,8 +1091,8 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 
 	DEBUG_LOG("xio_connect: session:%p, connection:%p, " \
 		  "ctx:%p, nexus:%p, dest_url:%s, out_interface:%s, " \
-		  "params:[ka.time:%d, ka.interval:%d, ka.probes:%d], " \
-		  "connection:[ka.time:%d, ka.interval:%d, ka.probes:%d]\n",
+		  "params.ka:[time:%d, intvl:%d, probes:%d], " \
+		  "connection.ka:[time:%d, intvl:%d, probes:%d]\n",
 		  session, connection, ctx,
 		  ((connection) ? connection->nexus : NULL),
 		  session->uri,
