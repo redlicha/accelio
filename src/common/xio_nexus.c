@@ -1866,6 +1866,7 @@ static int xio_nexus_destroy(struct xio_nexus *nexus)
 	list_for_each_entry_safe(ev_data, next_ev_data,
 				 &nexus->events_list,
 				 events_list_node) {
+		ev_data->nexus = NULL;
 		list_del(&ev_data->events_list_node);
 		xio_context_disable_event(&ev_data->event);
 		xio_context_kfree(nexus->ctx, ev_data);
