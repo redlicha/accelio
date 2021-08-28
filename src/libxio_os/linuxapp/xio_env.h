@@ -400,6 +400,7 @@ typedef int socket_t;
 /*---------------------------------------------------------------------------*/
 static inline int xio_closesocket(socket_t sock)
 {
+	shutdown(sock, SHUT_RDWR);
 	return close(sock);
 }
 
