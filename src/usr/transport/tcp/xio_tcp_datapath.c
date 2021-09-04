@@ -2236,7 +2236,7 @@ int xio_tcp_recvmsg_work(struct xio_tcp_transport *tcp_hndl, int fd,
 		return 1;
 
 	while (xio_recv->tot_iov_byte_len) {
-		retval = recvmsg(fd, &xio_recv->msg, MSG_DONTWAIT);
+		retval = recvmsg(fd, &xio_recv->msg, 0);
 		if (retval > 0) {
 			if (xio_recv->tot_iov_byte_len >= (uint64_t)retval) {
 				recv_bytes += retval;
@@ -2252,6 +2252,7 @@ int xio_tcp_recvmsg_work(struct xio_tcp_transport *tcp_hndl, int fd,
 					  "tot_iov_byte_len:%lu, retval:%d\n",
 					  EBADMSG,
 					  xio_recv->tot_iov_byte_len, retval);
+				xio_closesocket(fd);
 				return -1;
 			}
 			tmp_bytes = 0;
@@ -2276,27 +2277,29 @@ int xio_tcp_recvmsg_work(struct xio_tcp_transport *tcp_hndl, int fd,
 			xio_set_error(ECONNABORTED); /*so errno is not EAGAIN*/
 			DEBUG_LOG("tcp transport got EOF, tcp_hndl=%p\n",
 				  tcp_hndl);
+			xio_closesocket(fd);
 			return 0;
 		} else {
 			if (xio_get_last_socket_error() == XIO_EAGAIN) {
-				if (!block) {
-					xio_set_error(
-						xio_get_last_socket_error());
+				xio_set_error(xio_get_last_socket_error());
+				if (!block)
 					return -1;
-				}
-			} else if (xio_get_last_socket_error() ==
-				   XIO_ECONNRESET ||
-				   xio_get_last_socket_error() ==
-				   XIO_ECONNABORTED) {
+
+				ERROR_LOG("recvmsg failed. (errno=%d)\n", xio_get_last_socket_error());
+			} else {
 				xio_set_error(xio_get_last_socket_error());
 				DEBUG_LOG("recvmsg failed. (errno=%d)\n",
 					  xio_get_last_socket_error());
-				return 0;
+				xio_closesocket(fd);
+				if (xio_get_last_socket_error() ==
+				   XIO_ECONNRESET ||
+				   xio_get_last_socket_error() ==
+				   XIO_ECONNABORTED)
+					return 0;
+				else
+					return -1;
+
 			}
-			xio_set_error(xio_get_last_socket_error());
-			ERROR_LOG("recvmsg failed. (errno=%d)\n",
-				  xio_get_last_socket_error());
-			return -1;
 		}
 	}
 
