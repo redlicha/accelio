@@ -161,6 +161,7 @@ static struct msg_pool *msg_pool_alloc(struct xio_context *ctx, int max,
 
 
 	/* allocate the structures */
+	max++;
 	len = sizeof(struct msg_pool)+
 		max*(2*sizeof(struct xio_msg *)+sizeof(struct xio_msg));
 
@@ -258,11 +259,12 @@ static struct msg_pool *msg_pool_alloc(struct xio_context *ctx, int max,
 			vmsg_sglist_set_nents(&msg->in, 1);
 		}
 	}
+	max--;
 	msg_pool->in_hdrlen	= in_hdrlen;
 	msg_pool->in_datalen	= in_datalen;
 
 	msg_pool->stack_ptr = msg_pool->stack;
-	msg_pool->stack_end = &msg_pool->stack[max - 1];
+	msg_pool->stack_end = &msg_pool->stack[max];
 	msg_pool->max = max;
 
 	return msg_pool;

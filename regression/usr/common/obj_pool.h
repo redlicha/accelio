@@ -99,14 +99,14 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 	char			*data;
 	struct obj_pool		*q;
 	size_t			elems_alloc_sz;
-
-
-	/* pool + private data */
-	size_t pool_alloc_sz = sizeof(struct obj_pool) +
-				2*max*sizeof(void *);
+	size_t			pool_alloc_sz;
 
 	if (max < 1)
 		return NULL;
+
+	/* pool + private data */
+	max++;
+	pool_alloc_sz = sizeof(struct obj_pool) + 2*max*sizeof(void *);
 
 	buf = (char *)calloc(pool_alloc_sz, sizeof(uint8_t));
 	if (buf == NULL)
@@ -142,10 +142,10 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 		q->stack[i]		= q->array[i];
 		data = ((char *)data) + size;
 	}
-
+	max--;
 	q->data = q->array[0];
 	q->stack_ptr = q->stack;
-	q->stack_end = &q->stack[max - 1];
+	q->stack_end = &q->stack[max];
 	q->max	= max;
 	q->nr	= max;
 

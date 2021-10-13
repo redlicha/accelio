@@ -145,6 +145,7 @@ struct msg_pool *msg_pool_alloc(int max, int in_iovsz, int out_iovsz)
 	uint8_t			*buf;
 
 	/* allocate the structures */
+	max++;
 	len = sizeof(struct msg_pool) +
 		max * (2 * sizeof(struct xio_msg *) + sizeof(struct xio_msg));
 
@@ -193,8 +194,9 @@ struct msg_pool *msg_pool_alloc(int max, int in_iovsz, int out_iovsz)
 		}
 		msg_pool->stack[i] = msg;
 	}
+	max--;
 	msg_pool->stack_ptr = msg_pool->stack;
-	msg_pool->stack_end = &msg_pool->stack[max - 1]; 
+	msg_pool->stack_end = &msg_pool->stack[max];
 	msg_pool->max = max;
 	msg_pool->free = max;
 
