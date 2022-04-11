@@ -3189,6 +3189,9 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 			xio_tcp_disconnect_helper(tcp_hndl);
 			return -1;
 		} else if (recvmsg_retval < 0) {
+			if (xio_errno() != XIO_EAGAIN) {
+				xio_tcp_disconnect_helper(tcp_hndl);
+			}
 			break;
 		}
 
