@@ -129,6 +129,8 @@ static int xio_tcp_send_work(int fd, void **buf, uint32_t *len, int block)
 				return -1;
 			} else if (!block) {
 				xio_set_error(xio_get_last_socket_error());
+				ERROR_LOG("nonblocking send failed. (errno=%d)\n",
+						xio_get_last_socket_error());
 				/* ORK todo set epollout event
 				 * to trigger send again */
 				/* ORK todo polling on sendmsg few more times
