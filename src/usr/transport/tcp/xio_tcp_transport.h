@@ -269,6 +269,8 @@ struct xio_tcp_pending_conn {
 	struct xio_tcp_connect_msg	msg;
 	union xio_sockaddr		sa;
 	struct list_head		conns_list_entry;
+	uint8_t				input_blocked_in_epoll;
+	uint8_t				pad[7];
 };
 
 struct xio_tcp_socket_ops {

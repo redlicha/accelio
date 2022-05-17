@@ -1105,6 +1105,19 @@ void xio_tcp_handle_pending_conn(int fd,
 		}
 	}
 	if (!matching_conn) {
+		if (!pending_conn->waiting_for_bytes) {
+			retval = xio_context_modify_ev_handler(
+						parent_hndl->base.ctx,
+						fd,
+					XIO_POLLRDHUP);
+			if (retval) {
+				ERROR_LOG("modifying handler failed. (errno=%d %m)\n",
+						  xio_get_last_socket_error());
+				goto cleanup1;
+			}
+			pending_conn->input_blocked_in_epoll = 1;
+		}
+
 		DEBUG_LOG("[%d]-[%s] - end - fd:%d, cfd:%d, dfd:%d,  " \
 			  "data_conn:%p, ctl_conn:%p, pending_conn:%p, " \
 			  "matching_conn:%p\n",
@@ -1131,6 +1144,19 @@ void xio_tcp_handle_pending_conn(int fd,
 	}
 	cfd = ctl_conn->fd;
 	dfd = data_conn->fd;
+
+	/* only need to re-enable on ctl sock, as data sock is about to be removed from epoll */
+	if (ctl_conn->input_blocked_in_epoll) {
+		retval = xio_context_modify_ev_handler(
+				parent_hndl->base.ctx,
+				ctl_conn->fd,
+				XIO_POLLIN | XIO_POLLRDHUP);
+		if (retval) {
+			ERROR_LOG("modifying handler failed. (errno=%d %m)\n",
+				  xio_get_last_socket_error());
+			goto cleanup1;
+		}
+	}
 
 	DEBUG_LOG("[%d]-[%s] - del data_conn:%p, fd:%d, ctl_conn:%p, " \
 		  "pending_conn:%p, matching_conn:%p\n",
