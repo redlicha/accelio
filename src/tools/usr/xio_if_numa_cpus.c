@@ -181,6 +181,7 @@ int main(int argc, char *argv[])
 	char			flags[1024];
 	uint64_t		cpusmask = 0;
 	int			cpusnum;
+	int			flags_len = 0;
 	int			retval = -1;
 	int			ec = EXIT_FAILURE;
 	int			numa_node;
@@ -217,21 +218,21 @@ int main(int argc, char *argv[])
 		}
 		flags[0] = 0;
 		if (ifa->ifa_flags & IFF_UP)
-			sprintf(flags, "%s %s", flags, "UP");
+			flags_len += sprintf(flags + flags_len, " %s", "UP");
 		else
-			sprintf(flags, "%s %s", flags, "DOWN");
+			flags_len += sprintf(flags + flags_len, " %s", "DOWN");
 		if (ifa->ifa_flags & IFF_LOOPBACK)
-			sprintf(flags, "%s %s", flags, "LOOPBACK");
+			flags_len += sprintf(flags + flags_len, " %s", "LOOPBACK");
 		if (ifa->ifa_flags & IFF_RUNNING)
-			sprintf(flags, "%s %s", flags, "RUNNING");
+			flags_len += sprintf(flags + flags_len, " %s", "RUNNING");
 		if (ifa->ifa_flags & IFF_SLAVE) {
 			char master[256];
 
 			intf_master_name(ifa->ifa_name, master);
-			sprintf(flags, "%s %s - [%s]", flags, "SLAVE", master);
+			flags_len += sprintf(flags + flags_len, " %s - [%s]", "SLAVE", master);
 		}
 		if (ifa->ifa_flags & IFF_MASTER)
-			sprintf(flags, "%s %s", flags, "MASTER");
+			flags_len += sprintf(flags + flags_len, " %s", "MASTER");
 
 		numa_node = intf_numa_node(ifa->ifa_name);
 		retval = intf_name_best_cpus(ifa->ifa_name,

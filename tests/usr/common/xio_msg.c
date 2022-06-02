@@ -180,8 +180,10 @@ int msg_api_init(struct msg_params *msg_params,
 		len = strlen(ptr);
 		if (hdrlen <= len)
 			len = hdrlen - 1;
-		if (len)
-			strncpy((char *)msg_params->g_hdr, ptr, len);
+		if (len) {
+			memcpy(msg_params->g_hdr, ptr, len);
+			msg_params->g_hdr[len] = '\0';
+		}
 		msg_params->g_hdr[len] = 0;
 	}
 	if (datalen) {
@@ -194,8 +196,10 @@ int msg_api_init(struct msg_params *msg_params,
 		len = strlen(ptr);
 		if (datalen <= len)
 			len = datalen - 1;
-		if (len)
-			strncpy((char *)msg_params->g_data, ptr, len);
+		if (len) {
+			memcpy(msg_params->g_data, ptr, len);
+			msg_params->g_data[len] = '\0';
+		}
 		msg_params->g_data[len] = 0;
 
 		xio_mem_register(ctx, msg_params->g_data, datalen, &reg_mem);
