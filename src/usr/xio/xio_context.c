@@ -858,7 +858,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 	return 0;
 }
 
-void xio_ctx_mempool_dump(struct xio_context *ctx)
+void xio_context_mempool_dump(struct xio_context *ctx)
 {
 	xio_mempool_dump((struct xio_mempool*)ctx->mempool);
 }

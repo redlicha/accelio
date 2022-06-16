@@ -310,11 +310,6 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 		        enum xio_context_pool_class pool_cls);
 
 
-/*---------------------------------------------------------------------------*/
-/* xio_ctx_mempool_dump							     */
-/*---------------------------------------------------------------------------*/
-void xio_ctx_mempool_dump(struct xio_context *ctx);
-
 #ifdef XIO_THREAD_SAFE_DEBUG
 int xio_ctx_debug_thread_lock(struct xio_context *ctx);
 int xio_ctx_debug_thread_unlock(struct xio_context *ctx);

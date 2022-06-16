@@ -424,6 +424,11 @@ void xio_context_stop_loop(struct xio_context *ctx);
  */
 int xio_context_poll_wait(struct xio_context *ctx, int timeout_ms);
 
+/*---------------------------------------------------------------------------*/
+/* xio_contex_mempool_dump							     */
+/*---------------------------------------------------------------------------*/
+void xio_contex_mempool_dump(struct xio_context *ctx);
+
 
 /*---------------------------------------------------------------------------*/
 /* library initialization routines					     */
