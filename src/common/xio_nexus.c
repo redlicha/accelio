@@ -2004,6 +2004,8 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 	INIT_LIST_HEAD(&nexus->tx_queue);
 	mutex_init(&nexus->lock_connect);
 
+	INIT_LIST_HEAD(&nexus->events_list);
+
 	xio_nexus_init_observers_htbl(nexus);
 
 	if (observer) {
@@ -2074,8 +2076,6 @@ struct xio_nexus *xio_nexus_open(struct xio_context *ctx,
 
 	nexus->trans_release_event.handler	= xio_nexus_trans_release_handler;
 	nexus->trans_release_event.data		= nexus;
-
-	INIT_LIST_HEAD(&nexus->events_list);
 
 	xio_nexus_cache_add(nexus, &nexus->cid);
 
