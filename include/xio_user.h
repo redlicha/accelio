@@ -620,6 +620,13 @@ void xio_mempool_free(struct xio_reg_mem *reg_mem);
  */
 void xio_mempool_set_stat_callbacks(struct xio_mempool *mpool, struct xio_mempool_stat *stats_cbs);
 
+/**
+ * Dump to log mempool usage
+ * @param mpool the pool in question
+ * Note that log severity is debug in such case
+ */
+void xio_mempool_dump(struct xio_mempool *mpool);
+
 #ifdef __cplusplus
 }
 #endif
