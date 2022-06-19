@@ -643,9 +643,10 @@ int xio_mempool_alloc(struct xio_mempool *p, size_t length,
 	index = size2index(p, length);
 
 	if (p->stats_cbs.on_alloc) {
-		union xio_mempool_stat_params prms = {};
-		prms.on_alloc.requested_size = length;
-		prms.on_alloc.slab_size = p->slab[index].mb_size;
+		union xio_mempool_stat_params prms = {
+			.on_alloc.requested_size = length,
+			.on_alloc.slab_size = p->slab[index].mb_size
+		};
 		p->stats_cbs.on_alloc(p->stats_cbs.private_context, &prms);
 	}
 retry:
@@ -679,7 +680,12 @@ retry:
 			block = xio_mem_slab_resize(slab, 1);
 			if (!block) {
 				if (p->stats_cbs.on_slab_depleted) {
-					p->stats_cbs.on_slab_depleted(p->stats_cbs.private_context, p->slab[index].mb_size, length);
+					union xio_mempool_stat_params prms = {
+						.on_slab_depleted.requested_size = length,
+						.on_slab_depleted.slab_size = p->slab[index].mb_size,
+						.on_slab_depleted.slab_index = index
+					};
+					p->stats_cbs.on_slab_depleted(p->stats_cbs.private_context, &prms);
 				}
 
 				if (++index == (int)p->slabs_nr ||

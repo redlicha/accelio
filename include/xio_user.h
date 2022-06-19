@@ -241,12 +241,17 @@ union xio_mempool_stat_params {
 		size_t requested_size;
 		size_t slab_size;
 	} on_alloc;
+	struct {
+		size_t requested_size;
+		size_t slab_size;
+		size_t slab_index;
+	} on_slab_depleted;
 };
 
 struct xio_mempool_stat {
 	void *private_context;
 	void (*on_alloc)(void *private_context, union xio_mempool_stat_params *stat);
-	void (*on_slab_depleted)(void *private_context, size_t slab_size, size_t requested_size);
+	void (*on_slab_depleted)(void *private_context, union xio_mempool_stat_params *stats);
 };
 
 /**
