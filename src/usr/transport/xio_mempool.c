@@ -678,6 +678,10 @@ retry:
 			DEBUG_LOG("resizing slab size:%zd\n", slab->mb_size);
 			block = xio_mem_slab_resize(slab, 1);
 			if (!block) {
+				if (p->stats_cbs.on_slab_depleted) {
+					p->stats_cbs.on_slab_depleted(p->stats_cbs.private_context, p->slab[index].mb_size, length);
+				}
+
 				if (++index == (int)p->slabs_nr ||
 				    test_bits(
 					XIO_MEMPOOL_FLAG_USE_SMALLEST_SLAB,

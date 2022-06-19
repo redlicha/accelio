@@ -246,6 +246,7 @@ union xio_mempool_stat_params {
 struct xio_mempool_stat {
 	void *private_context;
 	void (*on_alloc)(void *private_context, union xio_mempool_stat_params *stat);
+	void (*on_slab_depleted)(void *private_context, size_t slab_size, size_t requested_size);
 };
 
 /**
