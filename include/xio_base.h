@@ -1355,6 +1355,9 @@ enum xio_optname {
 	 * xio_connection 2 file descriptors are used.
 	 */
 	XIO_OPTNAME_TCP_DUAL_STREAM,
+	/** Initial number of buffers to put in the rx_list
+	 */
+	XIO_OPTNAME_TCP_RX_LIST_POST_NR,
 };
 
 /**

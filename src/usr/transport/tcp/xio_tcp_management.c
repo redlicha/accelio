@@ -80,6 +80,8 @@ extern struct xio_transport		xio_tcp_transport;
 
 static int				cdl_fd = -1;
 
+static int g_rx_list_post_nr = RX_LIST_POST_NR;
+
 /* tcp options */
 struct xio_tcp_options			tcp_options = {
 	XIO_OPTVAL_DEF_ENABLE_MEM_POOL,		/*enable_mem_pool*/
@@ -2401,7 +2403,7 @@ static int xio_tcp_primary_pool_post_create(
 
 	tcp_hndl->primary_pool_cls.pool = pool;
 
-	for (i = 0; i < RX_LIST_POST_NR; i++) {
+	for (i = 0; i < g_rx_list_post_nr; i++) {
 		/* get ready to receive message */
 		task = xio_tcp_primary_task_alloc(tcp_hndl);
 		if (task == 0) {
@@ -2598,6 +2600,10 @@ static int xio_tcp_set_opt(void *xio_obj,
 		VALIDATE_SZ(sizeof(int));
 		tcp_options.tcp_dual_sock = *((int *)optval);
 		return 0;
+	case XIO_OPTNAME_TCP_RX_LIST_POST_NR:
+		VALIDATE_SZ(sizeof(int));
+		g_rx_list_post_nr = *((int *)optval);
+		return 0;
 	default:
 		break;
 	}
@@ -2646,6 +2652,10 @@ static int xio_tcp_get_opt(void  *xio_obj,
 		return 0;
 	case XIO_OPTNAME_TCP_DUAL_STREAM:
 		*((int *)optval) = tcp_options.tcp_dual_sock;
+		*optlen = sizeof(int);
+		return 0;
+	case XIO_OPTNAME_TCP_RX_LIST_POST_NR:
+		*((int *)optval) = g_rx_list_post_nr;
 		*optlen = sizeof(int);
 		return 0;
 	default:
