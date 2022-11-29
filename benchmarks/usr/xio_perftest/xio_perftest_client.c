@@ -235,7 +235,6 @@ static void *worker_thread(void *data)
 		/* get pointers to internal buffers */
 		msg->in.header.iov_len = 0;
 
-		sglist = vmsg_sglist(&msg->in);
 		vmsg_sglist_set_nents(&msg->in, 0);
 
 		msg->out.header.iov_len = 0;

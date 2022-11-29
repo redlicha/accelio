@@ -234,7 +234,7 @@ static inline void xio_reinit_msg(struct xio_msg *msg)
  * @def XIO_INFINITE
  * @brief infinite time flag for event loop
  */
-#define XIO_INFINITE			-1
+#define XIO_INFINITE			(-1)
 
 union xio_mempool_stat_params {
 	struct {

@@ -97,7 +97,7 @@ static void xio_test_disable_rdma(void)
 static int xio_dtor(void)
 {
 	size_t i;
-	int ret = 0;
+	int ret;
 
 	for (i = 0; i < transport_tbl_sz; i++) {
 		if (transport_tbl[i] == NULL)

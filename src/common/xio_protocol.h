@@ -413,10 +413,9 @@ static inline size_t xio_read_array(uint8_t *b, size_t length,
 static inline size_t xio_write_string(const char *b, size_t maxlength,
 				      int bindex, uint8_t *buffer)
 {
-	size_t length = 0;
-
 	/* Copy string into buffer, ensuring not to exceed the buffer size */
 	unsigned int i;
+	size_t length;
 
 	for (i = 2; i < maxlength - 1 || (b[i] == '\0'); i++)
 		buffer[bindex+i] = b[i];

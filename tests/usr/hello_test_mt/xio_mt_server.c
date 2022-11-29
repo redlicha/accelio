@@ -651,8 +651,10 @@ int main(int argc, char *argv[])
 
 	max_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
-	if (parse_cmdline(&test_config, argc, argv) != 0)
+	if (parse_cmdline(&test_config, argc, argv) != 0) {
+		free(server_data.tdata);
 		return -1;
+	}
 
 	print_test_config(&test_config);
 	i = intf_best_cpus(test_config.server_addr, &cpusmask, &cpusnr);
@@ -673,8 +675,11 @@ int main(int argc, char *argv[])
 
 
 	if (msg_api_init(&msg_prms, server_data.ctx,
-			 test_config.hdr_len, test_config.data_len, 1) != 0)
+			 test_config.hdr_len, test_config.data_len, 1) != 0) {
+		xio_context_destroy(server_data.ctx);
+		free(server_data.tdata);
 		return -1;
+	}
 
 	pthread_spin_init(&server_data.lock, 0);
 

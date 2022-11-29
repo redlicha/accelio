@@ -99,8 +99,8 @@ static inline void raio_pool_put(struct raio_pool *q, void *t)
 struct raio_pool *raio_pool_init(int max, size_t size)
 {
 	int			i;
-	char			*buf;
-	char			*data;
+	uint8_t			*buf;
+	uint8_t			*data;
 	struct raio_pool	*q;
 	size_t			elems_alloc_sz;
 	size_t			pool_alloc_sz;
@@ -112,7 +112,7 @@ struct raio_pool *raio_pool_init(int max, size_t size)
 	max++;
 	pool_alloc_sz = sizeof(struct raio_pool) + 2*max*sizeof(void *);
 
-	buf = (char *)calloc(pool_alloc_sz, sizeof(uint8_t));
+	buf = (uint8_t *)calloc(pool_alloc_sz, sizeof(uint8_t));
 	if (buf == NULL)
 		return NULL;
 
@@ -126,12 +126,11 @@ struct raio_pool *raio_pool_init(int max, size_t size)
 
 	/* array */
 	q->array = (void **)buf;
-	buf = buf + max*sizeof(void *);
 
 	/* pool data */
 	elems_alloc_sz = max*size;
 
-	data = (char *)calloc(elems_alloc_sz, sizeof(uint8_t));
+	data = (uint8_t *)calloc(elems_alloc_sz, sizeof(uint8_t));
 	if (data == NULL) {
 		free(q);
 		return NULL;
@@ -140,7 +139,7 @@ struct raio_pool *raio_pool_init(int max, size_t size)
 	for (i = 0; i < max; i++) {
 		q->array[i]		= data;
 		q->stack[i]		= q->array[i];
-		data = ((char *)data) + size;
+		data += size;
 	}
 	max--;
 	q->stack_ptr = q->stack;
@@ -392,10 +391,8 @@ int main(int argc, char *argv[])
 		offset = 0;
 		tot_submitted =  0;
 		tot_completed = 0;
-		ncomplete = 0;
 		npending = 0;
 		nqueued = 0;
-		nsubmit = 0;
 
 		printf(".");
 		fflush(stdout);
@@ -507,6 +504,7 @@ cleanup:
 	retval = raio_destroy(io_ctx);
 	if (retval == -1) {
 		fprintf(stderr, "raio_destroy failed - fd:%d %m\n", fd);
+		free(piocb);
 		return -1;
 	}
 	raio_pool_free(iocb_pool);

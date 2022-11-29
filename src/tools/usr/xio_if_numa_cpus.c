@@ -113,7 +113,7 @@ static int numa_node_to_cpusmask(int node, uint64_t *cpusmask, int *nr)
 {
 	struct bitmask *mask;
 	uint64_t	bmask = 0;
-	int		retval = -1;
+	int		retval;
 	unsigned int	i;
 
 	mask = numa_allocate_cpumask();

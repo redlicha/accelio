@@ -120,9 +120,7 @@ static inline int16_t between(uint16_t seq1, uint16_t seq2, uint16_t seq3)
 static inline
 unsigned long long timespec_to_usecs(struct timespec *time_spec)
 {
-	unsigned long long retval = 0;
-
-	retval  = time_spec->tv_sec * USECS_IN_SEC;
+	unsigned long long retval  = time_spec->tv_sec * USECS_IN_SEC;
 	retval += time_spec->tv_nsec / NSECS_IN_USEC;
 
 	return retval;

@@ -92,7 +92,6 @@ struct xio_msg *xio_session_write_setup_req(struct xio_session *session)
 	msg->type = (enum xio_msg_type)XIO_SESSION_SETUP_REQ;
 
 	ptr = (uint8_t *)msg->out.header.iov_base;
-	len = 0;
 
 	/* serialize message on the buffer */
 	len = xio_write_uint32(session->session_id, 0, ptr);
@@ -299,7 +298,7 @@ int xio_read_setup_rsp(struct xio_connection *connection,
 	struct xio_new_session_rsp	*rsp = &session->new_ses_rsp;
 	uint8_t				*ptr;
 	uint16_t			len;
-	int				i = 0;
+	int				i;
 	uint16_t			str_len;
 
 	/* read session header */
@@ -499,10 +498,10 @@ int xio_on_setup_rsp_recv(struct xio_connection *connection,
 	uint16_t			action = 0;
 	struct xio_session		*session = connection->session;
 	struct xio_new_session_rsp	*rsp = &session->new_ses_rsp;
-	int				retval = 0, fill_portals = 0;
+	int				fill_portals = 0;
 	struct xio_connection		*tmp_connection;
 
-	retval = xio_read_setup_rsp(connection, task, &action);
+	int retval = xio_read_setup_rsp(connection, task, &action);
 
 	/* the tx task is returned back to pool */
 	xio_tasks_pool_put(task->sender_task);

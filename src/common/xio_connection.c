@@ -2425,7 +2425,7 @@ int xio_modify_connection(struct xio_connection *connection,
 	if (test_bits(XIO_CONNECTION_ATTR_USER_CTX, &attr_mask))
 		connection->cb_user_context = attr->user_context;
         if (test_bits(XIO_CONNECTION_ATTR_DISCONNECT_TIMEOUT, &attr_mask)) {
-                if (attr->disconnect_timeout_secs)
+		if (attr->disconnect_timeout_secs)
 			connection->disconnect_timeout = attr->disconnect_timeout_secs * 1000;
 		else
 			connection->disconnect_timeout = XIO_DEF_CONNECTION_TIMEOUT;
@@ -3144,7 +3144,6 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 			struct xio_task *task)
 {
 	struct xio_transition	*transition;
-	int retval = 0;
 
 	DEBUG_LOG("fin request received. session:%p, connection:%p\n",
 		  connection->session, connection);
@@ -3164,9 +3163,8 @@ int xio_on_fin_req_recv(struct xio_connection *connection,
 	/* flush all pending requests */
 	xio_connection_notify_req_msgs_flush(connection, XIO_E_MSG_FLUSHED);
 	/*fin req was flushed. need to send it again */
-	retval = 0;
 	if (connection->fin_request_flushed) {
-		retval = xio_send_fin_req(connection);
+		int retval = xio_send_fin_req(connection);
 		if (retval) {
 			ERROR_LOG("xio_send_fin_req failed. expediting disconnection. connection:%p\n",
 				   connection);

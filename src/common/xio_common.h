@@ -56,8 +56,8 @@ extern struct xio_mempool_config	g_mempool_config;
 /*#define XIO_SESSION_DEBUG*/
 
 /* Macro for 64 bit variables to switch to from net */
-#define ntohll(x) (((uint64_t)(ntohl((int)((x << 32) >> 32))) << 32) | \
-		    (unsigned int)ntohl(((int)(x >> 32))))
+#define ntohll(x) (((uint64_t)(ntohl((int)(((x) << 32) >> 32))) << 32) | \
+		    (unsigned int)ntohl(((int)((x) >> 32))))
 #define htonll(x) ntohll(x)
 
 #define uint64_from_ptr(p)	(uint64_t)(uintptr_t)(p)
@@ -176,9 +176,9 @@ enum xio_msg_flags_ex {
 #define UNPACK_LVAL(src, trgt, attr) ((trgt)->attr = ntohl((src)->attr))
 #define UNPACK_LLVAL(src, trgt, attr) ((trgt)->attr = ntohll((src)->attr))
 
-#define test_bits(mask, addr)   (((*addr) & (mask)) != 0)
-#define clr_bits(mask, addr)    ((*addr) &= ~(mask))
-#define set_bits(mask, addr)    ((*addr) |= (mask))
+#define test_bits(mask, addr)   (((*(addr)) & (mask)) != 0)
+#define clr_bits(mask, addr)    ((*(addr)) &= ~(mask))
+#define set_bits(mask, addr)    ((*(addr)) |= (mask))
 
 #define test_flag(flag, addr)   (((*addr) & (flag)) == (flag))
 

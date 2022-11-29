@@ -339,7 +339,6 @@ static int xio_rdma_xmit(struct xio_rdma_transport *rdma_hndl)
 			if (req_nr >= (window - 1))
 				break;
 
-			curr_wr = &rdma_task->rdmad;
 			/* prepare it for rdma wr and concatenate the send
 			 * wr to it */
 			rdma_task->rdmad.send_wr.next = &rdma_task->txd.send_wr;
@@ -3607,10 +3606,9 @@ static int xio_prep_rdma_op(
 		struct list_head *target_list,
 		int	tasks_number)
 {
-	XIO_TO_RDMA_TASK(task, rdma_task);
 	struct xio_task		*tmp_task;
 	struct xio_rdma_task	*tmp_rdma_task;
-	struct xio_work_req	*rdmad = &rdma_task->rdmad;
+	struct xio_work_req	*rdmad;
 	struct xio_task		*ptask, *next_ptask;
 	uint64_t		laddr  = lsg_list[0].addr;
 	uint64_t		raddr  = rsg_list[0].addr;

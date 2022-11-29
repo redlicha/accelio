@@ -108,7 +108,7 @@ static int xio_rdma_reject(struct xio_transport_base *transport);
 static void xio_rdma_close(struct xio_transport_base *transport);
 static int xio_cm_channel_create(struct xio_rdma_transport *rdma_hndl);
 static inline void xio_cm_channel_destroy(struct xio_rdma_transport *rdma_hndl);
-static void xio_rdma_post_close(struct xio_transport_base *trans_hndl);
+static void xio_rdma_post_close(struct xio_transport_base *trans_base);
 static int xio_rdma_flush_all_tasks(struct xio_rdma_transport *rdma_hndl);
 static void xio_device_release(struct xio_device *dev);
 static int xio_rdma_relisten(struct xio_rdma_transport *rdma_hndl, int backlog);

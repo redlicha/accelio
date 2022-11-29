@@ -105,14 +105,14 @@ struct xio_msg_list {
 
 
 #define	xio_msg_list_safe_remove(head, elm, field, var, removed) do {	\
-	*((int *)removed) = 0;						\
+	*((int *)(removed)) = 0;					\
 	xio_msg_list_foreach(var, head, field) {			\
-		if (var == elm) {					\
-			*((int *)removed) = 1;				\
+		if ((var) == (elm)) {					\
+			*((int *)(removed)) = 1;			\
 			break;						\
 		}							\
 	}								\
-        if (*(int *)removed)						\
+        if (*(int *)(removed))						\
 		xio_msg_list_remove(head, elm, field);			\
 } while (/*CONSTCOND*/0)
 

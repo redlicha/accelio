@@ -545,8 +545,7 @@ int xio_context_del_ev_handler(struct xio_context *ctx,
 /*---------------------------------------------------------------------------*/
 int xio_context_run_loop(struct xio_context *ctx, int timeout_ms)
 {
-	int retval = 0;
-
+	int retval;
 #ifdef XIO_THREAD_SAFE_DEBUG
 	xio_ctx_debug_thread_lock(ctx);
 #endif

@@ -154,7 +154,7 @@ cleanup:
 /*---------------------------------------------------------------------------*/
 static int xio_mem_free_no_dev(struct xio_reg_mem *reg_mem)
 {
-	int			retval = 0;
+	int retval;
 
 	if (reg_mem->addr)
 		xio_context_ufree(reg_mem->ctx, reg_mem->addr);

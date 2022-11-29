@@ -983,7 +983,7 @@ static int xio_nexus_on_send_msg_comp(struct xio_nexus *nexus,
 				&task->session->observer,
 				XIO_NEXUS_EVENT_SEND_COMPLETION,
 				&nexus_event_data);
-	 else
+	else
 		ERROR_LOG("spurious event. nexus:%p, task:%p\n", nexus, task);
 
 	return 0;
@@ -1801,7 +1801,7 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 		DEBUG_LOG("nexus: [notification] - transport closed. "  \
 			 "nexus:%p, transport:%p\n", observer, sender);
 		xio_nexus_on_transport_closed(nexus, ev_data);
-		tx = 0;
+		// tx = 0;
 		return 0;
 	case XIO_TRANSPORT_EVENT_REFUSED:
 		DEBUG_LOG("nexus: [notification] - transport refused. " \
@@ -2761,7 +2761,7 @@ static void xio_nexus_client_reconnect_timeout(int actual_timeout_ms, void *data
 
 	if (nexus->reconnect_retries) {
 		nexus->reconnect_retries--;
-		retval = xio_ctx_add_delayed_work(
+		xio_ctx_add_delayed_work(
 				nexus->ctx,
 				xio_msecs[nexus->reconnect_retries],
 				nexus,

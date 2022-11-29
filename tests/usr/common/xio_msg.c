@@ -63,12 +63,11 @@
 /*---------------------------------------------------------------------------*/
 static void *alloc_mem_buf(size_t pool_size, int *shmid)
 {
-	int	shmemid = 0;
 	void	*buf = NULL;
 	int	pagesz;
 
 	/* allocate memory */
-	shmemid = shmget(IPC_PRIVATE, pool_size,
+	int shmemid = shmget(IPC_PRIVATE, pool_size,
 			 SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
 	if (shmemid < 0) {
 		fprintf(stderr,

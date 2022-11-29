@@ -703,10 +703,8 @@ int xio_tcp_single_sock_add_ev_handlers(struct xio_tcp_transport *tcp_hndl)
 /*---------------------------------------------------------------------------*/
 int xio_tcp_dual_sock_add_ev_handlers(struct xio_tcp_transport *tcp_hndl)
 {
-	int retval = 0;
-
 	/* add to epoll */
-	retval = xio_context_add_ev_handler(
+	int retval = xio_context_add_ev_handler(
 			tcp_hndl->base.ctx,
 			tcp_hndl->sock.cfd,
 			XIO_POLLIN | XIO_POLLRDHUP,
@@ -1490,12 +1488,11 @@ void xio_tcp_conn_established_helper(int fd,
 				     struct xio_tcp_connect_msg	*msg,
 				     int error)
 {
-	int				retval = 0;
 	int				so_error = 0;
 	socklen_t			len = sizeof(so_error);
 
 	/* remove from epoll */
-	retval = xio_context_del_ev_handler(tcp_hndl->base.ctx,
+	int retval = xio_context_del_ev_handler(tcp_hndl->base.ctx,
 					    tcp_hndl->sock.cfd);
 	if (retval) {
 		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
@@ -1616,13 +1613,12 @@ void xio_tcp_dfd_conn_established_ev_handler(int fd,
 {
 	struct xio_tcp_transport	*tcp_hndl = (struct xio_tcp_transport *)
 							user_context;
-	int				retval = 0;
 	int				so_error = 0;
 	socklen_t			so_error_len = sizeof(so_error);
 	struct xio_tcp_connect_msg	msg;
 
 	/* remove from epoll */
-	retval = xio_context_del_ev_handler(tcp_hndl->base.ctx,
+	int retval = xio_context_del_ev_handler(tcp_hndl->base.ctx,
 					    tcp_hndl->sock.dfd);
 	if (retval) {
 		ERROR_LOG("removing connection handler failed.(errno=%d %m)\n",
@@ -1826,11 +1822,10 @@ static int xio_tcp_connect(struct xio_transport_base *transport,
 	struct xio_tcp_transport	*tcp_hndl =
 					(struct xio_tcp_transport *)transport;
 	union xio_sockaddr		rsa;
-	socklen_t			rsa_len = 0;
 	int				retval = 0;
 
 	/* resolve the portal_uri */
-	rsa_len = xio_uri_to_ss(portal_uri, &rsa.sa_stor);
+	socklen_t rsa_len = xio_uri_to_ss(portal_uri, &rsa.sa_stor);
 	if (rsa_len == (socklen_t)-1) {
 		xio_set_error(XIO_E_ADDR_ERROR);
 		ERROR_LOG("address [%s] resolving failed\n", portal_uri);

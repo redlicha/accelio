@@ -95,8 +95,8 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 					     void (*obj_init)(void *, void *))
 {
 	int			i;
-	char			*buf;
-	char			*data;
+	uint8_t			*buf;
+	uint8_t			*data;
 	struct obj_pool		*q;
 	size_t			elems_alloc_sz;
 	size_t			pool_alloc_sz;
@@ -108,7 +108,7 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 	max++;
 	pool_alloc_sz = sizeof(struct obj_pool) + 2*max*sizeof(void *);
 
-	buf = (char *)calloc(pool_alloc_sz, sizeof(uint8_t));
+	buf = (uint8_t *)calloc(pool_alloc_sz, sizeof(uint8_t));
 	if (buf == NULL)
 		return NULL;
 
@@ -122,12 +122,11 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 
 	/* array */
 	q->array = (void **)buf;
-	buf = buf + max*sizeof(void *);
 
 	/* pool data */
 	elems_alloc_sz = max*size;
 
-	data = (char *)calloc(elems_alloc_sz, sizeof(uint8_t));
+	data = (uint8_t*)calloc(elems_alloc_sz, sizeof(uint8_t));
 	if (data == NULL) {
 		free(q);
 		return NULL;
@@ -140,7 +139,7 @@ static inline struct obj_pool *obj_pool_init(int max, size_t size,
 			obj_init(user_context, q->array[i]);
 
 		q->stack[i]		= q->array[i];
-		data = ((char *)data) + size;
+		data += size;
 	}
 	max--;
 	q->data = q->array[0];

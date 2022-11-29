@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 		.argv = argvv
 	};
 	pthread_t stid, ctid;
-	struct	 program_vars vars;
+	static struct	 program_vars vars;
 
 	if (argc == 1)
 		return 0;

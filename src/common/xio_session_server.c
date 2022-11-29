@@ -70,7 +70,7 @@ int xio_on_setup_req_recv(struct xio_connection *connection,
 	uint16_t			len;
 	struct xio_session_hdr		hdr;
 	struct xio_session		*session = connection->session;
-	int				retval;
+	int				retval = 0;
 	struct xio_session_event_data  error_event = {
 		.conn = NULL,
 		.conn_user_context = NULL,
@@ -237,7 +237,7 @@ cleanup1:
 	connection->disable_notify = 1;
 	xio_connection_force_disconnect(connection, error_event.reason);
 
-	return 0;
+	return retval;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -282,7 +282,6 @@ struct xio_msg *xio_session_write_accept_rsp(struct xio_session *session,
 	msg->out.header.iov_len = 0;
 
 	ptr = (uint8_t *)msg->out.header.iov_base;
-	len = 0;
 
 	/* serialize message into the buffer */
 
@@ -388,7 +387,6 @@ struct xio_msg *xio_session_write_reject_rsp(struct xio_session *session,
 	msg->out.header.iov_len = 0;
 
 	ptr = (uint8_t *)msg->out.header.iov_base;
-	len = 0;
 
 	/* serialize message into the buffer */
 

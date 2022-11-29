@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 	struct xio_session_params	params;
 	struct xio_connection_params	cparams;
 	struct xio_msg			*req;
-	struct xio_reg_mem      	xbuf;
+	struct xio_reg_mem      	xbuf = {};
         int 				msg_size = 0;
         int 				max_msg_size = 0;
         uint8_t 			*data = NULL;

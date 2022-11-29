@@ -59,7 +59,7 @@ void xio_vlog(const char *file, unsigned line, const char *function,
 	struct tm		t;
 	char			buf[2048];
 	char			buf2[256];
-	int			length = 0;
+	int			length;
 	static const char * const level_str[] = {
 		"FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"
 	};
@@ -99,7 +99,7 @@ void xio_vlog(const char *file, unsigned line, const char *function,
 void xio_read_logging_level(void)
 {
 	char *val = getenv("XIO_TRACE");
-	int level  = 0;
+	int level;
 
 	if (!val)
 		return;

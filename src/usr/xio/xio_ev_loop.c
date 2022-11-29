@@ -414,7 +414,7 @@ static inline int xio_ev_loop_deleted_event_lookup(struct xio_ev_loop *loop,
 static inline int xio_ev_loop_run_helper(void *loop_hndl, int timeout)
 {
 	struct xio_ev_loop	*loop = (struct xio_ev_loop *)loop_hndl;
-	int			nevent = 0, i, found = 0;
+	int			nevent, i, found;
 	struct epoll_event	events[1024];
 	struct xio_ev_data	*tev;
 	int			work_remains;

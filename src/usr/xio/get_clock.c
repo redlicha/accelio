@@ -75,7 +75,6 @@ static double sample_get_cpu_mhz(void)
 	/* Regression: y = a + b x */
 	long x[MEASUREMENTS];
 	cycles_t y[MEASUREMENTS];
-	double a; /* system call overhead in cycles */
 	double b; /* cycles per microsecond */
 	double r_2;
 
@@ -114,14 +113,14 @@ static double sample_get_cpu_mhz(void)
 	}
 
 	b = (MEASUREMENTS * sxy - sx * sy) / (MEASUREMENTS * sxx - sx * sx);
-	a = (sy - b * sx) / MEASUREMENTS;
+	if (_DEBUG_MODE) {
+		double a; /* system call overhead in cycles */
+		a = (sy - b * sx) / MEASUREMENTS;
 
-	if (_DEBUG_MODE)
 		fprintf(stderr, "a = %g\n", a);
-	if (_DEBUG_MODE)
 		fprintf(stderr, "b = %g\n", b);
-	if (_DEBUG_MODE)
 		fprintf(stderr, "a / b = %g\n", a / b);
+	}
 	r_2 = (MEASUREMENTS * sxy - sx * sy) * (MEASUREMENTS * sxy - sx * sy) /
 		(MEASUREMENTS * sxx - sx * sx) /
 		(MEASUREMENTS * syy - sy * sy);

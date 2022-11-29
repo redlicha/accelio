@@ -1964,7 +1964,7 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 					"to missing, response buffer\n");
 
 			/* the client did not provide buffer for response */
-			retval = xio_tcp_prep_rsp_header(
+			xio_tcp_prep_rsp_header(
 					tcp_hndl, task,
 					(uint16_t)ulp_hdr_len, 0, 0,
 					XIO_E_PARTIAL_MSG);

@@ -134,7 +134,7 @@ static void process_response(struct session_data *session_data,
 static void on_connection_established(struct xio_connection *connection,
 				      struct session_data *session_data)
 {
-	int i = 0;
+	int i;
 	/* send first message */
 	for (i = 0; i < QUEUE_DEPTH; i++) {
 		xio_send_request(connection, &session_data->req[i]);

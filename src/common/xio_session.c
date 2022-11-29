@@ -65,7 +65,7 @@
 /*---------------------------------------------------------------------------*/
 static int xio_on_req_recv(struct xio_connection *connection,
 			   struct xio_task *task);
-static int xio_on_rsp_recv(struct xio_connection *nexusetion,
+static int xio_on_rsp_recv(struct xio_connection *connection,
 			   struct xio_task *task);
 static int xio_on_ow_req_send_comp(struct xio_connection *connection,
 				   struct xio_task *task);
@@ -1625,7 +1625,7 @@ struct xio_session *xio_session_create(struct xio_session_params *params)
 {
 	struct xio_session	*session = NULL;
 	int			retval;
-	int			uri_len = 0;
+	int			uri_len;
 
 	/* input validation */
 	if (!params || !params->uri) {
@@ -1772,8 +1772,6 @@ void xio_session_post_destroy(void *_session)
 	}
 	mutex_destroy(&session->lock);
 	xio_context_kfree(NULL, session);
-
-	return;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1977,7 +1975,7 @@ static int xio_session_on_context_event(void *observer, void *sender, int event,
 static void xio_session_pre_teardown(int actual_timeout_ms, void *_session)
 {
 	struct xio_session	*session = (struct xio_session *)_session;
-	int			destroy_session = 0;
+	int			destroy_session;
 	int			reason;
 
 	switch (session->state) {
