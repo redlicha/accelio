@@ -1853,7 +1853,7 @@ const char *xio_session_event_str(enum xio_session_event event)
 		return "connection reconnecting";
 	case XIO_SESSION_CONNECTION_RECONNECTED_EVENT:
 		return "connection reconnected";
-	};
+	}
 	return "unknown session event";
 }
 EXPORT_SYMBOL(xio_session_event_str);

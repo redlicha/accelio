@@ -1047,7 +1047,7 @@ void xio_tcp_disconnect_helper(void *xio_tcp_hndl)
 					&tcp_task->comp_work);
 		}
 	} else {
-		/* call disconnect if no message to flush other wise defer */
+		/* call disconnect if no message to flush otherwise defer */
 		xio_context_add_event(tcp_hndl->base.ctx,
 				&tcp_hndl->disconnect_event);
 	}
@@ -2612,7 +2612,7 @@ static int xio_tcp_on_recv_req_header(struct xio_tcp_transport *tcp_hndl,
 		xio_set_error(XIO_E_MSG_INVALID);
 		task->status = XIO_E_MSG_INVALID;
 		break;
-	};
+	}
 
 	return 0;
 
@@ -2647,7 +2647,7 @@ static int xio_tcp_on_recv_req_data(struct xio_tcp_transport *tcp_hndl,
 	default:
 		ERROR_LOG("unexpected opcode\n");
 		break;
-	};
+	}
 
 	/* fill notification event */
 	event_data.msg.op	= XIO_WC_OP_RECV;

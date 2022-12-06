@@ -129,7 +129,7 @@ static const char *xio_gen_status_str(enum xio_status ev)
 		return "Application resources are temporary unavailable";
 	default:
 		return "Unknown error";
-	};
+	}
 }
 
 /*---------------------------------------------------------------------------*/

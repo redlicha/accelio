@@ -1002,7 +1002,6 @@ struct xio_connection *xio_connect(struct xio_connection_params *cparams)
 		}
 	} else if (session->state == XIO_SESSION_STATE_ONLINE ||
 		   session->state == XIO_SESSION_STATE_ACCEPTED) {
-		struct xio_nexus *nexus;
 		char *portal;
 
 		if (cparams->conn_idx == 0) {

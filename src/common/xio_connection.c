@@ -175,7 +175,7 @@ char *xio_connection_state_str(enum xio_connection_state state)
 	}
 
 	return NULL;
-};
+}
 
 /*---------------------------------------------------------------------------*/
 /* xio_is_connection_online						     */
@@ -3120,7 +3120,7 @@ int xio_on_fin_ack_recv(struct xio_connection *connection,
 	connection->state = transition->next_state;
 
 	if (connection->state == XIO_CONNECTION_STATE_TIME_WAIT) {
-		int retval = xio_ctx_add_delayed_work(
+		retval = xio_ctx_add_delayed_work(
 				connection->ctx,
 				2, connection,
 				xio_close_time_wait,

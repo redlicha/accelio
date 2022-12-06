@@ -1016,7 +1016,7 @@ static int xio_qp_create(struct xio_rdma_transport *rdma_hndl)
 		default:
 			ERROR_LOG("rdma_create_qp failed. (errno=%d %m)\n", errno);
 			break;
-		};
+		}
 		goto destroy_cq;
 	}
 	rdma_hndl->tcq          = tcq;
@@ -2600,7 +2600,7 @@ static void on_cm_error(struct rdma_cm_event *ev,
 	default:
 		reason = XIO_E_NOT_SUPPORTED;
 		break;
-	};
+	}
 	if (rdma_hndl->state == XIO_TRANSPORT_STATE_CONNECTED) {
 		rdma_hndl->state = XIO_TRANSPORT_STATE_DISCONNECTED;
 		retval = xio_rdma_disconnect(rdma_hndl, 0);
@@ -2743,7 +2743,7 @@ static void xio_handle_cm_event(struct rdma_cm_event *ev,
 	default:
 		on_cm_error(ev, rdma_hndl);
 		break;
-	};
+	}
 	rdma_hndl->handler_nesting--;
 
 	/* state can be modified to destroyed (side effect) */

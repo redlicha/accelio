@@ -150,7 +150,7 @@ static int on_session_event(struct xio_session *session,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }

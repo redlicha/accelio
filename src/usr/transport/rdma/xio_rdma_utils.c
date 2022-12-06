@@ -212,7 +212,7 @@ const char *xio_cm_rej_reason_str(int reason)
 		return "Invalid Alt Flow Label";
 	default:
 		return "Unknown error";
-	};
+	}
 }
 
 void xio_validate_ulimit_memlock(void)

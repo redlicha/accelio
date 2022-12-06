@@ -1653,7 +1653,7 @@ static int xio_nexus_on_new_message(struct xio_nexus *nexus,
 			ERROR_LOG("unexpected message type %u\n",
 				  task->tlv_type);
 		break;
-	};
+	}
 
 	if (retval != 0) {
 		ERROR_LOG("failed to handle message. " \
@@ -1684,7 +1684,7 @@ static int xio_nexus_on_send_completion(struct xio_nexus *nexus,
 	default:
 		retval = xio_nexus_on_send_msg_comp(nexus, task);
 		break;
-	};
+	}
 
 	if (retval != 0) {
 		ERROR_LOG("failed to handle message. " \
@@ -1843,7 +1843,7 @@ static int xio_nexus_on_transport_event(void *observer, void *sender,
 
 		tx = 0;
 		break;
-	};
+	}
 
 	if (tx && !list_empty(&nexus->tx_queue))
 		xio_nexus_xmit(nexus);

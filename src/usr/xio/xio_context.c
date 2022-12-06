@@ -786,7 +786,7 @@ int xio_ctx_pool_create(struct xio_context *ctx, enum xio_proto proto,
 		xio_set_error(EINVAL);
 		ERROR_LOG("unknown pool class\n");
 		return -1;
-	};
+	}
 
 	/* if already exist */
 	if (*tasks_pool)

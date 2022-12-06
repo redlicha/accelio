@@ -2333,7 +2333,7 @@ static void init_initial_tasks_pool_ops(void)
 		xio_tcp_initial_pool_post_create;
 	initial_tasks_pool_ops.task_pre_put =
 		xio_tcp_task_pre_put;
-};
+}
 
 /*---------------------------------------------------------------------------*/
 /* xio_tcp_primary_pool_slab_pre_create					     */
@@ -2523,7 +2523,7 @@ static void init_primary_tasks_pool_ops(void)
 	primary_tasks_pool_ops.pool_post_create =
 		xio_tcp_primary_pool_post_create;
 	primary_tasks_pool_ops.task_pre_put = xio_tcp_task_pre_put;
-};
+}
 
 /*---------------------------------------------------------------------------*/
 /* xio_tcp_get_pools_ops						     */
@@ -2832,7 +2832,7 @@ static void init_single_sock_ops(void)
 	single_sock_ops.rx_data_handler = xio_tcp_rx_data_handler;
 	single_sock_ops.shutdown = xio_tcp_single_sock_shutdown;
 	single_sock_ops.close = xio_tcp_single_sock_close;
-};
+}
 
 /*---------------------------------------------------------------------------*/
 static void init_dual_sock_ops(void)
@@ -2848,7 +2848,7 @@ static void init_dual_sock_ops(void)
 	dual_sock_ops.rx_data_handler = xio_tcp_rx_data_handler;
 	dual_sock_ops.shutdown = xio_tcp_dual_sock_shutdown;
 	dual_sock_ops.close = xio_tcp_dual_sock_close;
-};
+}
 
 struct xio_transport xio_tcp_transport;
 /*---------------------------------------------------------------------------*/

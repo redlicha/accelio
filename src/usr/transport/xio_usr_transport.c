@@ -198,5 +198,5 @@ char *xio_transport_state_str(enum xio_transport_state state)
 	}
 
 	return NULL;
-};
+}
 

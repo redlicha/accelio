@@ -180,7 +180,7 @@ const char *ibv_wc_opcode_str(enum ibv_wc_opcode opcode)
 	case IBV_WC_RECV:		return "IBV_WC_RECV";
 	case IBV_WC_RECV_RDMA_WITH_IMM: return "IBV_WC_RECV_RDMA_WITH_IMM";
 	default:			return "IBV_WC_UNKNOWN";
-	};
+	}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -291,7 +291,7 @@ static struct xio_mr *xio_reg_mr_ex(struct xio_context *ctx,
 	int				retval;
 	static int			init_transport = 1;
 
-	/* Show a warning in case the memory is non aligned */
+	/* Show a warning in case the memory is non-aligned */
 	/*
 	if ((access & IBV_XIO_ACCESS_ALLOCATE_MR) == 0 &&
 	    ((uintptr_t)(*addr) & (page_size - 1)) != 0) {
@@ -325,7 +325,7 @@ static struct xio_mr *xio_reg_mr_ex(struct xio_context *ctx,
 		goto cleanup2;
 	}
 	INIT_LIST_HEAD(&tmr->dm_list);
-	/* xio_dereg_mr may be called on error path and it will call
+	/* xio_dereg_mr may be called on error path, and it will call
 	 * list_del on mr_list_entry, make sure it is initialized
 	 */
 	INIT_LIST_HEAD(&tmr->mr_list_entry);
@@ -442,7 +442,7 @@ uint32_t xio_lookup_rkey_by_response(const struct xio_reg_mem *reg_mem,
 
 /*---------------------------------------------------------------------------*/
 /* xio_reg_mr_add_dev							     */
-/* add a new discovered device to a the mr list				     */
+/* add a new discovered device to the mr list				     */
 /*---------------------------------------------------------------------------*/
 int xio_reg_mr_add_dev(struct xio_device *dev)
 {

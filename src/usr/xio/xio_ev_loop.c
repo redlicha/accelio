@@ -474,7 +474,7 @@ retry:
 				 * */
 
 				/* check wakeup is armed to prevent false
-				 * wake ups
+				 * wake-ups
 				 * */
 				if (loop->wakeup_armed == 1) {
 					loop->wakeup_armed = 0;

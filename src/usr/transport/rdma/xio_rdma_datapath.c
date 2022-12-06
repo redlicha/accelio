@@ -4572,7 +4572,7 @@ static int xio_rdma_on_recv_req(struct xio_rdma_transport *rdma_hndl,
 		xio_set_error(XIO_E_MSG_INVALID);
 		task->status = XIO_E_MSG_INVALID;
 		break;
-	};
+	}
 
 	/* must delay the send due to pending rdma read requests
 	 * if not user will get out of order messages - need fence
