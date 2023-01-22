@@ -366,6 +366,8 @@ struct xio_tcp_transport {
 	struct xio_ev_data		disconnect_event;
 	pid_t				peer_pid;
 	pid_t				peer_tid;
+	int				io_waiting_tasks;
+	uint32_t			reserved;
 };
 
 int xio_tcp_get_max_header_size(void);

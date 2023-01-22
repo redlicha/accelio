@@ -3229,6 +3229,8 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 	int exit;
 	int count;
 
+	tcp_hndl->io_waiting_tasks = 0;
+
 	task = list_first_entry_or_null(&tcp_hndl->rx_list,
 					struct xio_task,
 					tasks_list_entry);
@@ -3355,6 +3357,10 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 				  tcp_task->rxd.stage);
 			break;
 		}
+
+		if (tcp_task->rxd.tot_iov_byte_len)
+			tcp_hndl->io_waiting_tasks++;
+
 		task = list_first_entry(&task->tasks_list_entry,
 					struct xio_task,  tasks_list_entry);
 	}

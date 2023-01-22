@@ -614,7 +614,9 @@ void xio_tcp_consume_ctl_rx(void *xio_tcp_hndl)
 	} while (retval > 0 && count <  RX_POLL_NR_MAX);
 
 	if (/*retval > 0 && */ tcp_hndl->tmp_rx_buf_len &&
-	    tcp_hndl->state == XIO_TRANSPORT_STATE_CONNECTED) {
+	    tcp_hndl->state == XIO_TRANSPORT_STATE_CONNECTED &&
+	    tcp_hndl->io_waiting_tasks) {
+		tcp_hndl->io_waiting_tasks = 0;
 		xio_context_add_event(tcp_hndl->base.ctx,
 				      &tcp_hndl->ctl_rx_event);
 	}
