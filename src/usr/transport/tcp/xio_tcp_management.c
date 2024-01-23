@@ -672,8 +672,11 @@ void xio_tcp_data_ready_ev_handler(int fd, int events, void *user_context)
 	}
 
 	if (events & (XIO_POLLHUP | XIO_POLLRDHUP | XIO_POLLERR)) {
-		DEBUG_LOG("epoll returned with error events=%d for fd=%d\n",
-			  events, fd);
+		int so_error;
+		socklen_t so_error_len = sizeof(so_error);
+		int ret = getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_len);
+		DEBUG_LOG("epoll returned with error=%d events=%d for fd=%d (ret=%d)\n",
+			  so_error, events, fd, ret);
 		xio_tcp_disconnect_helper(tcp_hndl);
 	}
 }
