@@ -1106,9 +1106,9 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 	/* if "ready to send queue" is not empty */
 	while (likely(tcp_hndl->tx_ready_tasks_num &&
 		      (tcp_hndl->tx_comp_cnt < COMPLETION_BATCH_MAX))) {
-		next_task = list_first_entry_or_null(&task->tasks_list_entry,
-						     struct xio_task,
-						     tasks_list_entry);
+		next_task = list_next_entry_or_null(&tcp_hndl->tx_ready_list,
+						    task,
+						    tasks_list_entry);
 		next_tcp_task = next_task ?
 			(struct xio_tcp_task *)next_task->dd_data : NULL;
 
@@ -1173,10 +1173,9 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 				tcp_task = (struct xio_tcp_task *)task->dd_data;
 				tcp_task->txd.stage = XIO_TCP_TX_IN_SEND_DATA;
 				tcp_task->txd.ctl_msg_len = 0;
-				task = list_first_entry_or_null(
-						&task->tasks_list_entry,
-						struct xio_task,
-						tasks_list_entry);
+				task = list_next_entry_or_null(&tcp_hndl->tx_ready_list,
+							       task,
+							       tasks_list_entry);
 			}
 			if (tcp_hndl->tmp_work.msg.msg_iovlen) {
 				tcp_task = (struct xio_tcp_task *)task->dd_data;
@@ -3055,9 +3054,9 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 		if (tcp_task->rxd.stage != XIO_TCP_RX_IO_DATA)
 			break;
 
-		next_task = list_first_entry_or_null(
-				&task->tasks_list_entry,
-				struct xio_task,  tasks_list_entry);
+		next_task = list_next_entry_or_null(&tcp_hndl->rx_list,
+						    task,
+						    tasks_list_entry);
 		next_tcp_task = next_task ? (struct xio_tcp_task *)
 						next_task->dd_data : NULL;
 		next_rxd_work = (next_tcp_task &&
@@ -3120,9 +3119,9 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 			iov_len -= rxd_work->msg.msg_iovlen;
 			bytes_recv -= rxd_work->tot_iov_byte_len;
 
-			task = list_first_entry(&task->tasks_list_entry,
-						struct xio_task,
-						tasks_list_entry);
+			task = list_next_entry_or_null(&tcp_hndl->rx_list,
+						       task,
+						       tasks_list_entry);
 		}
 		if (tcp_hndl->tmp_work.msg.msg_iovlen) {
 			tcp_task = (struct xio_tcp_task *)task->dd_data;
@@ -3361,8 +3360,9 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 		if (tcp_task->rxd.tot_iov_byte_len)
 			tcp_hndl->io_waiting_tasks++;
 
-		task = list_first_entry(&task->tasks_list_entry,
-					struct xio_task,  tasks_list_entry);
+		task = list_next_entry_or_null(&tcp_hndl->rx_list,
+					       task,
+					       tasks_list_entry);
 	}
 
 	if (count == 0)
@@ -3429,4 +3429,3 @@ int xio_tcp_poll(struct xio_transport_base *transport,
 
 	return nr_comp;
 }
-
