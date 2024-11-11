@@ -1013,7 +1013,7 @@ static void xio_tcp_tx_completion_handler(int actual_timeout_ms, void *xio_task)
 				      &tcp_hndl->disconnect_event);
 	} else {
 		xio_context_disable_event(&tcp_hndl->disconnect_event);
-		if (tcp_hndl->tx_ready_tasks_num)
+		if (!list_empty(&tcp_hndl->tx_ready_list))
 			xio_tcp_xmit(tcp_hndl);
 	}
 }
@@ -1093,7 +1093,7 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 	unsigned int		iov_len;
 	uint64_t		bytes_sent;
 
-	if (tcp_hndl->tx_ready_tasks_num == 0 ||
+	if (list_empty(&tcp_hndl->tx_ready_list) ||
 	    tcp_hndl->tx_comp_cnt > COMPLETION_BATCH_MAX ||
 	    tcp_hndl->state != XIO_TRANSPORT_STATE_CONNECTED) {
 		xio_set_error(XIO_EAGAIN);
@@ -1104,7 +1104,7 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 				tasks_list_entry);
 
 	/* if "ready to send queue" is not empty */
-	while (likely(tcp_hndl->tx_ready_tasks_num &&
+	while (likely(!list_empty(&tcp_hndl->tx_ready_list) &&
 		      (tcp_hndl->tx_comp_cnt < COMPLETION_BATCH_MAX))) {
 		next_task = list_next_entry_or_null(&tcp_hndl->tx_ready_list,
 						    task,
@@ -1138,7 +1138,6 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 
 			++batch_count;
 			if (batch_count != batch_nr &&
-			    batch_count != tcp_hndl->tx_ready_tasks_num &&
 			    next_task &&
 			    next_tcp_task->txd.stage
 			    <= XIO_TCP_TX_IN_SEND_CTL) {
@@ -1238,7 +1237,6 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 
 			++batch_count;
 			if (batch_count != batch_nr &&
-			    batch_count != tcp_hndl->tx_ready_tasks_num &&
 			    next_task &&
 			    (next_tcp_task->txd.stage ==
 			    XIO_TCP_TX_IN_SEND_DATA) &&
@@ -1272,8 +1270,6 @@ int xio_tcp_xmit(struct xio_tcp_transport *tcp_hndl)
 
 				iov_len -= tcp_task->txd.msg.msg_iovlen;
 				bytes_sent -= tcp_task->txd.tot_iov_byte_len;
-
-				tcp_hndl->tx_ready_tasks_num--;
 
 				list_move_tail(&task->tasks_list_entry,
 					       &tcp_hndl->in_flight_list);
@@ -1603,8 +1599,6 @@ static int xio_tcp_send_req(struct xio_tcp_transport *tcp_hndl,
 		list_move(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
 	else
 		list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
-
-	tcp_hndl->tx_ready_tasks_num++;
 
 	retval = xio_tcp_xmit(tcp_hndl);
 	if (retval) {
@@ -1989,8 +1983,6 @@ static int xio_tcp_send_rsp(struct xio_tcp_transport *tcp_hndl,
 		list_move(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
 	else
 		list_move_tail(&task->tasks_list_entry, &tcp_hndl->tx_ready_list);
-
-	tcp_hndl->tx_ready_tasks_num++;
 
 	retval = xio_tcp_xmit(tcp_hndl);
 	if (retval) {
@@ -3202,7 +3194,7 @@ int xio_tcp_rx_data_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 						tasks_list_entry);
 	}
 
-	if (tcp_hndl->tx_ready_tasks_num) {
+	if (!list_empty(&tcp_hndl->tx_ready_list)) {
 		retval = xio_tcp_xmit(tcp_hndl);
 		if (retval < 0) {
 			if (xio_errno() != XIO_EAGAIN) {
@@ -3373,7 +3365,7 @@ int xio_tcp_rx_ctl_handler(struct xio_tcp_transport *tcp_hndl, int batch_nr)
 		return retval;
 	count = retval;
 
-	if (tcp_hndl->tx_ready_tasks_num) {
+	if (!list_empty(&tcp_hndl->tx_ready_list)) {
 		retval = xio_tcp_xmit(tcp_hndl);
 		if (retval < 0) {
 			if (xio_errno() != XIO_EAGAIN) {

@@ -188,8 +188,6 @@ static int xio_tcp_flush_all_tasks(struct xio_tcp_transport *tcp_hndl)
 		xio_tasks_list_flush(&tcp_hndl->rx_list);
 	}
 
-	tcp_hndl->tx_ready_tasks_num = 0;
-
 	return 0;
 }
 
@@ -907,7 +905,7 @@ struct xio_tcp_transport *xio_tcp_transport_create(
 	tcp_hndl->tmp_rx_buf_cur	= NULL;
 	tcp_hndl->tmp_rx_buf_len	= 0;
 
-	tcp_hndl->tx_ready_tasks_num = 0;
+	tcp_hndl->_pad = 0;
 	tcp_hndl->tx_comp_cnt = 0;
 
 	memset(&tcp_hndl->tmp_work, 0, sizeof(struct xio_tcp_work_req));

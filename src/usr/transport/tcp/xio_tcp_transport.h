@@ -321,8 +321,8 @@ struct xio_tcp_transport {
 
 	/* tx parameters */
 	size_t				max_inline_buf_sz;
-
-	int				tx_ready_tasks_num;
+	/* this used to be `tx_ready_tasks_num` - keeping it to satisfy `-Werror=padded` */
+	int				_pad;
 
 	uint16_t			tx_comp_cnt;
 
