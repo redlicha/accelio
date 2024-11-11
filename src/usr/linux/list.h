@@ -413,6 +413,15 @@ static inline void list_splice_tail_init(struct list_head *list,
 	list_entry((pos)->member.next, typeof(*(pos)), member)
 
 /**
+ * list_next_entry_or_null - get the next element in list unless it's the head
+ * @head:       the list head
+ * @pos:	cursor: pointer to the current entry
+ * @member:	the name of the list_head within the entry.
+ */
+#define list_next_entry_or_null(head, pos, member)                      \
+	(((pos)->member.next == head) ? NULL : list_next_entry(pos, member))
+
+/**
  * list_prev_entry - get the prev element in list
  * @pos:	the type * to cursor
  * @member:	the name of the list_struct within the struct.
@@ -772,4 +781,3 @@ static inline void hlist_move_list(struct hlist_head *old,
 
 
 #endif
-
